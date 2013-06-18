@@ -1,0 +1,11 @@
+mock
+node
+ebin
+*.dets
+*.gz
+*.dump
+apps/web/priv/static/bootstrap
+apps/web/priv/static/less
+deps
+!deps/bootstrap/*
+!deps/less.js/*
