@@ -2,149 +2,118 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 
-main() -> 
-%    case wf:user() of
-%         undefined -> wf:redirect("login");
-%         _ -> 
-    Title = "Title",
-    Body = "Body",
-    [ #dtl{file = "dev", bindings=[{title,Title},{body,Body}]} ].
+main() -> #dtl{file = "dev", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
-body() -> %% area of http handler
-    {ok,Pid} = wf:comet(fun() -> chat_loop() end), 
-    wf:wire(#api{name=apiOne,tag=d1}),
-  [
-    #span { body= <<"Your chatroom name: ">> }, 
-    #textbox { id=userName, body= wf:user() }, #button{body="Logout",postback=logout}, #br{},
-    #panel { id=chatHistory },
-    #button{id=but,body= <<"Click Me!">>,postback=change_me},
-    #button{id=replace,body= <<"Replace Body">>,postback=replace},
-    "<a onclick=\"document.apiOne('Hello')\" name='1'>API</a>",
-    #textbox { id=message },
-    #button { id=sendButton, body= <<"Chat">>, postback={chat,Pid}, source=[userName,message] },
-    #panel { id=n2ostatus }
- ].
+body() -> header() ++ [
+  #section{id="slider-box", class=[section, alt, "row-fluid"], body=#panel{class=[container], body=
+    #carousel{class=["product-carousel"], items=[slide() || _ <-lists:seq(1,3)],
+      caption=#panel{class=["row-fluid"],body=[
+        box(50, 12.99, orange, pc), box(50, 12.99, green, wii),
+        box(50, 12.99, violet, xbox), box(50, 12.99, blue, pc) ]} }}},
+
+  #panel{class=[], id="main-container", body=[
+    #panel{id="main-container-inner", class=["container"], body=[
+      #panel{class=["row-fluid"], body=[
+        #panel{class=["span9"], body=[
+          article("RPG",       "/static/img/row1.jpg", "Lorem ipsum dolor sit amet", long_description()),
+          article("ADVENTURE", "/static/img/row2.jpg", "Lorem ipsum dolor sit amet", long_description()),
+          article("STRATEGY",  "/static/img/row3.jpg", "Lorem ipsum dolor sit amet", long_description()),
+          article("ACTION",    "/static/img/row4.jpg", "Lorem ipsum dolor sit amet", long_description()) ]},
+
+        #aside{class=[span3], body=[
+          #panel{class=[sidebar], body=[
+            #panel{class=["row-fluid"], body=[
+              #h3{ class=[blue], body= <<"TAGS">>},
+              #p{class=[tagcloud], body= <<"Praesent et nisl in lacus tincidunt convallis. Sed eget felis at neque sodales suscipit sit amet eu metus. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Praesent leo ligula, adipiscing vitae placerat quis, condimentum fringilla est. Nulla nec diam erat. Sed non velit ligula, vitae scelerisque arcu. Vivamus fermentum rutrum neque pellentesque tristique">>}
+            ]},
+            #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, [popular_item() || _ <-lists:seq(1,7)] ]}
+          ]}
+        ]}
+      ]},
+      #panel{class=["btn-center"], body=[#button{class=[btn], body= <<"SHOW MORE">>}]}
+    ]}
+  ]} ] ++ footer().
+
+slide() -> [
+  #panel{class=["slide-one"]}, %#image{image= <<"/static/img/slide1.jpg">>},
+  #panel{class=[buy], body=[#p{body=[ <<"Buy for ">>, #span{body= <<"$79.99">>}]}]} ].
+
+popular_item()->
+  #panel{class=["popular-item"], body=[
+  #panel{class=["popular-item-inner"], body=[
+    #p{body= <<"Vivamus fermentum rutrum neque pellentesque tristique.">>},
+      #i{ class=["icon-comment"]},#span{body= <<"25">>}
+    ]}
+  ]}.
+
+article(Category, Image, DescrHead, Description)->
+  #panel{class=["row-fluid"], body=[
+    #panel{class=["homepage-article"], body=[
+      #panel{class=["homepage-article-inner", clearfix], body=[
+        #panel{class=[span3, "article-meta"], body=[
+          #h3{ class=[blue], body= list_to_binary(Category)},
+          #p{class=[username], body= <<"John Smith">>},
+          #p{class=[datestamp], body=[ <<"Yesterday">>, #span{body= <<"1:00pm">>} ]},
+          #p{class=[statistics], body=[#i{class=["icon-user"]},#span{body= <<"1,045">>},#i{class=["icon-comment"]},#span{body= <<"25">>} ]} ]},
+        #panel{class=[span4, shadow], body=[#image{image=list_to_binary(Image), alt="Row Three Image", class=["BorderAndShadow"]}]},
+        #panel{class=[span5, "article-text"], body=[
+          #h3{body= list_to_binary(DescrHead)},
+          #p{body= [list_to_binary(Description), #link{body= <<"Read">>}]} ]} ]} ]} ]}.
+
+long_description()->
+  "Duis bibendum tortor at ligula condimentum sed dignissim elit tincidunt."
+  "Aliquam luctus ornare tortor ac hendrerit. Nam arcu odio, pretium et cursus nec,"
+  " tempus ac massa. Nam eleifend quam eu justo adipiscing id eleifend tortor ullamcorper...".
+
+box(Discount, Price, ColorClass, IconClass)->
+  #panel{class=[box, span3, ColorClass], body=[
+    #p{body= <<"Lorem: Ipsum dolor sit amet">>},
+    #panel{class=[accent], body= list_to_binary(integer_to_list(Discount)++"% OFF")},
+    #panel{class=[price], body= list_to_binary("$"++io_lib:format("~.2f", [Price]))},
+    #panel{class=[hardware, IconClass]} ]}.
+
 
 header() -> [
-  #panel{class=[navbar, "navbar-fixed-top", "sky-navbar"], body=[
+  #header{class=[navbar, "navbar-fixed-top", ighead], body=[
     #panel{class=["navbar-inner"], body=[
-      #panel{class=[container], body=[
-        #link{class=[btn, "btn-navbar"], data_fields=[{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}], url="javascript:void(0)",
-          body=[#span{class=["icon-bar"]}||_I<-lists:seq(1,3)]},
+      #panel{class=["container"], body=[
+        #button{class=[btn, "btn-navbar"], data_fields=[{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}], body=[#span{class=["icon-bar"]}||_<-lists:seq(1,3)]},
 
-        #h1{class=[brand], body=#link{url="/login", body= <<"iGrach">>, name="top" }},
-        #panel{class=["nav-collapse", "collapse"], body=[
-          #list{class=[nav], body=[
-            #li{body=#link{url="/chat",body=[ #i{class=["fui-chat", "icon-comment"]}, #span{class=["badge badge-info"], body="10"} ]}},
-            #li{body=#link{url="/chat?mode=mail",body=[ #i{class=["fui-mail", "icon-envelope"]}, #span{class=["badge badge-info"], body="21"} ]} },
-            #li{body=#link{body=[ #i{class=["icon-search"]} ]}},
+        #h1{body=#link{class=[brand], body= <<"iGrach">>}},
+        #panel{class=["nav-collapse", collapse], body=[
+          #list{class=[nav, "pull-right"], body=[
             #li{body=#link{body= <<"Home">>,url="#"}},
-            #li{body=#link{body= <<"Games">>,url="/store2"}},
-            #li{body=#link{body= <<"Review">>}}]},
-          #list{class=["nav", "pull-right"], body=[
-            #li{class=["dropdown"], body=[
-              #link{class=["dropdown-toggle"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}], url="javascript:void(0)", body=[
-                case wf:user() of undefined -> <<"Log in">>; A -> A end,
-                #b{class=["caret"]} ]} ,
-                #list{class=["dropdown-menu"], body=[
-                  #li{body=#link{body=[#i{class=["icon-cog", "fui-gear"]},  <<" Preferences">>]}},
-                  #li{body=#link{postback=chat,body=[#i{class=["icon-cog", "fui-gear"]},  <<" Notifications">>]}},
-                  case wf:user() of
-                       undefined -> #li{body=#link{postback=to_login,body=[#i{class=["icon-off"]}, <<" Login">> ]}};
-                       A -> #li{body=#link{postback=logout,body=[#i{class=["icon-off"]}, <<" Logout">> ]}} end ]} ]} ]} ]} ]} ]} ]} ].
+            #li{body=#link{body= <<"Games">>,url="#"}},
+            #li{body=#link{body= <<"Reviews">>}},
+            #li{class=[dropdown], body=[
+              #link{class=["dropdown-toggle"], body=[<<"My Account">>]},
+              #list{class=["dropdown-menu"], body=[]}
+            ]} ]} ]} ]} ]} ]} ].
 
-footer()-> [
-  #footer{class=["sky-footer"], body=
-      #panel{class=[container],body=[
-        #panel{class=["row-fluid"], body=[
-          #panel{class=[span4], body=[
-            #h3{body= <<"Contact us">>},
-            #p{body = <<"Each line of code is driven by intention to make our world better and to avoid suffering and causes of suffering. We guarantee that. We believe that making good software is impossible without good intention. So keep calm with us for the sake of great good :-)">>},
-            #list{class=[icons], body=[
-              #li{body=[#i{class=["icon-envelope"]}, #link{url= <<"mailto:maxim@synrc.com">>, body= <<" Maksym Sokhatskyi">>}]},
-              #li{body=[#i{class=["icon-envelope"]}, #link{url= <<"mailto:doxtop@synrc.com">>, body= <<" Andrii Zadorozhnii">>}]},
-              #li{body=[#i{class=["icon-twitter"]}, #link{url= <<"https://twitter.com/5HT">>, body= <<" @5HT">>}]},
-              #li{body=[#i{class=["icon-facebook"]}, #link{url= <<"https://www.facebook.com/synrc">>, body= <<" synrc">>}]},
-              #li{body=[#i{class=["icon-google-plus"]}, #link{url= <<"https://plus.google.com/114626316186565874650">>, body= <<" synrc">>}]}
-            ]}
-          ]},
-          #panel{class=[span4], body=[
-            #h3{body= <<"Recent news">>},
-            #list{class=[icons], body=[
-              #li{body=[#p{body=[#i{class=["icon-twitter"]},<<" Never saw Windows Phone slowness even on slow and cheap phones.">>,#small{body=[<<"by ">>, #link{url= <<"https://twitter.com/5HT">>, body= <<"maxim">>}]} ]} ]},
-              #li{body=[#p{body=[#i{class=["icon-twitter"]},<<" N2O now is more popular than Erlyvideo-old on Github #FuryN2O In Top #30 Erlang Projects with Rank #26">>, #small{body=[<<"by ">>, #link{url= <<"https://twitter.com/5HT">>, body= <<"maxim">>}]} ]} ]},
-              #li{body=[#p{body=[#i{class=["icon-twitter"]},<<" KVS supports Mnesia and Riak out of the box #EKVS: https://github.com/synrc/kvs">>, #small{body=[<<"by ">>, #link{url= <<"https://twitter.com/5HT">>, body= <<"maxim">>}]} ]} ]}
-            ]}
-          ]},
-          #panel{class=[span4], body=[
-            #h3{body= <<"Latest posts">>},
-            #list{class=["unstyled"], body=[
-              #li{body=[#h4{body=[#link{url= <<"http://maxim.livejournal.com/409763.html">>, body= <<"DHARMA LICENSE">>}]}, #p{body=[#small{body= <<"May 12, 2013">>}]}]},
-              #li{body=[#h4{body=[#link{url= <<"http://maxim.livejournal.com/407956.html">>, body= <<"Web Frameworks Great Congregation">>}]}, #p{body=[#small{body= <<"May 6, 2013">>}]}]},
-              #li{body=[#h4{body=[#link{url= <<"http://maxim.livejournal.com/411719.html">>, body= <<"N2O FAQ">>}]}, #p{body=[#small{body= <<"June 8, 2013">>}]}]}
-            ]}
-          ]}
-        ]},
-        #hr{},
-        #panel{class=["row-fluid"], body=[
-          #panel{class=[span12], body=[
-            #panel{class=["span8"], body=[
-              #link{class=["btn btn-link"],body= <<"About">>},
-              #link{class=["btn btn-link"],body= <<"Help">>},
-              #link{class=["btn btn-link"],body= <<"Terms of Use">>},
-              #link{class=["btn btn-link"],body= <<"Privacy">>},
-              #link{class=["btn btn-link"],body= <<"RSS">>} ]},
-            #panel{class=["span4"], body=[
-              #link{class=["btn btn-link"],url="http://synrc.com", body=[
-                #span{class=["label", "label-transparent"], body= <<"&copy;">>}, <<"synrc.com">>]}
-            ]} ]} ]} ]}} ].
+footer() -> [
+  #footer{class=[igfoot],body=[
+    #panel{id="footer-background", body=[
+      #image{image= <<"/static/img/footer-highlight.png">>},
+      #image{image= <<"/static/img/footer-shadow.png">>}
+    ]},
+    #panel{id="footer-text", body=[
+      #list{id=links, class=[icons], body=[
+        #li{body=#link{body= <<"About">>}},
+        #li{body=#link{body= <<"Help">>}},
+        #li{body=#link{body= <<"Terms of Use">>}},
+        #li{body=#link{body= <<"Privacy">>}},
+        #li{body=#link{body= <<"RSS">>}},
+        #li{body= <<"&copy; iGratch 2013">>}
+      ]},
+      #list{id="social-links", class=[icons], body=[
+        #li{body=#link{body=#image{image= <<"/static/img/social1.png">>}}},
+        #li{body=#link{body=#image{image= <<"/static/img/social2.png">>}}},
+        #li{body=#link{body=#image{image= <<"/static/img/social3.png">>}}},
+        #li{body=#link{body=#image{image= <<"/static/img/social4.png">>}}},
+        #li{body=#link{body=#image{image= <<"/static/img/social5.png">>}}},
+        #li{body=#link{body=#image{image= <<"/static/img/social6.png">>}}} ]} ]} ]}].
 
+api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]), event(change_me).
-
-event(init) ->
-  User = wf:user(),
-   error_logger:info_msg("User: ~p",[User]),
-  [ begin
-          Terms = [ #span { body= [[208,188,208,176,208,186,209,129,208,184,208,188]] }, ": ",
-                      #span { body=integer_to_list(N) }, #br{} ],
-            wf:insert_bottom(chatHistory, Terms)
-            end || N <- lists:seq(1,3) ];
-
-event(change_me) ->
-    wf:replace(but,
-        #link{
-            url= <<"http://erlang.org">>,
-            body= <<"Here's Erlang">>,
-            actions=#show{effect=fade}
-        }
-    );
-
-event(replace) ->
-    wf:wire(#redirect{url="hello",nodrop=false});
-
-event(logout) -> wf:user(undefined), wf:redirect("login");
-event(login) -> login:event(login);
-event({chat,Pid}) -> %% area of websocket handler
-    error_logger:info_msg("Chat Pid: ~p",[Pid]),
-    Username = wf:user(),
-    Message = wf:q(message),
-    Terms = [ #span { body= <<"Message sent">> }, #br{} ],
-    wf:insert_bottom(chatHistory, Terms),
-    wf:wire("$('#message').focus(); $('#message').select(); "),
-    wf:reg(room),
-    Pid ! {message, Username, Message};
-
+event(init) -> [];
 event(Event) -> error_logger:info_msg("Event: ~p", [Event]).
-
-chat_loop() -> %% background worker ala comet
-    receive 
-        {message, Username, Message} ->
-            Terms = [ #span { body=Username }, ": ",
-                      #span { body=Message }, #br{} ],
-            wf:insert_bottom(chatHistory, Terms),
-            wf:wire("$('#chatHistory').scrollTop = $('#chatHistory').scrollHeight;"),
-            wf:flush(room); %% we flush to websocket process by key
-        Unknown -> error_logger:info_msg("Unknown Looper Message ~p",[Unknown])
-    end,
-    chat_loop().
