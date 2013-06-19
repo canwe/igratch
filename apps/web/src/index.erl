@@ -5,14 +5,14 @@
 main() -> #dtl{file = "dev", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
 body() -> header() ++ [
-  #section{id="slider-box", class=[section, alt, "row-fluid"], body=#panel{class=[container], body=
+  #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=
     #carousel{class=["product-carousel"], items=[slide() || _ <-lists:seq(1,3)],
       caption=#panel{class=["row-fluid"],body=[
         box(50, 12.99, orange, pc), box(50, 12.99, green, wii),
         box(50, 12.99, violet, xbox), box(50, 12.99, blue, pc) ]} }}},
 
-  #panel{class=[], id="main-container", body=[
-    #panel{id="main-container-inner", class=["container"], body=[
+  #section{class=["row-fluid"], body=[
+    #panel{class=[container], body=[
       #panel{class=["row-fluid"], body=[
         #panel{class=["span9"], body=[
           article("RPG",       "/static/img/row1.jpg", "Lorem ipsum dolor sit amet", long_description()),
@@ -91,13 +91,13 @@ header() -> [
             ]} ]} ]} ]} ]} ]} ].
 
 footer() -> [
-  #footer{class=[igfoot],body=[
-    #panel{id="footer-background", body=[
+  #footer{class=[igfoot],body=#panel{class=[container, "text-center"], body=[
+    #panel{body=[
       #image{image= <<"/static/img/footer-highlight.png">>},
       #image{image= <<"/static/img/footer-shadow.png">>}
     ]},
-    #panel{id="footer-text", body=[
-      #list{id=links, class=[icons], body=[
+    #panel{body=[
+      #list{class=[icons, inline], body=[
         #li{body=#link{body= <<"About">>}},
         #li{body=#link{body= <<"Help">>}},
         #li{body=#link{body= <<"Terms of Use">>}},
@@ -105,13 +105,13 @@ footer() -> [
         #li{body=#link{body= <<"RSS">>}},
         #li{body= <<"&copy; iGratch 2013">>}
       ]},
-      #list{id="social-links", class=[icons], body=[
+      #list{class=[icons, inline], body=[
         #li{body=#link{body=#image{image= <<"/static/img/social1.png">>}}},
         #li{body=#link{body=#image{image= <<"/static/img/social2.png">>}}},
         #li{body=#link{body=#image{image= <<"/static/img/social3.png">>}}},
         #li{body=#link{body=#image{image= <<"/static/img/social4.png">>}}},
         #li{body=#link{body=#image{image= <<"/static/img/social5.png">>}}},
-        #li{body=#link{body=#image{image= <<"/static/img/social6.png">>}}} ]} ]} ]}].
+        #li{body=#link{body=#image{image= <<"/static/img/social6.png">>}}} ]} ]} ]}}].
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 

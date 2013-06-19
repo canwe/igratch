@@ -9,6 +9,21 @@
   }
 }
 
+@media (max-width: 767px) and (min-width: 480px) {
+  .product-carousel {
+    width:100%;
+    float:left;
+    & .carousel-caption {
+      position: relative;
+      padding: 15px;
+      margin-top: 0px;
+      margin-bottom: 20px;
+      background: #333333;
+      background: rgba(0, 0, 0, 0.75);
+    }
+  }
+}
+
 /*************************** SLIDER ***************************/
 /************* GENERAL *************/
 #slider-box {
@@ -31,7 +46,7 @@
 /************* OVERLAYS *************/
 /******* CALL TO ACTION *******/
 .buy {
-	background-color: black;
+  background-color: black;
 	position: absolute;
 	top: 140px;
 	left: 40%;
@@ -55,18 +70,17 @@
 
 /******* BOXES *******/
 .box {
-	-webkit-border-radius: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
-	text-align: center;
-	color: white;
-	font-family: 'Oswald', sans-serif;
-	font-size: 13.5pt;
-	height: 110px;
-	margin-bottom: 5px;
-	position: relative;
-	cursor: pointer;
+  .border-radius(5px);
+  text-align: center;
+  color: white;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13.5pt;
+  height: 110px;
+  margin-bottom: 5px;
+  position: relative;
+  cursor: pointer;
 }
+
 .box .price {
 	position: absolute;
 	bottom: 3px;
@@ -169,3 +183,45 @@
 .box.blue .accent {
 	background-color: #00517e;
 }
+
+
+@media (max-width: 480px) {
+    .accent {
+        font-size: 22pt;
+        line-height: 22pt;
+    }
+    .buy {
+        position:relative;
+        top:0;
+        left:0;
+        width:130px;
+        margin:0 auto;
+    }
+    .container .buy p {
+        top:0;
+    }
+}
+@media (max-width: 320px) {
+    .container .buy {
+        width:auto;
+    }
+    .container .buy p {
+        font-size:14pt;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
