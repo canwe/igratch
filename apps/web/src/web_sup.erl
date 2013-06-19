@@ -18,7 +18,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, _} = cowboy:start_http(http, 100, [{port, 8000}],
+    {ok, _} = cowboy:start_http(http, 100, [{port, 8001}],
                                            [{env, [{dispatch, dispatch_rules()}]}]),
 
     users:init(),

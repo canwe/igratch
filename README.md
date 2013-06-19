@@ -1,4 +1,13 @@
-igrach
+iGrach
 ======
 
-n2o based demo
+Games App Store
+
+Credits
+-------
+
+* Stan Podolski
+* Max Podolski
+* Andrii Zadorozhnii
+
+OM A HUM
