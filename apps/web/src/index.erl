@@ -1,6 +1,7 @@
 -module(index).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
+-include_lib("kvs/include/users.hrl").
 
 main() -> #dtl{file = "dev", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
@@ -79,16 +80,26 @@ header() -> [
       #panel{class=["container"], body=[
         #button{class=[btn, "btn-navbar"], data_fields=[{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}], body=[#span{class=["icon-bar"]}||_<-lists:seq(1,3)]},
 
-        #h1{body=#link{class=[brand], body= <<"iGratch">>}},
+        #h1{body=#link{class=[brand], body= #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>}}},
         #panel{class=["nav-collapse", collapse], body=[
           #list{class=[nav, "pull-right"], body=[
-            #li{body=#link{body= <<"Home">>,url="#"}},
+            #li{body=#link{body= <<"Home">>, url= <<"/index">>}},
             #li{body=#link{body= <<"Games">>,url="#"}},
-            #li{body=#link{body= <<"Reviews">>}},
-            #li{class=[dropdown], body=[
-              #link{class=["dropdown-toggle"], body=[<<"My Account">>]},
-              #list{class=["dropdown-menu"], body=[]}
-            ]} ]} ]} ]} ]} ]} ].
+            #li{body=#link{body= <<"Reviews">>, url= <<"/reviews">>}},
+              case wf:user() of
+                undefined -> #li{body=#link{body= <<"Sign In">>, url= <<"/login">>}};
+                User -> case kvs:get(user, User) of
+                  {error, not_found} -> #li{body=#link{id=login1, body= <<"Log in">>, postback=to_login, delegate=login}};
+                  {ok, U} -> [#li{body=[
+                    #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
+                      body=case U#user.avatar of undefined-> ""; Img-> #image{class=["img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50"]), width= <<"50px">>, height= <<"50px">>} end},
+                    #list{class=["dropdown-menu"], body=[
+                      #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
+                    ]}]},
+                    #li{body=#link{body= <<"My Account">>, url= <<"/account">>}}]
+                  end
+              end
+          ]} ]} ]} ]} ]} ].
 
 footer() -> [
   #footer{class=[igfoot],body=#panel{class=[container, "text-center"], body=[

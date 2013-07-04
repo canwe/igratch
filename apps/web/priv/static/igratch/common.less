@@ -1,17 +1,11 @@
 body{
   padding-top:0;
-  font-family: 'Source Sans Pro', sans-serif;
-  font-size:11pt;
-  color:#666666;
-  background-color:#dcdee0;
+  @media (min-width: 980px){padding-top:105px;}
 }
-
-@media (min-width: 980px){body{padding-top:132px;}}
 
 a{&:hover {text-decoration:none;}}
 
 h1,h2,h3,h4,h5,h6,h7 {
-  font-family: 'Oswald', sans-serif;
   text-shadow:1px 1px white;
   margin-top:-8px;
 }
@@ -19,6 +13,10 @@ h1,h2,h3,h4,h5,h6,h7 {
 .blue {color:#048eb1;}
 
 .ighead {
+  margin-bottom:0;
+
+  &:before {}
+
   & .navbar-inner{
     background: #079ebd; /* Old browsers */
     background: -moz-linear-gradient(top, #079ebd 0%, #026e97 100%); /* FF3.6+ */
@@ -28,7 +26,7 @@ h1,h2,h3,h4,h5,h6,h7 {
     background: -ms-linear-gradient(top, #079ebd 0%,#026e97 100%); /* IE10+ */
     background: linear-gradient(to bottom, #079ebd 0%,#026e97 100%); /* W3C */
     filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#079ebd', endColorstr='#026e97',GradientType=0 ); /* IE6-9 */
-    padding:39px 0;
+    padding:10px 0;
     border-radius:0;
     border:none;
     border-top:1px solid #89d8df;
@@ -36,6 +34,7 @@ h1,h2,h3,h4,h5,h6,h7 {
   }
 
   &.navbar{
+    & .nav{margin-top:20px;}
     & .nav > li > a {
       text-shadow:2px 2px black;
       color:#fffefe;
@@ -44,6 +43,13 @@ h1,h2,h3,h4,h5,h6,h7 {
       font-weight:700;
       &:hover{
         color:#dcdee0;
+      }
+
+      &.profile-picture{
+        padding: 0;
+        margin: -7px -5px 0 10px;
+        background-color:transparent !important;
+        &:hover{background-color:transparent !important;}
       }
     }
   }
@@ -65,6 +71,11 @@ h1,h2,h3,h4,h5,h6,h7 {
   & a {color:#94989d;&:hover{color:#005580;}}
 }
 
-
+.modal-login{
+  position:relative;
+  margin: 50px auto 20px;
+  left:0;
+  top:auto;
+}
 
 
