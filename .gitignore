@@ -4,8 +4,7 @@ ebin
 *.dets
 *.gz
 *.dump
-apps/web/priv/static/bootstrap
-apps/web/priv/static/less
+apps/web/priv/static/n2o
+apps/web/priv/static/js/*.min.js
+apps/web/priv/static/css/igratch.css
 deps
-!deps/bootstrap/*
-!deps/less.js/*
