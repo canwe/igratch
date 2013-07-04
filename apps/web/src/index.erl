@@ -84,7 +84,7 @@ header() -> [
         #panel{class=["nav-collapse", collapse], body=[
           #list{class=[nav, "pull-right"], body=[
             #li{body=#link{body= <<"Home">>, url= <<"/index">>}},
-            #li{body=#link{body= <<"Games">>,url="#"}},
+            #li{body=#link{body= <<"Games">>,url= <<"/store">>}},
             #li{body=#link{body= <<"Reviews">>, url= <<"/reviews">>}},
               case wf:user() of
                 undefined -> #li{body=#link{body= <<"Sign In">>, url= <<"/login">>}};

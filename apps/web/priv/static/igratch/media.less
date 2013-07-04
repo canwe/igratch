@@ -1,3 +1,4 @@
+/*************************** RESPONSIVE STATES ***************************/
 @media (max-width: 1150px) {
     .container-fluid, #footer-background, #footer-text {
         width:980px;
@@ -5,6 +6,38 @@
     .shadow {
         background-position:0px 115px;
     }
+    .shadow-fix .shadow {
+        background-position:0px 113px;
+    }
+    .large-gradient:before {
+        margin-left:8%;
+    }
+    #account-games .span2 > a {
+        width:83%;
+    }
+}
+@media (max-width:979px) {
+    .navbar .nav-collapse .nav li {
+        display:block;
+    }
+    .nav-collapse .nav > li > a:hover {
+        background-color:transparent;
+    }
+    .large-gradient:before {
+        background:none;
+        width:0;
+        height:0;
+    }
+}
+@media (max-width: 979px) and (min-width: 768px) {
+	#slider-boxes .box {
+        font-size: 11pt;
+        height: 110px;
+    }
+    #slider-boxes .box .accent {
+        font-size: 24pt;
+        line-height: 24pt;
+    } 
 }
 @media (min-width: 768px) and (max-width: 1050px) {
     .container-fluid, #footer-background, #footer-text {
@@ -15,6 +48,44 @@
     }
     .shadow {
         background-image:none;
+    }
+    .large-gradient:before {
+        margin-left:2%;
+    }
+    .disq-btns {
+        float:none;
+        display:block;
+        padding-top:10px;     
+    }
+    #inputs input, #inputs textarea {
+        width:97.2%;
+    }
+    .edit-del a {
+        width:100%;
+    }
+    .downloads-views > span {
+        display:block;
+    }
+    .downloads-views i {
+        margin-left:0;
+    }
+    #account-games .span2 > a {
+        width:90%;
+    }
+    .span2 .input-append input {
+        width:50px !important;
+        padding-left:2px;
+        padding-right:2px;
+    }
+    .notif-messages-nav li ul:before {
+        height:67px;
+        top:45px;
+    }
+    .notif-nav-wrap a {
+        margin-left:10px;
+    }
+    .notif-numbers {
+        margin-left:5px;
     }
 }
 @media (max-width: 767px) {
@@ -45,6 +116,83 @@
     }
     #footer-text {
         margin-top:-40px;
+    }
+    .center {
+        width:100px;
+        margin:0 auto;
+    }
+    .center-wider {
+        width:150px !important;
+        margin:0 auto !important;
+    }
+    .game-info .pull-right {
+        float:none;
+        margin-top:0;
+    }
+    .disq-arrows {
+        position:relative;
+        margin:10px 0;
+    }
+    #account-roles li {
+        display:block;
+        margin-left:0;
+        margin-bottom:10px;
+    }
+    #account-buttons {
+        float:none;
+        margin-top:15px;
+    }
+    #account-buttons a {
+        display:block;
+        margin-top:5px;
+    }
+    #account-panel:before {
+        border:none;
+    }
+    #inputs input, #inputs textarea {
+        width:100%;
+        padding-left:2px;
+        padding-right:2px;
+    }
+    #inputs textarea {
+        margin-top:10px;
+    }
+    #txt-style-btns {
+        margin-left:0;
+    }
+    #inputs.developer .span2 a {
+        width:96%;
+    }
+    .save-game {
+        float:none;
+        display:block;
+        margin-top:20px;
+    }
+    .save-one {
+        display:none;
+    }
+    #account-games .span2 > a {
+        width:96%;
+        margin-bottom:20px;
+    }
+    #account-games .span2 input {
+        margin-top:0;
+    }
+    .notif-bar {
+        padding-left:10px;
+    }
+    .delete-flag a {
+        display:inline-block;
+    }
+    .delete-flag a + a {
+        float:right;
+    }
+    #notif-btns-large a {
+        margin-top:10px;
+        margin-left:20px;
+    }
+    .span2 .input-append .btn-group button {
+        margin-top:0px;
     }
 }
 @media (max-width: 768px) and (min-width: 480px) {
@@ -88,6 +236,31 @@
     #links li {
         display:block;
     }
+    .game-info p {
+        font-size:16pt;
+    }
+    .title {
+        display:block;
+        background:none;
+        margin:0;
+        padding:0;
+    }
+    #inputs.developer .span2 a {
+        width:90%;
+    }
+    .input-append label {
+        display:block;
+    }
+    #inputs.developer .btn-group button {
+        margin-top:0px;
+    }
+    #account-games .span2 > a {
+        width:90%;
+    }
+    #search input[type="text"] {
+        width:50%;
+        margin-left:20px;
+    }
 }
 @media (max-width: 320px) {
     #slider-boxes .box {
@@ -105,22 +278,18 @@
     #footer-text {
         margin-top:20px;
     }
-}
-@media (max-width:979px) {
-    .navbar .nav-collapse .nav li {
+    .disq-btns {
+        float:none;
         display:block;
+        padding-top:10px;     
     }
-    .nav-collapse .nav > li > a:hover {
-        background-color:transparent;
+    h1 img {
+        width:90% !important; /* ensures the logo stays responsive */
     }
-}
-@media (max-width: 979px) and (min-width: 768px) {
-	#slider-boxes .box {
-        font-size: 11pt;
-        height: 110px;
+    .notif-nav-wrap {
+        float:none;
+        margin-top:10px;
     }
-    #slider-boxes .box .accent {
-        font-size: 24pt;
-        line-height: 24pt;
+    .notif-nav-wrap a:not(:first-child) {
+        margin-left:50px;
     }
-}
