@@ -11,11 +11,19 @@
 
 // Typography
 // -------------------------
-@openSansProFontFamily:    "Open Sans Pro", sans-serif;
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Source Sans Pro'), local('SourceSansPro-Regular'),
+    url(http://themes.googleusercontent.com/static/fonts/sourcesanspro/v5/ODelI1aHBYDBqgeIAH2zlBM0YzuT7MdOe03otPbuUS0.woff) format('woff');
+}
+
+@sourceSansProFontFamily:    "Source Sans Pro", sans-serif;
 @oswaldFontFamily:         'Oswald', sans-serif;
 
 @baseFontSize:          11pt;
-@baseFontFamily:        @openSansProFontFamily;
+@baseFontFamily:        @sourceSansProFontFamily;
 @baseLineHeight:        20px;
 @altFontFamily:         @oswaldFontFamily;
 

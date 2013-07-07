@@ -1,0 +1,95 @@
+.control-panel{
+  background-color:#ced1d3;
+  padding:15px;
+  padding-bottom:4px;
+  position:relative;
+  .border-radius(6px);
+
+  &:before{
+    content:'';
+    position:absolute;
+    top:37px;
+    left:30px;
+    border:13px solid #dcdee0;
+    border-left-color:transparent;
+    border-right-color:transparent;
+    border-top-color:transparent;
+    @media(max-width: 767px){border:none;}
+  }
+
+  .control-roles {
+    text-shadow: 1px 1px white;
+    margin-bottom:0;
+    & li {
+      @media(max-width:767px){
+        display:block;
+        margin-bottom:10px;
+      }
+    }
+  }
+  .control-buttons{
+    margin-top:-5px;
+    margin-bottom:5px;
+
+    @media(max-width:767px){
+      margin-top:15px;
+      float:none;
+
+      & .btn {
+        display:block;
+        margin-top:5px;
+        margin-left:0;
+      }
+    }
+  }
+}
+
+.icon-stack {
+  & [class^="icon-"], [class*=" icon-"] {
+    .active &, .inactive &{
+      color:white;
+      text-shadow: none;
+    }
+  }
+  .icon-stack-base {
+    opacity: 1;
+    .active & {color: #048db0;}
+    .inactive & {color: #a9aeb4;}
+  }
+}
+
+.game-rating {
+  unicode-bidi: bidi-override;
+  direction: rtl;
+
+  span.star{
+    font-family: FontAwesome;font-weight: normal;font-style: normal;display: inline-block;
+    &:before{
+      content: "\f006";padding-right: 5px;color: #999999;
+    }
+    &:hover{
+      &:before, ~span.star:before{
+        content: "\f005";
+        color: #e69805;
+      }
+    }
+  }
+}
+
+#account-games {
+    margin-top:25px;
+}
+.download-info {
+    margin-top:15px;
+    margin-left:30px;
+}
+.download-info span {
+    font-weight:bold;
+}
+#account-games .article-meta p {
+    margin-top:0;
+}
+.game-dev, .purchase-date {
+    font-style:italic;
+    font-size:10pt;
+}
