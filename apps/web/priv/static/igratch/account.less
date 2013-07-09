@@ -93,3 +93,20 @@
     font-style:italic;
     font-size:10pt;
 }
+
+.inputs {
+  &.developer, &.reviewer {
+    margin-top: 20px;border-bottom: 1px solid white;margin-bottom: 40px;
+    & .inputs-inner{
+      border-bottom: 1px solid #b8bbbf;
+      padding-bottom: 65px;
+
+      & .editor{
+        input, textarea {width: 100%; resize:vertical; padding:10px; font-size:18pt; line-height:18pt;} 
+      }
+    }
+  }
+}
+
+
+
