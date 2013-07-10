@@ -3,16 +3,16 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 
--define(HTTP_ADDRESS, case application:get_env(web, http_address) of {ok, A} -> A; _ -> "http://localhost:8000" end).
--define(FB_APP_ID, case application:get_env(web, fb_id) of {ok, Id} -> Id; _-> "176025532423202" end).
--define(GPLUS_CLIENT_ID, case application:get_env(web, gplus_client_id) of {ok, Id} -> Id; _-> "146782506820.apps.googleusercontent.com" end).
+-define(HTTP_ADDRESS, case application:get_env(web, http_address) of {ok, A} -> A; _ -> "" end).
+-define(FB_APP_ID, case application:get_env(web, fb_id) of {ok, Id} -> Id; _-> "" end).
+-define(GPLUS_CLIENT_ID, case application:get_env(web, gplus_client_id) of {ok, Id} -> Id; _-> "" end).
 -define(GPLUS_COOKIE_POLICY, case application:get_env(web, gplus_cookiepolicy) of {ok, P} -> P; _-> "single_host_origin" end).
 
 -record(struct, {lst=[]}).
 
 main() ->
   twitter_callback(),
-  [#dtl{file = "dev", bindings=[{title,<<"Login">>},{body, body()}]} ].
+  [#dtl{file = "prod", bindings=[{title,<<"Login">>},{body, body()}]} ].
 
 body() ->
   index:header() ++ [
@@ -63,7 +63,7 @@ body() ->
         ]}
       ]}
     ]},
-    #panel{class=["text-center"], body=[<<"Not a member?">>, #link{body= <<" Sign Up">>} ]} ]} ]} ]} ] 
+    #panel{class=["text-center"], body=[<<"Not a member?">>, #link{body= <<" Sign Up">>} ]} ]} ]} ]} ]
     ++ index:footer() ++ [
       facebook_sdk(),
       gplus_sdk()
@@ -71,36 +71,59 @@ body() ->
 
 
 event(init) -> [];
-event(logout) -> wf:user(undefined), wf:redirect("/index");
-event(login) -> User = wf:q(user), wf:user(User), wf:redirect("/chat");
+event(logout) -> wf:user(undefined), wf:redirect("/login");
+event(login) -> %User = wf:q(user), wf:user(User), 
+    error_logger:info_msg("Login Pressed"),
+    wf:redirect("/account");
 event(to_login) -> wf:redirect("/login");
-event(chat) -> wf:redirect("chat").
+event(Ev) -> 
+    error_logger:info_msg("Event ~p",[Ev]),
+    ok.
 
 api_event(plusLogin, Args, _)-> login(googleplus_id, Args);
 api_event(fbLogin, Args, _Term)-> login(facebook_id, Args);
 api_event(Name,Tag,_Term) -> error_logger:info_msg("Login Name ~p~n, Tag ~p~n",[Name,Tag]).
 
-login_user(User) -> wf:user(User), wf:redirect("/index").
+login_user(User) -> wf:user(User), wf:redirect("/account").
 login(Key, Args)-> case Args of [{error, E}|_Rest] -> error_logger:info_msg("oauth error: ~p", [E]);
     _ -> case kvs:get(user,email_prop(Args,Key)) of
-              {ok,Existed} -> {_Id, RegData} = registration_data(Args, Key, Existed), login_user(RegData);
+              {ok,Existed} -> {Id, RegData} = registration_data(Args, Key, Existed), login_user(RegData);
               {error,_} -> {Id, RegData} = registration_data(Args, Key, #user{}),
                   case kvs_user:register(RegData) of
                       {ok, Registered} -> login_user(Registered);
                       {error, E} -> error_logger:info_msg("error: ~p", [E]) end end end.
+
 twitter_callback()->
   Token = wf:q(<<"oauth_token">>),
   Verifier =wf:q(<<"oauth_verifier">>),
   case wf:user() of
-    undefined when (Token /= undefined) andalso ( Verifier/= undefined)->
-      case tw_utils:get_access_token(binary_to_list(Token), binary_to_list(Verifier)) of
+    undefined ->
+      if (Token /= undefined) andalso ( Verifier/= undefined) ->
+        case tw_utils:get_access_token(binary_to_list(Token), binary_to_list(Verifier)) of
           not_authorized -> skip;
           Props ->
             UserData = tw_utils:show(Props),
             login(twitter_id, UserData#struct.lst)
+        end;
+        true -> skip
       end;
     _ -> skip
   end.
+
+github_callback() ->
+  Code = wf:q(<<"code">>),
+  State = wf:q(<<"state">>),
+  case wf:user() of
+    undefined when Code =/= undefined andalso State == <<"state">> ->
+      case github:get_access_token(Code) of
+        not_authorized -> skip;
+        Props ->
+          UserData = github:user(Props),
+          login(github_id, UserData#struct.lst)
+      end;
+    _ -> skip
+  end.
+
 
 registration_data(Props, facebook_id, Ori)->
   Id = proplists:get_value(id, Props),
@@ -117,6 +140,7 @@ registration_data(Props, facebook_id, Ori)->
     name = proplists:get_value(first_name, Props),
     surname = proplists:get_value(last_name, Props),
     facebook_id = Id,
+%    team = kvs_meeting:create_team("tours"),
     age = {element(3, BirthDay), element(1, BirthDay), element(2, BirthDay)},
     register_date = erlang:now(),
     status = ok
@@ -135,6 +159,7 @@ registration_data(Props, googleplus_id, Ori)->
     name = GivenName,
     surname = FamilyName,
     googleplus_id = Id,
+%    team = kvs_meeting:create_team("tours"),
     register_date = erlang:now(),
     sex = proplists:get_value(gender, Props),
     status = ok
@@ -150,6 +175,7 @@ registration_data(Props, twitter_id, Ori)->
     email = email_prop(Props,twitter_id),
     surname = [],
     twitter_id = Id,
+%    team = kvs_meeting:create_team("tours"),
     register_date = erlang:now(),
     status = ok
   }};
@@ -164,9 +190,11 @@ registration_data(Props, github_id, Ori) ->
     name  = Name,
     surname = [],
     github_id = Id,
+%    team = kvs_meeting:create_team("tours"),
     register_date = erlang:now(),
     status = ok
   }}.
+
 
 email_prop(Props, twitter_id) -> binary_to_list(proplists:get_value(<<"screen_name">>, Props)) ++ "@twitter.com";
 email_prop(Props, github_id) -> binary_to_list(proplists:get_value(<<"email">>, Props));
@@ -180,8 +208,9 @@ login_btn(twitter) ->
   case tw_utils:get_request_token() of
     {RequestToken, _, _} -> #panel{class=["btn-group"], body=
       #link{id=twlogin, class=[btn, "btn-info", "btn-large"], body=[#i{class=["icon-twitter", "icon-large"]}, <<"Twitter">>], url=tw_utils:authenticate_url(RequestToken)}};
-    {error, R} -> error_logger:info_msg("Twitter request failed:", [R]), []
-  end.
+    {error, R} -> error_logger:info_msg("Twitter request failed:", [R]), [] end;
+login_btn(github) -> #panel{id=github_btn, class=["btn-group"], body=
+  #link{class=[btn, "btn-large"], body=[#i{class=["icon-github", "icon-large"]}, <<"Github">>], url= github:authorize_url() }}.
 
 gplus_sdk()->
   wf:wire(#api{name=plusLogin, tag=plus}),
