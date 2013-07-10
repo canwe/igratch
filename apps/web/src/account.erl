@@ -16,10 +16,10 @@
 
 -record(price, {?ELEMENT_BASE(account), value, currencies=[{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}], span}).
 
-main()-> wf:user(#user{type=user}),#dtl{file="dev", bindings=[{title,<<"account">>},{body, body()}]}.
+main()-> #dtl{file="dev", bindings=[{title,<<"account">>},{body, body()}]}.
 
 body()->
-  #user{type=Type} = wf:user(),
+  Type = user,
   index:header() ++ [
   #panel{id="main-container", class=["container", "main-no-slider", account], body=#panel{body=[
     profile_ctl(Type),

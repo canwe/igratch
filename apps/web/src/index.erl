@@ -73,7 +73,6 @@ box(Discount, Price, ColorClass, IconClass)->
     #panel{class=[price], body= list_to_binary("$"++io_lib:format("~.2f", [Price]))},
     #panel{class=[hardware, IconClass]} ]}.
 
-
 header() -> [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[
     #panel{class=["navbar-inner"], body=[
@@ -86,19 +85,17 @@ header() -> [
             #li{body=#link{body= <<"Home">>, url= <<"/index">>}},
             #li{body=#link{body= <<"Games">>,url= <<"/store">>}},
             #li{body=#link{body= <<"Reviews">>, url= <<"/reviews">>}},
-              case wf:user() of
-                undefined -> #li{body=#link{body= <<"Sign In">>, url= <<"/login">>}};
-                User -> case kvs:get(user, User) of
-                  {error, not_found} -> #li{body=#link{id=login1, body= <<"Log in">>, postback=to_login, delegate=login}};
-                  {ok, U} -> [#li{body=[
-                    #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
-                      body=case U#user.avatar of undefined-> ""; Img-> #image{class=["img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50"]), width= <<"50px">>, height= <<"50px">>} end},
-                    #list{class=["dropdown-menu"], body=[
-                      #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
-                    ]}]},
-                    #li{body=#link{body= <<"My Account">>, url= <<"/account">>}}]
-                  end
-              end
+            case wf:user() of
+              undefined -> #li{body=#link{body= <<"Sign In">>, url= <<"/login">>}};
+              User -> [
+                #li{body=[
+                  #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
+                    body=case User#user.avatar of undefined-> ""; Img-> #image{class=["img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end},
+                  #list{class=["dropdown-menu"], body=[
+                    #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
+                  ]}]},
+                #li{body=#link{body= <<"My Account">>, url= <<"/account">>}}]
+            end
           ]} ]} ]} ]} ]} ].
 
 footer() -> [
