@@ -1,10 +1,20 @@
 -module(store).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
+-include("records.hrl").
 
 main() -> #dtl{file="dev", bindings=[{title,<<"Store">>},{body, body()}]}.
 
-body()-> index:header() ++ [
+body() -> index:header() ++[
+  #section{class=[section, "main-no-slider"], body=[
+    #panel{class=[container], body=[
+      #panel{class=["row-fluid"], body=[
+        #table{id=products, class=[table, "table-hover"], body=[[#product_row{product=P} || P <- kvs:all(product)]] }
+      ]}
+    ]}
+  ]} ] ++index:footer().
+
+body1()-> index:header() ++ [
   #panel{id="main-container", class=["container-fluid", "main-no-slider"], body=[
     #panel{id=first, body=[
       #panel{class=["row-fluid", "store-item"], body=[
@@ -56,4 +66,5 @@ body()-> index:header() ++ [
   ]} ] ++ index:footer().
 
 event(init) -> [];
+event({product_feed, Id})-> wf:redirect("/product?id=" ++ integer_to_list(Id));
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.

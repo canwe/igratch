@@ -79,7 +79,7 @@ header() -> [
       #panel{class=["container"], body=[
         #button{class=[btn, "btn-navbar"], data_fields=[{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}], body=[#span{class=["icon-bar"]}||_<-lists:seq(1,3)]},
 
-        #h1{body=#link{class=[brand], body= #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>}}},
+        #link{class=[brand], body= #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>}},
         #panel{class=["nav-collapse", collapse], body=[
           #list{class=[nav, "pull-right"], body=[
             #li{body=#link{body= <<"Home">>, url= <<"/index">>}},

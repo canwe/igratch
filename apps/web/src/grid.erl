@@ -34,7 +34,7 @@ product_list(Page) ->
             #p{body=[#span{style="display:block;", body = <<"John Smith">>},#small{body= <<"Yesterday, 1:00 pm">>}]},
             #link{url="#",body=[ #i{class=["icon-user"]}, #span{class=["badge badge-info"], body= <<"1024">>} ]},
             #link{url="#",body=[ #i{class=["icon-comment"]}, #span{class=["badge badge-info"], body= <<"10">>} ]} ]},
-          #link{class=span4, body=#image{class=["img-polaroid"], image=P#product.title_picture}},
+          #link{class=span4, body=#image{class=["img-polaroid"], image=P#product.cover}},
           #panel{class=span5, body=[
             #h4{body = <<"Description head">>},
             #p{id=Id, class=["collapse", "in"], body=P#product.brief},
@@ -123,7 +123,7 @@ test()->
 event(init) -> [];
 event({page, Page})-> error_logger:info_msg("grid paging"),wf:update(products, product_list(Page));
 event(add_product)->
-  NewProd = #product{id=kvs:next_id(product), name=wf:q(prodName), brief=wf:q(prodDescription), title_picture=wf:q(prodImage)},
+  NewProd = #product{id=kvs:next_id(product), name=wf:q(prodName), brief=wf:q(prodDescription), cover=wf:q(prodImage)},
   error_logger:info_msg("Add product Review~p", [NewProd]),
   kvs:put(NewProd),
   wf:session(products, kvs:all(product)),
