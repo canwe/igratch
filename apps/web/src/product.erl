@@ -93,25 +93,26 @@ entry_form(P, Fid, Title, TabId) ->
   SaveId = wf:temp_id(),
   User = wf:user(),
   LayoutId = wf:temp_id(),
-  [
-  #h3{body="post "++Title},
-  #panel{class=["row-fluid"], body=[
-    #panel{class=[span9], body=[
-      #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-      #htmlbox{id=EditorId, class=[span12]}
-    ]},
-    #panel{class=[span3], body=[
-      #upload{root=?ROOT++"/"++User#user.email, post_write=attach_media, img_tool=gm, preview=true},
-      #h3{body= <<"Layout:">>},
-      #select{id=LayoutId, style="width:100%", body=[
-        #option{label= <<"default">>, value= <<"default">>},
-        #option{label= <<"jumbotron">>, value= <<"jumbotron">>},
-        #option{label= <<"figure">>, value= <<"figure">>}
-%        #option{label= <<"carousel">>, value= <<"carousel">>}
+  case User of undefined->[]; _-> [
+    #h3{body="post "++Title},
+    #panel{class=["row-fluid"], body=[
+      #panel{class=[span9], body=[
+        #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
+        #htmlbox{id=EditorId, class=[span12]}
+      ]},
+      #panel{class=[span3], body=[
+        #upload{root=?ROOT++"/"++User#user.email, post_write=attach_media, img_tool=gm, preview=true},
+        #h3{body= <<"Layout:">>},
+        #select{id=LayoutId, style="width:100%", body=[
+          #option{label= <<"default">>, value= <<"default">>},
+          #option{label= <<"jumbotron">>, value= <<"jumbotron">>},
+          #option{label= <<"figure">>, value= <<"figure">>}
+%           #option{label= <<"carousel">>, value= <<"carousel">>}
+        ]}
       ]}
-    ]}
-  ]},
-  #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TypeId, TabId, LayoutId}, source=[TitleId, EditorId, TypeId, LayoutId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]} ].
+    ]},
+    #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TypeId, TabId, LayoutId}, source=[TitleId, EditorId, TypeId, LayoutId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]} 
+  ] end.
 
 feed(Fid, features)-> feed(lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
 feed(Fid, _TabId) -> feed(kvs_feed:entries(Fid, undefined, 10)).
