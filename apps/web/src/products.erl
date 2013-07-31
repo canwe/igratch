@@ -7,7 +7,7 @@
 -define(PAGE_SIZE, case wf:session(page_size) of list -> 6; _ -> 8 end).
 
 main()->
-  wf:session(products, [product:product(I, 2) || I <- lists:seq(1,20)] ),
+%  wf:session(products, [product:product(I, 2) || I <- lists:seq(1,20)] ),
   wf:session(page_size, list),
   #dtl{file="dev", bindings=[{title,<<"products">>},{body, body()}]}.
 

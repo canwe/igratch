@@ -1,4 +1,8 @@
--record(feed_entry,     {?ELEMENT_BASE(product), entry}).
--record(feed_comment,   {?ELEMENT_BASE(product), comment}).
--record(feed_media,     {?ELEMENT_BASE(product), media, target, fid=0, cid=0, only_thumb}).
--record(product_figure, {?ELEMENT_BASE(product), product}).
+-record(product_figure,{?ELEMENT_BASE(product_ui), product}).
+-record(product_row,   {?ELEMENT_BASE(product_ui), product}).
+-record(product_line,  {?ELEMENT_BASE(product_ui), product, meta, controls}).
+-record(product_hero,  {?ELEMENT_BASE(product_ui), product}).
+-record(product_entry, {?ELEMENT_BASE(product_ui), entry}).
+-record(entry_media,   {?ELEMENT_BASE(product_ui), media, fid}).
+
+
