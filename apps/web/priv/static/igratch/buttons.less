@@ -1,9 +1,9 @@
 .btn {
   background-image:none;
-  padding:10px;
+//  padding:10px;
   text-shadow:none;
   font-weight:700;
-  color: @white;
+//  color: @white;
   font-family: 'Oswald', sans-serif;
 }
 .btn-blue {
@@ -39,4 +39,16 @@
 
 .btn-google-plus.active {
   color: rgba(255,255,255,.75);
+}
+
+.btn-buy {
+  color: #00a6d2;
+  & span { color: white;}
+
+  &.win, &.win:hover, &.win:focus {
+    background-image: url('/static/img/icon-buypc.png');
+    background-repeat: no-repeat;
+    background-position: left;
+    padding-left: 56px;
+  }
 }
