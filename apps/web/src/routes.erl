@@ -13,23 +13,21 @@ init(State, Ctx) ->
 
 route(<<"/">>) -> {index, []};
 route(<<"/index">>) -> {index, []};
-route(<<"/feed">>) -> {feed, []};
 route(<<"/product">>) -> {product, []};
 route(<<"/login">>) -> {login, []};
 route(<<"/chat">>) -> {chat, []};
 route(<<"/store">>) -> {store, []};
-route(<<"/grid">>) -> {grid, []};
+route(<<"/review">>) -> {review, []};
 route(<<"/reviews">>) -> {reviews, []};
 route(<<"/notifications">>) -> {notifications, []};
 route(<<"/account">>) -> {account, []};
 route(<<"/ws/">>) -> {index, []};
 route(<<"/ws/index">>) -> {index, []};
-route(<<"/ws/feed">>) -> {feed, []};
 route(<<"/ws/product">>) -> {product, []};
 route(<<"/ws/login">>) -> {login, []};
 route(<<"/ws/chat">>) -> {chat, []};
 route(<<"/ws/store">>) -> {store, []};
-route(<<"/ws/grid">>) -> {grid, []};
+route(<<"/ws/review">>) -> {review, []};
 route(<<"/ws/reviews">>) -> {reviews, []};
 route(<<"/ws/notifications">>) -> {notifications, []};
 route(<<"/ws/account">>) -> {account, []};

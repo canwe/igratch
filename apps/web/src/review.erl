@@ -1,21 +1,17 @@
--module(feed).
+-module(review).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
--include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
--define(PAGE_SIZE, 4).
-
-main() -> #dtl{file="dev", bindings=[{title,<<"feed">>},{body, body()}]}.
+main() -> #dtl{file="dev", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
-%  Qid = wf:qs(<<"id">>),
   index:header()++[
   #section{class=[section, alt], body=#panel{class=[container], body=[
     #panel{class=["hero-unit"], body=[
-      #h1{body= <<"Product feed">>},
-      #p{body= <<"Thats a single review page">>}
+      #h1{body= <<"Review">>},
+      #p{body= <<"Thats a review">>}
     ]}
   ]}},
 
@@ -86,9 +82,6 @@ body() ->
 
   ]++index:footer().
 
-title()-> <<"Review title">>.
-
-
 comment() -> comment([]).
 comment(InnerComment)->
   #panel{class=[media, "media-comment"], body=[
@@ -105,29 +98,8 @@ comment(InnerComment)->
     ]}
   ]}.
 
-description(Id, Description) -> [
-  #panel{id="description"++Id, body=[
-    #panel{class=[collapse, in], body= <<"Description head">>},
-    #panel{id=Id, class=collapse, body= Description}
-  ]},
-  #button{class=[btn, "btn-link"], data_fields=[
-    {<<"data-toggle">>, <<"collapse">>},
-    {<<"data-target">>, list_to_binary("#"++Id) },
-    {<<"data-parent">>, list_to_binary("#description"++Id)}], body= <<"Read...">>}].
-
-list_medias(C)->
-  {Cid, Fid} = C#comment.id,
-  [#feed_media{media=M, target=wf:temp_id(), fid = Fid, cid = Cid} ||  M <- C#comment.media].
-
 image_media(_Media)-> element_image:render_element(#image{image= "/static/img/item-bg.png"}).
 
 event(init) -> [];
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), [].
-
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]), event(change_me).
-
-control_event(Id, Tag) -> 
-  error_logger:info_msg("Tinymce editor control event ~p: ~p", [Id, Tag]),
-  Ed = wf:q(mcecontent),
-  error_logger:info_msg("Data:  ~p", [Ed]),
-  ok.

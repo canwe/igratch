@@ -6,7 +6,7 @@
 main()-> #dtl{file="dev", bindings=[{title,<<"reviews">>},{body, body()}]}.
 
 body()-> index:header() ++ [
-  #panel{id="main-container", class=["container-fluid", "main-no-slider"], body=[
+  #panel{id="main-container", class=["container", "main-no-slider"], body=[
     #panel{id=first, body=[
       #panel{class=["row-fluid"], body=[
         #panel{class=["big-shadow"], body=[

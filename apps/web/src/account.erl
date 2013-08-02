@@ -126,7 +126,7 @@ inputs(user)-> [];
 inputs(developer) ->
   User = wf:user(),
   Curs = [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}],
-  [
+  case User of undefined ->[]; _-> [
   #panel{class=["row-fluid"], body=[
     #panel{class=[span10, "pull-left"], body=[
       #h3{body= <<"Add new game">>},
@@ -146,7 +146,7 @@ inputs(developer) ->
       #upload{root=?ROOT++"/"++User#user.email, post_write=attach_cover, img_tool=gm, preview=true}
     ]}
   ]}
- ];
+ ] end;
 inputs(reviewer)->
   #panel{class=[inputs, reviewer], body=[
     #panel{class=["inputs-inner", "row-fluid"], body=[
@@ -164,17 +164,14 @@ feed(Fid) ->
 
 event(init) -> [];
 event(save) ->
-%title, brief, platform, version, price  
   error_logger:info_msg("Save product ~p ~p", [wf:q(title), wf:q(brief)]),
   User = wf:user(),
   Title = wf:q(title),
   Descr = wf:q(brief),
-  %Version = wf:q(version),
   {Price, _Rest} = string:to_float(wf:q(price)),
   Currency = wf:q(currency),
   Categories = [1],%wf:q(category),
   TitlePic = wf:session(cover),
-  %File = wf:session(file),
   Product = #product{
     creator= User#user.username,
     owner=User#user.username,
@@ -184,17 +181,13 @@ event(save) ->
     categories = Categories,
     price = Price,
     currency = Currency
-%    version = Version,
-%    file = File
   },
   case kvs_products:register(Product) of
-    {ok, P} -> P,
+    {ok, P} ->
+      msg:notify([product, init], [P#product.id, P#product.feed, P#product.blog, P#product.features, P#product.specs, P#product.gallery, P#product.videos, P#product.bundles]),
       wf:session(cover, undefined),
-%      wf:session(title_picture, undefined),
       error_logger:info_msg("?~p", [wf:render(#product_row{product=P})]),
       wf:wire(wf:f("$('#products > tbody:first').append('~s');", [wf:js_escape(binary_to_list(wf:render(#product_row{product=P}))) ]));
-%      wf:update(product_feed, product_feed(P)),
-%      wf:wire("$('#ctl a[href=\"#product_feed\"]').tab('show');");
     E -> error_logger:info_msg("E: ~p", [E]), error
   end;
 event({product_feed, Id})-> wf:redirect("/product?id="++integer_to_list(Id));
@@ -215,7 +208,7 @@ api_event(attach_media, Tag, _Term) ->
   Name = filename:basename(File),
   Type = proplists:get_value(<<"type">>, Props),
   Thumb = proplists:get_value(<<"thumb">>, Props),
-  User = wf:user(),
+  %User = wf:user(),
 
 %  {{Y, M, D}, _} = calendar:local_time(),
 %  Date = integer_to_list(Y) ++ "-" ++ integer_to_list(M) ++ "-" ++ integer_to_list(D),

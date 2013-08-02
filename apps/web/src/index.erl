@@ -25,7 +25,24 @@ body() -> header() ++ [
           #panel{class=[sidebar], body=[
             #panel{class=["row-fluid"], body=[
               #h3{ class=[blue], body= <<"TAGS">>},
-              #p{class=[tagcloud], body= <<"Praesent et nisl in lacus tincidunt convallis. Sed eget felis at neque sodales suscipit sit amet eu metus. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Praesent leo ligula, adipiscing vitae placerat quis, condimentum fringilla est. Nulla nec diam erat. Sed non velit ligula, vitae scelerisque arcu. Vivamus fermentum rutrum neque pellentesque tristique">>}
+              #list{class=[inline, tagcloud],body=[
+                #li{body=#link{url= <<"#">>, body= <<"Pellentesque">>}},
+                #li{body=#link{url= <<"#">>, body= <<"habitant">>}},
+                #li{body=#link{url= <<"#">>, body=#small{body= <<"senectus">>}}},
+                #li{body=#link{url= <<"#">>, body=#strong{body= <<"et">>}}},
+                #li{body=#link{url= <<"#">>, body= <<"malesuada">>}, class=["tag-small"]},
+                #li{body=#link{url= <<"#">>, body= <<"Vivamus">>}, class=["tag-large"]},
+                #li{body=#link{url= <<"#">>, body= <<"mi">>}, class=["tag-mini"]},
+                #li{body=#link{url= <<"#">>, body=#strong{body= <<"est">>}}},
+                #li{body=#link{url= <<"#">>, body=#small{body= <<"molestie">>}}},
+                #li{body=#link{url= <<"#">>, body= <<"rutrum">>}, class=["tag-large"]},
+                #li{body=#link{url= <<"#">>, body= <<"quis">>}},
+                #li{body=#link{url= <<"#">>, body=#small{body= <<"scelerisque">>}}},
+                #li{body=#link{url= <<"#">>, body= <<"netus">>}},
+                #li{body=#link{url= <<"#">>, body= <<"fames">>}, class=["tag-huge"]},
+                #li{body=#link{url= <<"#">>, body=#strong{body= <<"ac">>}}},
+                #li{body=#link{url= <<"#">>, body= <<"morbi">>}}
+              ]}
             ]},
             #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, [popular_item() || _ <-lists:seq(1,7)] ]}
           ]}
