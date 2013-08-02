@@ -48,12 +48,13 @@ essential(P)->[
     #li{class=[active], body=[#link{url= <<"#features">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Features">>}]},
     #li{body=[#link{url= <<"#specs">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Specification">>}]},
     #li{body=[#link{url= <<"#gallery">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Gallery">>}]},
-    #li{body=[#link{url= <<"#trailers">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Videos">>}]},
+    #li{body=[#link{url= <<"#videos">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Videos">>}]},
     #li{body=[#link{url= <<"#reviews">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Reviews">>}]},
     #li{body=[#link{url= <<"#news">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"News">>}]},
     #li{body=[#link{url= <<"#bundles">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Bundles">>}]}
   ]} ].
-details(P) -> [
+details(P) ->
+  [
   #panel{class=["tab-content"], body=[
     #panel{id=features, class=["tab-pane", active], body=[
       feed(P#product.features, features),
@@ -67,7 +68,7 @@ details(P) -> [
       feed(P#product.gallery, gallery),
       entry_form(P, P#product.gallery, "picture", gallery)
     ]},
-    #panel{id=trailers, class=["tab-pane"], body=[
+    #panel{id=videos, class=["tab-pane"], body=[
       feed(P#product.videos, videos),
       entry_form(P, P#product.videos, "video", videos)
     ]},
@@ -89,7 +90,6 @@ details(P) -> [
 entry_form(P, Fid, Title, TabId) ->
   TitleId = wf:temp_id(),
   EditorId = wf:temp_id(),
-  TypeId = wf:temp_id(),
   SaveId = wf:temp_id(),
   User = wf:user(),
   LayoutId = wf:temp_id(),
@@ -107,11 +107,10 @@ entry_form(P, Fid, Title, TabId) ->
           #option{label= <<"default">>, value= <<"default">>},
           #option{label= <<"jumbotron">>, value= <<"jumbotron">>},
           #option{label= <<"figure">>, value= <<"figure">>}
-%           #option{label= <<"carousel">>, value= <<"carousel">>}
         ]}
       ]}
     ]},
-    #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TypeId, TabId, LayoutId}, source=[TitleId, EditorId, TypeId, LayoutId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]} 
+    #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId, LayoutId}, source=[TitleId, EditorId, LayoutId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]} 
   ] end.
 
 feed(Fid, features)-> feed(lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
@@ -155,32 +154,21 @@ aside()-> [
     ]}
 ].
 
-event(init) -> [];
-event({post_entry, Fid, Id, Eid, Ttid, Tid, TabId, Lid}) ->
-  Entry = wf:q(Eid),
+event(init) -> wf:reg(product_channel), [];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
+event({post_entry, Fid, Id, Eid, Ttid, TabId, Lid}) ->
+  Desc = wf:q(Eid),
   Title = wf:q(Ttid),
   Layout = wf:q(Lid),
   Recipients = [{Id, product}],
-  SharedBy = "",
   Type = {TabId, Layout},
-  error_logger:info_msg("Entry ~p ~p ~p", [Title, Entry, Type]),
+  error_logger:info_msg("Entry ~p ~p", [Title, Type]),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
-  error_logger:info_msg("Medias to save ~p", [Medias]),
-  Desc = Entry,
-  Title1 = Title,
-  EntryId = uuid(),
   User = wf:user(),
   From = User#user.username,
-  [begin
-    % Route = [feed, product, ProductId, entry, uuid(), add]
-    % Message = [Product, Destinations, Desrciption, Medias]
-    kvs_feed:add_entry(Fid, From, To, EntryId, Title1, Desc, Medias, Type, SharedBy)
-  end || {To, _RoutingType} <- Recipients],
-  % push from the feed
-  case kvs:get(entry, {EntryId, Fid}) of
-    {ok, E} -> wf:insert_top(TabId, wf:js_escape(wf:render(#product_entry{entry=E})));
-    {error, E} -> error_logger:info_msg("Still no entry ~p", [E])
-  end,
+
+  [msg:notify([kvs_feed, feed, RoutingType, To, entry, uuid(), add], [Fid, From, Title, Desc, Medias, Type]) || {To, RoutingType} <- Recipients],
+
   wf:session(medias, []);
 event({edit_entry, E=#entry{}, Title, Desc}) ->
   Tid = wf:temp_id(), Did = wf:temp_id(),
@@ -191,11 +179,9 @@ event({edit_entry, E=#entry{}, Title, Desc}) ->
     #link{postback={cancel_entry, E, Title, Desc}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
   ]}),
   ok;
-event({save_entry, E=#entry{}, Ctl, Title, Tid, Did})->
-  T = wf:q(Tid), D = wf:q(Did),
-  kvs:put(E#entry{title=T, description=D}),
-  wf:update(Title, wf:js_escape(T)),
-  wf:update(Ctl, wf:js_escape(D));
+event({save_entry, #entry{id=Eid}, Dbox, Tbox, Tid, Did})->
+  Title = wf:q(Tid), Description = wf:q(Did),
+  msg:notify([kvs_feed, feed, product, (wf:user())#user.email, entry, Eid, edit], [Tbox, Dbox, Title, Description]);
 event({cancel_entry, E=#entry{}, Title, Desc})->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
@@ -225,6 +211,29 @@ api_event(attach_media, Args, _)->
   NewMedias = [Media | Medias],
   wf:session(medias, NewMedias);
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
+
+process_delivery([feed, _, To, entry, EntryId, add],
+                 [Fid, From, Title, Desc, Medias, {TabId, _L}=Type])->
+  Entry = #entry{id = {EntryId, Fid},
+                 entry_id = EntryId,
+                 type=Type,
+                 created = now(),
+                 from = From,
+                 to = To,
+                 title = Title,
+                 description = Desc,
+                 media = Medias,
+                 feed_id = Fid},
+
+  E = #product_entry{entry=Entry},
+  wf:insert_top(TabId, E);
+
+process_delivery([feed, _, _Who, entry, _, edit],
+                 [Tbox, Dbox, Title, Desc]) ->
+  wf:update(Tbox, Title),
+  wf:update(Dbox, Desc);
+
+process_delivery(_R, _M) -> skip.
 
 uuid() ->
   R1 = random:uniform(round(math:pow(2, 48))) - 1,

@@ -5,6 +5,7 @@
 -include_lib ("n2o/include/wf.hrl").
 -include("users.hrl").
 -define(APP, web).
+-define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -25,7 +26,7 @@ init([]) ->
 
     Pid = spawn(fun () -> wf:reg(lobby), chat_room([]) end),
 
-    {ok, {{one_for_one, 5, 10}, []}}.
+    {ok, {{one_for_one, 5, 10}, [?CHILD(workers_sup, supervisor), ?CHILD(wbg, worker)]}}.
 
 dispatch_rules() ->
     cowboy_router:compile(

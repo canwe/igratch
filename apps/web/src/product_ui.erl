@@ -6,8 +6,15 @@
 -include("records.hrl").
 
 render_element(#product_row{product=P}) ->
+  {{Y, M, D}, _} = calendar:now_to_datetime(P#product.creation_date),
+  Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
+
   Row = #tr{id=wf:temp_id(), postback={product_feed, P#product.id},cells=[
-    #td{body= integer_to_list(P#product.id)},
+    #td{body=[
+      #h4{body = P#product.name},
+      #p{body=[#span{style="display:block;", body = P#product.creator}, #small{body= Date}]},
+      #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
+      #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]} ]},
     #td{body= P#product.title},
     #td{body= P#product.brief}
   ]},
@@ -39,8 +46,8 @@ render_element(#product_hero{product=P}) ->
           #li{body= <<"Game rating: Ages 16+">>}
         ]},
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
-        #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win], 
-          body= [<<"buy for ">>,#span{body= "$"++float_to_list(P#product.price, [{decimals, 2}, compact])}],
+        #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
+          body= [<<"buy for ">>,#span{body= "$"++ if is_float(P#product.price) -> float_to_list(P#product.price, [{decimals, 2}, compact]); is_integer(P#product.price) -> integer_to_list(P#product.price);true-> [0] end }],
           postback={product, integer_to_list(P#product.id)}}
       ]}
     ]},
@@ -92,7 +99,7 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E})->
           #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
     ]},
 %    #figure{class=["thumbnail-figure"], body=[
-%      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
+      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
 %      #figcaption{class=["thumbnail-title"], body=[
 %            #h3{body=#span{body= E#entry.title}}
 %      ]}
