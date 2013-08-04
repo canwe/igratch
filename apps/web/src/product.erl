@@ -186,10 +186,7 @@ event({cancel_entry, E=#entry{}, Title, Desc})->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
 event({remove_entry, E=#entry{}, Id})->
-  error_logger:info_msg("Remove ~p", [E#entry.id]),
-  %nsm_acl:check_access(U, {feature, admin})
-  %mqs:notify([feed, Type, Owner, entry, EId, delete], [From]);
-  kvs_feed:remove_entry(E#entry.feed_id, E#entry.entry_id),
+  msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.username]),
   wf:remove(Id);
 
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
