@@ -18,14 +18,18 @@ body() ->
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, list_to_integer(binary_to_list(Id))) of
       {ok, P} -> [
-        #panel{class=["page-header"], body=[
-          #h5{body=[<<"Categories:">>,
+        #panel{class=["row-fluid", "page-header"], body=[
+          #h5{class=[span9],body=[<<"Categories:">>,
             #small{body=[
               #link{body= <<" Action ">>}, <<"|">>,
               #link{body= <<" Shooter (FPS) ">>},<<"|">>,
               #link{body= <<" Weekly Deals ">>}, <<"|">>,
               #link{body= <<" Collections ">>}
             ]}
+          ]},
+          #panel{class=[span3, "input-append"], style="margin:10px 0", body=[
+            #textbox{id="search-button", placeholder= <<"Search">>},
+            #button{class=[btn], body= <<"Go!">>}
           ]}
         ]},
         #section{class=[section, alt], body=#panel{class=[container], body=[
@@ -127,15 +131,15 @@ feed(Entries)-> #panel{class=[feed], body=[
 aside()-> [
     #aside{class=[sidebar], body=[
       #panel{class=["sidebar-widget"], body=[
-        #h2{class=["sidebar-header"], body= <<"Search">>},
-        #panel{class=["input-append"], body=[
-          #textbox{id="search-button"},
-          #button{class=[btn], body= <<"Go!">>}
-        ]}
+        #h2{class=["sidebar-header"], body= <<"">>},
+        #p{body= <<"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.">>}
       ]},
       #panel{class=["sidebar-widget"], body=[
-        #h2{class=["sidebar-header"], body= <<"About">>},
-        #p{body= <<"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.">>}
+        #h2{class=["sidebar-header"], body= <<"More shooters">>},
+        #list{class=[unstyled], body=[
+          #li{body=[#h4{body=#link{body = <<"Quis nostrud exercitation">>}},
+            #p{body=#small{body= <<"June 12, 2012">>}}]}
+        ]}
       ]},
       #panel{class=["sidebar-widget"], body=[
         #h2{class=["sidebar-header"], body= <<"Recent posts">>},
@@ -153,6 +157,8 @@ aside()-> [
       ]}
     ]}
 ].
+
+
 
 event(init) -> wf:reg(product_channel), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
@@ -188,7 +194,8 @@ event({cancel_entry, E=#entry{}, Title, Desc})->
 event({remove_entry, E=#entry{}, Id})->
   msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.username]),
   wf:remove(Id);
-
+event({read_entry, {Id,_}})->
+  wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 api_event(attach_media, Args, _)->
