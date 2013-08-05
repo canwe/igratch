@@ -118,7 +118,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   EntryId= wf:temp_id(),
   TitleId = wf:temp_id(),
   Comments = kvs_comment:feed_comments({E#entry.entry_id, E#entry.feed_id}),
-  error_logger:info_msg("Entry: ~p", [Comments]),
+  error_logger:info_msg(""),
   CommentId = wf:temp_id(),
   CommentsId = wf:temp_id(),
 

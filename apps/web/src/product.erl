@@ -3,6 +3,7 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/products.hrl").
+-include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
@@ -161,19 +162,19 @@ aside()-> [
 
 
 event(init) -> wf:reg(product_channel), [];
+event(<<"PING">>) -> [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({post_entry, Fid, Id, Eid, Ttid, TabId, Lid}) ->
+event({post_entry, Fid, ProductId, Eid, Ttid, TabId, Lid}) ->
   Desc = wf:q(Eid),
   Title = wf:q(Ttid),
   Layout = wf:q(Lid),
-  Recipients = [{Id, product}],
-  Type = {TabId, Layout},
-  error_logger:info_msg("Entry ~p ~p", [Title, Type]),
+  Recipients = [{ProductId, product}|[{Where, group} || S=#group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId))]],
+  EntryType = {TabId, Layout},
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   User = wf:user(),
   From = User#user.email,
 
-  [msg:notify([kvs_feed, RoutingType, To, entry, uuid(), add], [Fid, From, Title, Desc, Medias, Type]) || {To, RoutingType} <- Recipients],
+  [msg:notify([kvs_feed, RoutingType, To, entry, uuid(), add], [Fid, From, Title, Desc, Medias, EntryType]) || {To, RoutingType} <- Recipients],
 
   wf:session(medias, []);
 event({edit_entry, E=#entry{}, Title, Desc}) ->
@@ -192,7 +193,7 @@ event({cancel_entry, E=#entry{}, Title, Desc})->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
 event({remove_entry, E=#entry{}, Id})->
-  msg:notify([kvs_feed, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.email]),
+  msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.email]),
   wf:remove(Id);
 event({read_entry, {Id,_}})->
   wf:redirect("/review?id="++Id);
@@ -216,7 +217,7 @@ api_event(attach_media, Args, _)->
   wf:session(medias, NewMedias);
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([_, To, entry, EntryId, add],
+process_delivery([product, To, entry, EntryId, add],
                  [Fid, From, Title, Desc, Medias, {TabId, _L}=Type])->
   Entry = #entry{id = {EntryId, Fid},
                  entry_id = EntryId,

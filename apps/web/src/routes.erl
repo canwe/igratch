@@ -13,6 +13,7 @@ init(State, Ctx) ->
 
 route(<<"/">>) -> {index, []};
 route(<<"/index">>) -> {index, []};
+route(<<"/admin">>) -> {admin, []};
 route(<<"/product">>) -> {product, []};
 route(<<"/login">>) -> {login, []};
 route(<<"/chat">>) -> {chat, []};
@@ -22,6 +23,7 @@ route(<<"/reviews">>) -> {reviews, []};
 route(<<"/notifications">>) -> {notifications, []};
 route(<<"/account">>) -> {account, []};
 route(<<"/ws/">>) -> {index, []};
+route(<<"/ws/admin">>) -> {admin, []};
 route(<<"/ws/index">>) -> {index, []};
 route(<<"/ws/product">>) -> {product, []};
 route(<<"/ws/login">>) -> {login, []};

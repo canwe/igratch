@@ -10,6 +10,7 @@ start_link(Params) -> gen_server:start_link(?MODULE, [Params], []).
 
 init([Params]) ->
   wf:reg(product_channel),
+  Id      = proplists:get_value(id,      Params),
   Type    = proplists:get_value(type,    Params),
   Feed    = proplists:get_value(feed,    Params),
   Blog    = proplists:get_value(blog,    Params, undefined),
@@ -18,13 +19,16 @@ init([Params]) ->
   Gallery = proplists:get_value(gallery, Params, undefined),
   Videos  = proplists:get_value(videos,  Params, undefined),
   Bundles = proplists:get_value(bundles, Params, undefined),
-  {ok, #product_state{
+  error_logger:info_msg("init worker ~p", [Params]),
+  error_logger:info_msg("~p ~p ~p ~p ~p ~p", [Blog, Features, Specs, Gallery, Videos, Bundles]),
+  {ok, #state{
+    owner = Id,
     type =Type, feed = Feed, blog = Blog, features=Features, specs=Specs, gallery=Gallery, videos=Videos, bundles=Bundles}}.
 
 handle_call(_,_From,State) -> {reply,ok, State}.
 handle_cast(_M, State) -> {noreply, State}.
 
-handle_info({delivery, Route, Msg}, #product_state{callback = M} = State)->
+handle_info({delivery, Route, Msg}, #state{callback = M} = State)->
   M:handle(Route, Msg, State);
 
 handle_info(_I, State) -> {noreply, State}.

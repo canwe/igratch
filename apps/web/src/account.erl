@@ -3,6 +3,7 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/membership.hrl").
 -include("records.hrl").
@@ -139,16 +140,19 @@ inputs(developer) ->
       ]},
 
       #link{id=save_prod, class=[btn, "btn-grey", capital, "pull-right"], body=[#i{class=["icon-file"]}, <<" Save Game">>],
-        postback=save, source=[title, brief, price, currency]}
+        postback=save, source=[title, brief, price, currency, cats]}
     ]},
     #panel{class=[span2], body=[
       #h3{body= <<"cover">>},
-      #upload{root=?ROOT++"/"++User#user.email, post_write=attach_cover, img_tool=gm, preview=true}
+      #upload{root=?ROOT++"/"++User#user.email, post_write=attach_cover, img_tool=gm, preview=true},
+      #h3{body= <<"categories">>},
+      #textboxlist{id=cats}
     ]}
   ]}
  ] end;
 inputs(reviewer)->
   User = wf:user(),
+  case User of undefined -> []; _->
   #panel{class=["row-fluid"], body=[
       #panel{class=[span10], body=[
         #h3{body= <<"Submit review">>},
@@ -160,19 +164,36 @@ inputs(reviewer)->
         #h3{body= <<"cover">>},
         #upload{root=?ROOT++"/"++User#user.email, post_write=attach_cover, img_tool=gm, preview=true}
       ]}
-  ]}.
+  ]} end.
 
 feed(Fid) ->
   Entries = kvs_feed:entries(Fid, undefined, 10),
   [#product_entry{entry=E} || E <- Entries].
 
+control_event("cats", _) ->
+  error_logger:info_msg("Autocomplete request ~p", [wf:q(term)]),
+  SearchTerm = wf:q(term),
+  Data = [ [list_to_binary(Id), list_to_binary(Name), list_to_binary(Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- kvs:all(group), string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
+  element_textboxlist:process_autocomplete("cats", Data, SearchTerm);
+control_event(_, _) -> ok.
 
-event(init) -> [];
+
+event(init) -> wf:reg(product_channel), [];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(save) ->
   error_logger:info_msg("Save product ~p ~p", [wf:q(title), wf:q(brief)]),
   User = wf:user(),
   Title = wf:q(title),
   Descr = wf:q(brief),
+  Cats = wf:q(cats),
+  error_logger:info_msg("Categories: ~p", [Cats]),
+
+  %inner_event({subscribe, User1, GName, SUId}, _User) ->
+  %  nsx_msg:notify(["subscription", "user", User1, "add_to_group"], {GName, User1, member}),
+  %inner_event({subscribe, _, Who, SUId}, User1)   ->
+  %  nsx_msg:notify(["subscription", "user", User1, "subscribe_user"], {Who}),
+
+
   {Price, _Rest} = string:to_float(wf:q(price)),
   Currency = wf:q(currency),
   Categories = [1],%wf:q(category),
@@ -189,16 +210,19 @@ event(save) ->
   },
   case kvs_products:register(Product) of
     {ok, P} ->
-      msg:notify([product, init], [P#product.id, P#product.feed, P#product.blog, P#product.features, P#product.specs, P#product.gallery, P#product.videos, P#product.bundles]),
+      msg:notify([kvs_products, product, init], [P#product.id, P#product.feed, P#product.blog, P#product.features, P#product.specs, P#product.gallery, P#product.videos, P#product.bundles]),
       wf:session(cover, undefined),
-      error_logger:info_msg("?~p", [wf:render(#product_row{product=P})]),
+%      msg:notify([subscription, user, User, add_to_group], {Cats, User, member}),
+%      [msg:notify([kvs_group, join, G], {P#product.name, product})  ||G <- string:tokens(Cats, ",")],
+      [kvs_group:join(P#product.name, G) || G <- string:tokens(Cats, ",")],
       wf:wire(wf:f("$('#products > tbody:first').append('~s');", [wf:js_escape(binary_to_list(wf:render(#product_row{product=P}))) ]));
     E -> error_logger:info_msg("E: ~p", [E]), error
   end;
 event({product_feed, Id})-> wf:redirect("/product?id="++integer_to_list(Id));
+event(<<"PING">>) -> ok;
 event(Event) -> error_logger:info_msg("[account]Page event: ~p", [Event]), ok.
 
-api_event(attach_cover, Tag, _)->
+api_event(attach_cover, Tag, _) ->
   Args = n2o_json:decode(Tag),
   Props = Args#struct.lst,
   wf:session(cover, "/static"++ [binary_to_list(proplists:get_value(<<"file">>, Props))--?ROOT]),
@@ -233,18 +257,7 @@ api_event(attach_media, Tag, _Term) ->
   wf:session(medias, NewMedias);
 api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-uuid() ->
-  R1 = random:uniform(round(math:pow(2, 48))) - 1,
-  R2 = random:uniform(round(math:pow(2, 12))) - 1,
-  R3 = random:uniform(round(math:pow(2, 32))) - 1,
-  R4 = random:uniform(round(math:pow(2, 30))) - 1,
-  R5 = erlang:phash({node(), now()}, round(math:pow(2, 32))),
-
-  UUIDBin = <<R1:48, 4:4, R2:12, 2:2, R3:32, R4: 30>>,
-  <<TL:32, TM:16, THV:16, CSR:8, CSL:8, N:48>> = UUIDBin,
-
-  lists:flatten(io_lib:format("~8.16.0b-~4.16.0b-~4.16.0b-~2.16.0b~2.16.0b-~12.16.0b-~8.16.0b",
-                              [TL, TM, THV, CSR, CSL, N, R5])).
+process_delivery(_R, _M) -> skip.
 
 render_element(R = #price{}) ->
   C = [
