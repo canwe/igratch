@@ -117,7 +117,11 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
   TitleId = wf:temp_id(),
-  Comments = kvs_comment:feed_comments({E#entry.id, E#entry.feed_id}),
+  Comments = kvs_comment:feed_comments({E#entry.entry_id, E#entry.feed_id}),
+  error_logger:info_msg("Entry: ~p", [Comments]),
+  CommentId = wf:temp_id(),
+  CommentsId = wf:temp_id(),
+
   Ms = E#entry.media,
   Entry = #panel{id=PostId, class=["blog-post"], body=[
     #header{class=["blog-header"], body=[
@@ -130,34 +134,12 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
       ]}
     ]},
     #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
-    #panel{class=[comments], body=[
+    #panel{class=[comments, "row-fluid"], body=[
         #h3{body= <<"5 comments">>},
-        comment([comment(), comment([comment()])]),
-        comment()
-      ]},
-      #panel{class=["comments-form"], body=[
+        #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
         #h3{class=["comments-form"], body= <<"Add your comment">>},
-        #panel{class=["form-horizontal"], body=[
-          #fieldset{body=[
-            #panel{class=["control-group"], body=[
-              #label{class=["control-label"], for="email", body= <<"Email">>},
-              #panel{class=["controls"], body=[
-                #textbox{id=email, class=["input-xxlarge"]}
-              ]}
-            ]},
-            #panel{class=["control-group"], body=[
-              #label{class=["control-label"], for="message", body= <<"Your message">>},
-              #panel{class=["controls"], body=[
-                #textarea{id=message, class=["input-xxlarge"]}
-              ]}
-            ]},
-            #panel{class=["control-group"], body=[
-              #panel{class=["controls"], body=[
-                #button{class=[btn, "btn-info", "btn-large"], body= <<"send">>}
-              ]}
-            ]}
-          ]}
-        ]}
+        #htmlbox{id=CommentId},
+        #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId}, source=[CommentId]}]}
       ]}
   ]},
 
@@ -168,7 +150,7 @@ render_element(#product_entry{entry=E})->
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
   TitleId = wf:temp_id(),
-  Comments = kvs_comment:feed_comments({E#entry.id, E#entry.feed_id}),
+%  Comments = kvs_comment:feed_comments({E#entry.id, E#entry.feed_id}),
   Ms = E#entry.media,
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   EntryActionsLine = [
@@ -198,28 +180,31 @@ render_element(#product_entry{entry=E})->
   ]},
   element_panel:render_element(Entry);
 
+render_element(#entry_comment{comment=#comment{}=C})->
+    {Cid, {Eid, Fid}} = C#comment.id,
+    {Author, Avatar} = case kvs:get(user, C#comment.author_id) of 
+      {ok, User} -> {User#user.display_name, case User#user.avatar of
+        undefined-> #image{class=["media-objects","img-circle"], data_fields=[{<<"data-src">>, <<"holder.js/64x64">>}]};
+        Img-> #image{class=["media-object", "img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end};
+      {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], data_fields=[{<<"data-src">>, <<"holder.js/64x64">>}]}} end,
+    {{Y, M, D}, _} = calendar:now_to_datetime(C#comment.creation_time),
+    Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
+    Comment = #panel{class=[media, "media-comment"], body=[
+    #link{class=["pull-left"], body=[Avatar]},
+    #panel{class=["media-body"], body=[
+      #p{class=["media-heading"], body=[
+        #link{body= Author}, <<",">>, Date,
+        #link{class=["comment-reply","pull-right"], body=[ <<"reply ">>, #i{class=["icon-reply", "icon-large"]}]}
+      ]},
+      #p{body= C#comment.content},
+      #p{body= [#entry_media{media=M, fid = Fid, cid = Cid} ||  M <- C#comment.media]}
+    ]}
+  ]},
+  element_panel:render_element(Comment);
+
 render_element(#entry_media{media=Media, fid=Fid}) ->
   error_logger:info_msg("RENDER: ~p", [Media]),
   M = #panel{body=[
     #image{image=Media#media.url}
   ]},
   element_panel:render_element(M).
-
-
-
-% -templates waiting for apply
-comment() -> comment([]).
-comment(InnerComment)->
-  #panel{class=[media, "media-comment"], body=[
-    #link{class=["pull-left"], body=[
-      #image{class=["media-objects","img-circle"], data_fields=[{<<"data-src">>, <<"holder.js/64x64">>}]}
-    ]},
-    #panel{class=["media-body"], body=[
-      #p{class=["media-heading"], body=[
-        <<"John Doe, 12 Sep 2012.">>, 
-        #link{class=["comment-reply","pull-right"], body= <<"reply">>}
-      ]},
-      #p{body= <<"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.">>},
-      InnerComment
-    ]}
-  ]}.

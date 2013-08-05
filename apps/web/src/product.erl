@@ -173,7 +173,7 @@ event({post_entry, Fid, Id, Eid, Ttid, TabId, Lid}) ->
   User = wf:user(),
   From = User#user.email,
 
-  [msg:notify([kvs_feed, feed, RoutingType, To, entry, uuid(), add], [Fid, From, Title, Desc, Medias, Type]) || {To, RoutingType} <- Recipients],
+  [msg:notify([kvs_feed, RoutingType, To, entry, uuid(), add], [Fid, From, Title, Desc, Medias, Type]) || {To, RoutingType} <- Recipients],
 
   wf:session(medias, []);
 event({edit_entry, E=#entry{}, Title, Desc}) ->
@@ -187,12 +187,12 @@ event({edit_entry, E=#entry{}, Title, Desc}) ->
   ok;
 event({save_entry, #entry{id=Eid}, Dbox, Tbox, Tid, Did})->
   Title = wf:q(Tid), Description = wf:q(Did),
-  msg:notify([kvs_feed, feed, product, (wf:user())#user.email, entry, Eid, edit], [Tbox, Dbox, Title, Description]);
+  msg:notify([kvs_feed, product, (wf:user())#user.email, entry, Eid, edit], [Tbox, Dbox, Title, Description]);
 event({cancel_entry, E=#entry{}, Title, Desc})->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
 event({remove_entry, E=#entry{}, Id})->
-  msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.email]),
+  msg:notify([kvs_feed, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.email]),
   wf:remove(Id);
 event({read_entry, {Id,_}})->
   wf:redirect("/review?id="++Id);
@@ -216,7 +216,7 @@ api_event(attach_media, Args, _)->
   wf:session(medias, NewMedias);
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([feed, _, To, entry, EntryId, add],
+process_delivery([_, To, entry, EntryId, add],
                  [Fid, From, Title, Desc, Medias, {TabId, _L}=Type])->
   Entry = #entry{id = {EntryId, Fid},
                  entry_id = EntryId,
@@ -232,10 +232,14 @@ process_delivery([feed, _, To, entry, EntryId, add],
   E = #product_entry{entry=Entry},
   wf:insert_top(TabId, E);
 
-process_delivery([feed, _, _Who, entry, _, edit],
+process_delivery([_, _Who, entry, _, edit],
                  [Tbox, Dbox, Title, Desc]) ->
   wf:update(Tbox, Title),
   wf:update(Dbox, Desc);
+
+process_delivery([_, Owner, entry, {Eid, Fid}, delete],
+              [From|_]) ->
+  error_logger:info_msg("remove entry block(need fix!)");
 
 process_delivery(_R, _M) -> skip.
 

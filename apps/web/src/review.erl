@@ -68,6 +68,21 @@ more_article() ->
   ]}.
 
 
-event(init) -> [];
+event(init) -> wf:reg(product_channel),[];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
+event({comment_entry, Eid, Cid, Csid})->
+  Comment = wf:q(Cid),
+  Medias = case wf:session(medias) of undefined -> []; L -> L end,
+  User = wf:user(),
+  Parent = undefined,
+  error_logger:info_msg("Comment entry ~p:  ~p~n", [Eid, Cid]),
+  msg:notify([kvs_feed, product, User#user.email, comment, product:uuid(), add], [User#user.email, Eid, Parent, Comment, Medias, Csid]);
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
+
+process_delivery([_, _Owner, comment, Cid, add],
+                 [From, Eid, Parent, Content, Medias, Csid])->
+  error_logger:info_msg("update the fucking entry comments ~p ~p~n", [Eid, Cid]),
+  wf:insert_bottom(Csid, #entry_comment{comment=#comment{id={Cid, Eid}, entry_id=Eid, comment_id=Cid, content=Content, media=Medias, parent=Parent, author_id=From, creation_time=erlang:now()}});
+
+process_delivery(_R, _M) -> skip.
