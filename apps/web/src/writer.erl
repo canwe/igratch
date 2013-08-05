@@ -20,7 +20,6 @@ init([Params]) ->
   Videos  = proplists:get_value(videos,  Params, undefined),
   Bundles = proplists:get_value(bundles, Params, undefined),
   error_logger:info_msg("init worker ~p", [Params]),
-  error_logger:info_msg("~p ~p ~p ~p ~p ~p", [Blog, Features, Specs, Gallery, Videos, Bundles]),
   {ok, #state{
     owner = Id,
     type =Type, feed = Feed, blog = Blog, features=Features, specs=Specs, gallery=Gallery, videos=Videos, bundles=Bundles}}.
