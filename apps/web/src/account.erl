@@ -148,14 +148,19 @@ inputs(developer) ->
   ]}
  ] end;
 inputs(reviewer)->
-  #panel{class=[inputs, reviewer], body=[
-    #panel{class=["inputs-inner", "row-fluid"], body=[
-      #textbox{class=[span12], placeholder="Review title..."},
-      #image{image= <<"/static/img/text-style-btns.png">>, alt= <<"Text Style Buttons">>},
-      #link{url= <<"#">>, class=[btn, "btn-blue", "btn-border", capital, "pull-right"], body=[
-        #i{class=["icon-picture", "icon-white"]}, #i{class=["icon-plus", "icon-white"]}, <<"Add Picture">>]},
-      #textarea{class=[span12], name="", id="", cols="30", rows="10"},
-      #link{url= <<"#">>, class=[btn, "btn-grey", capital, "pull-right"], body=[#i{class=["icon-ok", "icon-white"]}, <<"Submit Review">>]} ]} ]}.
+  User = wf:user(),
+  #panel{class=["row-fluid"], body=[
+      #panel{class=[span10], body=[
+        #h3{body= <<"Submit review">>},
+        #textbox{class=[span12], placeholder= <<"Title">>},
+        #htmlbox{class=[span12]},
+        #panel{class=["btn-toolbar"], body=[#link{class=[btn, capital, "btn-gray", "pull-right"], body=[#i{class=["icon-ok", "icon-white"]}, <<" Post">>]}]}
+      ]},
+      #panel{class=[span2], body=[
+        #h3{body= <<"cover">>},
+        #upload{root=?ROOT++"/"++User#user.email, post_write=attach_cover, img_tool=gm, preview=true}
+      ]}
+  ]}.
 
 feed(Fid) ->
   Entries = kvs_feed:entries(Fid, undefined, 10),
