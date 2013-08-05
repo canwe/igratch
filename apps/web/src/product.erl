@@ -171,7 +171,7 @@ event({post_entry, Fid, Id, Eid, Ttid, TabId, Lid}) ->
   error_logger:info_msg("Entry ~p ~p", [Title, Type]),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   User = wf:user(),
-  From = User#user.username,
+  From = User#user.email,
 
   [msg:notify([kvs_feed, feed, RoutingType, To, entry, uuid(), add], [Fid, From, Title, Desc, Medias, Type]) || {To, RoutingType} <- Recipients],
 
@@ -192,7 +192,7 @@ event({cancel_entry, E=#entry{}, Title, Desc})->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
 event({remove_entry, E=#entry{}, Id})->
-  msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.username]),
+  msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.email]),
   wf:remove(Id);
 event({read_entry, {Id,_}})->
   wf:redirect("/review?id="++Id);

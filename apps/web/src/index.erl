@@ -96,7 +96,8 @@ header() -> [
       #panel{class=["container"], body=[
         #button{class=[btn, "btn-navbar"], data_fields=[{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}], body=[#span{class=["icon-bar"]}||_<-lists:seq(1,3)]},
 
-        #link{class=[brand], body= #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>}},
+        #link{url="/index", class=[brand], body= #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>}},
+%        #link{url="/index", class=[brand], body=[ #image{alt= <<"iGratch">>, image= <<"/static/img/brand.png">>}, #span{class=["brand-label"], body= <<" iGratch">>}] },
         #panel{class=["nav-collapse", collapse], body=[
           #list{class=[nav, "pull-right"], body=[
             #li{body=#link{body= <<"Home">>, url= <<"/index">>}},
