@@ -58,25 +58,25 @@ render_element(#product_hero{product=P}) ->
   ]},
   element_panel:render_element(Hero);
 
-render_element(#product_entry{entry=#entry{type={features, "figure"}}=E}) ->
-  PostId = wf:temp_id(),
-  EntryId= wf:temp_id(),
-  TitleId = wf:temp_id(),
-  EntryActionsLine = #list{class=[unstyled, inline, "pull-right"], style="display:inline-block;", body=[
-              #li{body=#link{style="color:white", body= <<"Edit">>, postback={edit_entry, E, TitleId, EntryId}, source=[TitleId, EntryId]}},
-              #li{body=#link{style="color:white", body= <<"Remove">>, postback={remove_entry, E, PostId}}}
-            ]},
-  Entry = #panel{id=PostId, class=["blog-post", "figure"], body=[
-    #figure{style="margin:0;position:relative;", body=[
-      [#entry_media{media=M, fid=E#entry.entry_id} || M <- E#entry.media],
-      #figcaption{style="position:absolute; top:35%%; left:0;", body=[
-        #panel{style="margin-left:40px;color:white;text-shadow:none;", body=#h1{body=#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}}},
-        #panel{style="margin-left: 40px;color:white;text-shadow:none;", body=#panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]}}
-      ]}
-    ]},
-    #footer{style="position:relative;", body=#panel{class=["row-fluid"], style="position:absolute; bottom:0; right:0;", body=[EntryActionsLine]}}
-  ]},
-  element_panel:render_element(Entry);
+%render_element(#product_entry{entry=#entry{type={features, "figure"}}=E}) ->
+%  PostId = wf:temp_id(),
+%  EntryId= wf:temp_id(),
+%  TitleId = wf:temp_id(),
+%  EntryActionsLine = #list{class=[unstyled, inline, "pull-right"], style="display:inline-block;", body=[
+%              #li{body=#link{style="color:white", body= <<"Edit">>, postback={edit_entry, E, TitleId, EntryId}, source=[TitleId, EntryId]}},
+%              #li{body=#link{style="color:white", body= <<"Remove">>, postback={remove_entry, E, PostId}}}
+%            ]},
+%  Entry = #panel{id=PostId, class=["blog-post", "figure"], body=[
+%    #figure{style="margin:0;position:relative;", body=[
+%      [#entry_media{media=M, fid=E#entry.entry_id} || M <- E#entry.media],
+%      #figcaption{style="position:absolute; top:35%%; left:0;", body=[
+%        #panel{style="margin-left:40px;color:white;text-shadow:none;", body=#h1{body=#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}}},
+%        #panel{style="margin-left: 40px;color:white;text-shadow:none;", body=#panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]}}
+%      ]}
+%    ]},
+%    #footer{style="position:relative;", body=#panel{class=["row-fluid"], style="position:absolute; bottom:0; right:0;", body=[EntryActionsLine]}}
+%  ]},
+%  element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=#entry{type={features, "jumbotron"}}=E}) ->
   error_logger:info_msg("View desctiption entry with jumbotron layout ~p~n", [E]),
@@ -100,7 +100,9 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E})->
           #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
     ]},
 %    #figure{class=["thumbnail-figure"], body=[
+
       [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
+
 %      #figcaption{class=["thumbnail-title"], body=[
 %            #h3{body=#span{body= E#entry.title}}
 %      ]}

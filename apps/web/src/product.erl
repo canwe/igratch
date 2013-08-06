@@ -179,7 +179,7 @@ event({post_entry, Fid, ProductId, Eid, Ttid, TabId, Lid}) ->
   wf:session(medias, []);
 event({edit_entry, E=#entry{}, Title, Desc}) ->
   Tid = wf:temp_id(), Did = wf:temp_id(),
-  wf:update(Title, #textbox{id=Tid, value=wf:q(Title)}),
+  wf:update(Title, #textbox{id=Tid, value=wf:js_escape(wf:q(Title))}),
   wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc))}),
   wf:insert_bottom(Desc, #panel{class=["btn-toolbar"], body=[
     #link{postback={save_entry, E, Desc, Title, Tid, Did}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
@@ -232,11 +232,10 @@ process_delivery([product, To, entry, EntryId, add],
 
   E = #product_entry{entry=Entry},
   wf:insert_top(TabId, E);
-
-process_delivery([_, _Who, entry, _, edit],
-                 [Tbox, Dbox, Title, Desc]) ->
-  wf:update(Tbox, Title),
-  wf:update(Dbox, Desc);
+process_delivery([product, UsrId, entry, Eid, edit],
+                 [Tbox, Dbox, Title, Description])->
+  wf:update(Tbox, wf:js_escape(Title)),
+  wf:update(Dbox, wf:js_escape(Description));
 
 process_delivery([_, Owner, entry, {Eid, Fid}, delete],
               [From|_]) ->
