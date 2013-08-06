@@ -67,22 +67,46 @@ more_article() ->
     ]}
   ]}.
 
-
 event(init) -> wf:reg(product_channel),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({comment_entry, Eid, Cid, Csid})->
+event({comment_entry, Eid, Cid, Csid, Parent, EditorId})->
   Comment = wf:q(Cid),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   User = wf:user(),
-  Parent = undefined,
+%  Parent = undefined,
   error_logger:info_msg("Comment entry ~p:  ~p~n", [Eid, Cid]),
-  msg:notify([kvs_feed, product, User#user.email, comment, product:uuid(), add], [User#user.email, Eid, Parent, Comment, Medias, Csid]);
+
+  msg:notify([kvs_feed, entry, Eid, comment, product:uuid(), add], [User#user.email, Parent, Comment, Medias, Csid, EditorId]);
+
+event({comment_reply, {Cid, {Eid, Fid}}})->
+  error_logger:info_msg("reply to ~p", [Cid]),
+  CommentId = wf:temp_id(),
+  PanelId =wf:temp_id(),
+  wf:insert_bottom(Cid, #panel{id=PanelId, body=[
+    #htmlbox{id=CommentId},
+    #panel{class=["btn-toolbar"], body=[
+      #link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, {Eid, Fid}, CommentId, Cid, Cid, PanelId}, source=[CommentId]},
+      #link{class=[btn, "btn-large"], body= <<"Cancel">>, postback={comment_cancel, PanelId}}
+    ]}
+  ]});
+event({comment_cancel, Id}) -> wf:remove(Id);
+
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([_, _Owner, comment, Cid, add],
-                 [From, Eid, Parent, Content, Medias, Csid])->
-  error_logger:info_msg("update the fucking entry comments ~p ~p~n", [Eid, Cid]),
-  wf:insert_bottom(Csid, #entry_comment{comment=#comment{id={Cid, Eid}, entry_id=Eid, comment_id=Cid, content=Content, media=Medias, parent=Parent, author_id=From, creation_time=erlang:now()}});
+process_delivery([_, Eid, comment, Cid, add],
+                 [From, Parent, Content, Medias, Csid, EditorId])->
+  error_logger:info_msg("update the comments ~p ~p~n", [Eid, Cid]),
+  Entry = #entry_comment{comment=#comment{
+      id={Cid, Eid},
+      entry_id=Eid,
+      comment_id=Cid,
+      content=wf:js_escape(Content),
+      media=Medias,
+      parent=Parent,
+      author_id=From,
+      creation_time=erlang:now()}},
 
+  wf:insert_bottom(Csid, Entry),
+  wf:remove(EditorId);
 process_delivery(_R, _M) -> skip.

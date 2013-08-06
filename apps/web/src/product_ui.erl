@@ -119,8 +119,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
   TitleId = wf:temp_id(),
-  Comments = kvs_comment:feed_comments({E#entry.entry_id, E#entry.feed_id}),
-  error_logger:info_msg(""),
+  Comments = kvs_comment:read_comments(E#entry.comments_rear),
   CommentId = wf:temp_id(),
   CommentsId = wf:temp_id(),
 
@@ -141,7 +140,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
         #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
         #h3{class=["comments-form"], body= <<"Add your comment">>},
         #htmlbox{id=CommentId},
-        #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId}, source=[CommentId]}]}
+        #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
       ]}
   ]},
 
@@ -152,7 +151,6 @@ render_element(#product_entry{entry=E, prod_id=ProdId})->
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
   TitleId = wf:temp_id(),
-%  Comments = kvs_comment:feed_comments({E#entry.id, E#entry.feed_id}),
   Ms = E#entry.media,
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   EntryActionsLine = [
@@ -183,23 +181,28 @@ render_element(#product_entry{entry=E, prod_id=ProdId})->
   element_panel:render_element(Entry);
 
 render_element(#entry_comment{comment=#comment{}=C})->
-    {Cid, {Eid, Fid}} = C#comment.id,
-    {Author, Avatar} = case kvs:get(user, C#comment.author_id) of 
+  {Cid, {Eid, Fid}} = C#comment.id,
+  {Author, Avatar} = case kvs:get(user, C#comment.author_id) of 
       {ok, User} -> {User#user.display_name, case User#user.avatar of
         undefined-> #image{class=["media-objects","img-circle"], data_fields=[{<<"data-src">>, <<"holder.js/64x64">>}]};
         Img-> #image{class=["media-object", "img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end};
       {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], data_fields=[{<<"data-src">>, <<"holder.js/64x64">>}]}} end,
-    {{Y, M, D}, _} = calendar:now_to_datetime(C#comment.creation_time),
-    Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
-    Comment = #panel{class=[media, "media-comment"], body=[
+  {{Y, M, D}, _} = calendar:now_to_datetime(C#comment.creation_time),
+  Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
+
+  Comment = #panel{class=[media, "media-comment"], body=[
     #link{class=["pull-left"], body=[Avatar]},
-    #panel{class=["media-body"], body=[
-      #p{class=["media-heading"], body=[
-        #link{body= Author}, <<",">>, Date,
-        #link{class=["comment-reply","pull-right"], body=[ <<"reply ">>, #i{class=["icon-reply", "icon-large"]}]}
-      ]},
-      #p{body= C#comment.content},
-      #p{body= [#entry_media{media=M, fid = Fid, cid = Cid} ||  M <- C#comment.media]}
+    #panel{id=C#comment.comment_id, class=["media-body"], body=[
+        #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
+        #p{body= C#comment.content},
+        #p{body= [#entry_media{media=M, fid=Fid, cid = Cid} ||  M <- C#comment.media]},
+        #p{class=["media-heading"], body=[
+          #link{class=["comment-reply"], body=[ <<"reply ">>, #i{class=["icon-reply", "icon-large"]}], postback={comment_reply, C#comment.id}}
+        ]},
+        #panel{body=
+        case C#comment.comments_rear of undefined -> []; Crs ->
+            [#entry_comment{comment=C} || C <- kvs_comment:read_comments(Crs)]
+        end}
     ]}
   ]},
   element_panel:render_element(Comment);
