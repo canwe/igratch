@@ -13,8 +13,9 @@
 main()-> #dtl{file="dev", bindings=[{title,<<"admin">>},{body, body()}]}.
 
 body()-> index:header() ++ [
-  #section{class=[section, "main-no-slider"], body=[
+  #section{class=[section], body=[
     #panel{class=[container], body=[
+      #h3{body= <<"Control Panel">>},
       #list{class=[nav, "nav-tabs", "sky-nav", "entry-type-tabs"], body=[
         #li{class=[active], body=[#link{url= <<"#categories">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Categories">>}]},
         #li{body=[#link{url= <<"#users">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Users">>}]},
@@ -25,17 +26,17 @@ body()-> index:header() ++ [
         #panel{id=categories, class=["tab-pane", active], body=[
           #h3{body= <<"Category">>},
           #panel{class=["row-fluid"], body=[
-            #panel{class=[span10], body=[
+            #panel{class=[span8], body=[
               #panel{class=[controls, "controls-row"], body=[
-                #textbox{id=cat_tag, class=[span3], placeholder= <<"tag">>},
-                #textbox{id=cat_name, class=[span9],placeholder= <<"name">>}
+%                #textbox{id=cat_tag, class=[span3], placeholder= <<"tag">>},
+                #textbox{id=cat_name, class=[span12], placeholder= <<"name">>}
               ]},
               #textarea{id=cat_desc, class=[span12], placeholder= <<"description">>},
-              #link{id=save_cat, class=[btn, "btn-large", "pull-right"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc, cat_tag]}
+              #link{id=save_cat, class=[btn, "btn-large", "pull-right"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc]}
             ]}
           ]},
           #h3{body= <<"Categories">>},
-          #table{id=cats, class=[table, "table-hover"], body=[[#tr{cells=[#td{body=Name}, #td{body=Desc}]} || G=#group{id=Name, description=Desc}<-kvs:all(group)]]}
+          #table{id=cats, class=[table, "table-hover"], body=[[#tr{cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}]} || G=#group{id=Id, name=Name, description=Desc}<-kvs:all(group)]]}
         ]},
         #panel{id=users, class=["tab-pane"], body=[
         ]},
@@ -63,7 +64,8 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(save_cat) ->
   Name = wf:q(cat_name),
   Desc = wf:q(cat_desc),
-  Id = wf:q(cat_tag),
+%  Id = wf:q(cat_tag),
+  Id = wf:temp_id(),
   Publicity = public,
   Creator = (wf:user())#user.email,
   case kvs_group:create(Creator, Id, Name, Desc, Publicity) of 

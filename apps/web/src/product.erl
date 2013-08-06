@@ -168,7 +168,7 @@ event({post_entry, Fid, ProductId, Eid, Ttid, TabId, Lid}) ->
   Desc = wf:q(Eid),
   Title = wf:q(Ttid),
   Layout = wf:q(Lid),
-  Recipients = [{ProductId, product}|[{Where, group} || S=#group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId))]],
+  Recipients = [{ProductId, product}|[{Where, group} || S=#group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
   EntryType = {TabId, Layout},
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   User = wf:user(),

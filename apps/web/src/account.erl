@@ -171,9 +171,8 @@ feed(Fid) ->
   [#product_entry{entry=E} || E <- Entries].
 
 control_event("cats", _) ->
-  error_logger:info_msg("Autocomplete request ~p", [wf:q(term)]),
   SearchTerm = wf:q(term),
-  Data = [ [list_to_binary(Id), list_to_binary(Name), list_to_binary(Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- kvs:all(group), string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
+  Data = [ [list_to_binary(Id++"="++Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- kvs:all(group), string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
   element_textboxlist:process_autocomplete("cats", Data, SearchTerm);
 control_event(_, _) -> ok.
 
@@ -181,22 +180,13 @@ control_event(_, _) -> ok.
 event(init) -> wf:reg(product_channel), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(save) ->
-  error_logger:info_msg("Save product ~p ~p", [wf:q(title), wf:q(brief)]),
   User = wf:user(),
   Title = wf:q(title),
   Descr = wf:q(brief),
   Cats = wf:q(cats),
-  error_logger:info_msg("Categories: ~p", [Cats]),
-
-  %inner_event({subscribe, User1, GName, SUId}, _User) ->
-  %  nsx_msg:notify(["subscription", "user", User1, "add_to_group"], {GName, User1, member}),
-  %inner_event({subscribe, _, Who, SUId}, User1)   ->
-  %  nsx_msg:notify(["subscription", "user", User1, "subscribe_user"], {Who}),
-
-
   {Price, _Rest} = string:to_float(wf:q(price)),
   Currency = wf:q(currency),
-  Categories = [1],%wf:q(category),
+  Categories = [1],
   TitlePic = wf:session(cover),
   Product = #product{
     creator= User#user.username,
@@ -212,8 +202,6 @@ event(save) ->
     {ok, P} ->
       msg:notify([kvs_products, product, init], [P#product.id, P#product.feed, P#product.blog, P#product.features, P#product.specs, P#product.gallery, P#product.videos, P#product.bundles]),
       wf:session(cover, undefined),
-%      msg:notify([subscription, user, User, add_to_group], {Cats, User, member}),
-%      [msg:notify([kvs_group, join, G], {P#product.name, product})  ||G <- string:tokens(Cats, ",")],
       [kvs_group:join(P#product.name, G) || G <- string:tokens(Cats, ",")],
       wf:wire(wf:f("$('#products > tbody:first').append('~s');", [wf:js_escape(binary_to_list(wf:render(#product_row{product=P}))) ]));
     E -> error_logger:info_msg("E: ~p", [E]), error
