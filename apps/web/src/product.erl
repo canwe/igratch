@@ -196,11 +196,11 @@ event({save_entry, #entry{id=Eid, type={Type, _Layout}}, ProductId, Dbox, Tbox, 
 event({cancel_entry, E=#entry{}, Title, Desc})->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
-event({remove_entry, E=#entry{}, Id})->
-%  Recipients = [{ProductId, product}|[{Where, group} || S=#group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
-  msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.email]),
+event({remove_entry, E=#entry{type={Type, _Layout}}, ProductId, Id})->
+  Recipients = [{ProductId, product}|[{Where, group} || #group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), Type==reviews]],
 
-  wf:remove(Id);
+  [msg:notify([kvs_feed, RouteType, To, entry, E#entry.id, delete], [(wf:user())#user.email, Id]) || {To, RouteType} <- Recipients];
+
 event({read_entry, {Id,_}})->
   wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
@@ -243,9 +243,8 @@ process_delivery([product, _UsrId, entry, _Eid, edit],
   wf:update(Tbox, wf:js_escape(Title)),
   wf:update(Dbox, wf:js_escape(Description));
 
-process_delivery([_, Owner, entry, {Eid, Fid}, delete],
-              [From|_]) ->
-  error_logger:info_msg("remove entry block(need fix!)");
+process_delivery([product, _, entry, _, delete], [_, Id]) ->
+  wf:remove(Id);
 
 process_delivery(_R, _M) -> skip.
 

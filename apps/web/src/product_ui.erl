@@ -93,7 +93,7 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId
   Ms = E#entry.media,
   EntryActionsLine = #list{class=[unstyled, inline], style="display:inline-block;", body=[
               #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, TitleId, EntryId}, source=[TitleId, EntryId]}},
-              #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, PostId}}}
+              #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, ProdId, PostId}}}
             ]},
   Entry = #panel{id=PostId, class=["blog-post"], body=[
     #header{class=["blog-header"], body=[
@@ -157,7 +157,7 @@ render_element(#product_entry{entry=E, prod_id=ProdId})->
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   EntryActionsLine = [
     #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, TitleId, EntryId}, source=[TitleId, EntryId]},
-    #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, PostId}}
+    #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId, PostId}}
   ],
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
