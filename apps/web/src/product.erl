@@ -62,31 +62,31 @@ details(P) ->
   [
   #panel{class=["tab-content"], body=[
     #panel{id=features, class=["tab-pane", active], body=[
-      feed(P#product.features, features),
+      feed(P#product.id, P#product.features, features),
       entry_form(P, P#product.features, "feature", features)
     ]},
     #panel{id=specs, class=["tab-pane"], body=[
-      feed(P#product.specs, specs),
+      feed(P#product.id, P#product.specs, specs),
       entry_form(P, P#product.specs, "specifications", specs)
     ]},
     #panel{id=gallery, class=["tab-pane"], body=[
-      feed(P#product.gallery, gallery),
+      feed(P#product.id, P#product.gallery, gallery),
       entry_form(P, P#product.gallery, "picture", gallery)
     ]},
     #panel{id=videos, class=["tab-pane"], body=[
-      feed(P#product.videos, videos),
+      feed(P#product.id, P#product.videos, videos),
       entry_form(P, P#product.videos, "video", videos)
     ]},
     #panel{id=reviews, class=["tab-pane"], body=[
-      feed(P#product.feed, reviews),
+      feed(P#product.id, P#product.feed, reviews),
       entry_form(P, P#product.feed, "review", reviews)
     ]},
     #panel{id=news, class=["tab-pane"], body=[
-      feed(P#product.blog, news),
+      feed(P#product.id, P#product.blog, news),
       entry_form(P, P#product.blog, "news", news)
     ]},
     #panel{id=bundles, class=["tab-pane"], body=[
-      feed(P#product.bundles, bundles),
+      feed(P#product.id, P#product.bundles, bundles),
       entry_form(P, P#product.bundles, "stuff@!!!1111", bundles)
     ]}
   ]}
@@ -118,11 +118,11 @@ entry_form(P, Fid, Title, TabId) ->
     #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId, LayoutId}, source=[TitleId, EditorId, LayoutId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]} 
   ] end.
 
-feed(Fid, features)-> feed(lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
-feed(Fid, _TabId) -> feed(kvs_feed:entries(Fid, undefined, 10)).
+feed(ProdId, Fid, features)-> feed(ProdId, lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
+feed(ProdId, Fid, _TabId) -> feed(ProdId, kvs_feed:entries(Fid, undefined, 10)).
 
-feed(Entries)-> #panel{class=[feed], body=[
-  [#product_entry{entry=E} || E <- Entries],
+feed(ProdId, Entries)-> #panel{class=[feed], body=[
+  [#product_entry{entry=E, prod_id=ProdId} || E <- Entries],
   #list{class=[pager], body=[
     #li{class=[previous], body=#link{body=[#i{class=["icon-chevron-left"]}, <<" Older">> ]}},
     #li{class=[next], body=#link{body=[#i{class=["icon-chevron-right"]}, <<" Newer">> ]}}
@@ -168,32 +168,38 @@ event({post_entry, Fid, ProductId, Eid, Ttid, TabId, Lid}) ->
   Desc = wf:q(Eid),
   Title = wf:q(Ttid),
   Layout = wf:q(Lid),
-  Recipients = [{ProductId, product}|[{Where, group} || S=#group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
+  Recipients = [{ProductId, product}|[{Where, group} || #group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
   EntryType = {TabId, Layout},
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   User = wf:user(),
   From = User#user.email,
-
-  [msg:notify([kvs_feed, RoutingType, To, entry, uuid(), add], [Fid, From, Title, Desc, Medias, EntryType]) || {To, RoutingType} <- Recipients],
+  EntryId =uuid(),
+  [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [Fid, From, Title, Desc, Medias, EntryType]) || {To, RoutingType} <- Recipients],
 
   wf:session(medias, []);
-event({edit_entry, E=#entry{}, Title, Desc}) ->
+
+event({edit_entry, E=#entry{}, ProdId, Title, Desc}) ->
   Tid = wf:temp_id(), Did = wf:temp_id(),
   wf:update(Title, #textbox{id=Tid, value=wf:js_escape(wf:q(Title))}),
   wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc))}),
   wf:insert_bottom(Desc, #panel{class=["btn-toolbar"], body=[
-    #link{postback={save_entry, E, Desc, Title, Tid, Did}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
+    #link{postback={save_entry, E, ProdId, Desc, Title, Tid, Did}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
     #link{postback={cancel_entry, E, Title, Desc}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
-  ]}),
-  ok;
-event({save_entry, #entry{id=Eid}, Dbox, Tbox, Tid, Did})->
+  ]});
+
+event({save_entry, #entry{id=Eid, type={Type, _Layout}}, ProductId, Dbox, Tbox, Tid, Did})->
   Title = wf:q(Tid), Description = wf:q(Did),
-  msg:notify([kvs_feed, product, (wf:user())#user.email, entry, Eid, edit], [Tbox, Dbox, Title, Description]);
+  Recipients = [{ProductId, product}|[{Where, group} || #group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), Type==reviews]],
+
+  [ msg:notify([kvs_feed, RouteType, To, entry, Eid, edit], [Tbox, Dbox, Title, Description]) || {To, RouteType} <- Recipients];
+
 event({cancel_entry, E=#entry{}, Title, Desc})->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
 event({remove_entry, E=#entry{}, Id})->
+%  Recipients = [{ProductId, product}|[{Where, group} || S=#group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
   msg:notify([kvs_feed, product, E#entry.from, entry, E#entry.id, delete], [(wf:user())#user.email]),
+
   wf:remove(Id);
 event({read_entry, {Id,_}})->
   wf:redirect("/review?id="++Id);
@@ -230,9 +236,9 @@ process_delivery([product, To, entry, EntryId, add],
                  media = Medias,
                  feed_id = Fid},
 
-  E = #product_entry{entry=Entry},
+  E = #product_entry{entry=Entry, prod_id=To},
   wf:insert_top(TabId, E);
-process_delivery([product, UsrId, entry, Eid, edit],
+process_delivery([product, _UsrId, entry, _Eid, edit],
                  [Tbox, Dbox, Title, Description])->
   wf:update(Tbox, wf:js_escape(Title)),
   wf:update(Dbox, wf:js_escape(Description));

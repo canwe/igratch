@@ -86,13 +86,13 @@ render_element(#product_entry{entry=#entry{type={features, "jumbotron"}}=E}) ->
   ]},
 element_panel:render_element(Entry);
 
-render_element(#product_entry{entry=#entry{type={features, _}}=E})->
+render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId})->
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
   TitleId = wf:temp_id(),
   Ms = E#entry.media,
   EntryActionsLine = #list{class=[unstyled, inline], style="display:inline-block;", body=[
-              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, TitleId, EntryId}, source=[TitleId, EntryId]}},
+              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, TitleId, EntryId}, source=[TitleId, EntryId]}},
               #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, PostId}}}
             ]},
   Entry = #panel{id=PostId, class=["blog-post"], body=[
@@ -147,7 +147,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
 
   element_panel:render_element(Entry);
 
-render_element(#product_entry{entry=E})->
+render_element(#product_entry{entry=E, prod_id=ProdId})->
   error_logger:info_msg("Render entry: ~p ~p", [E#entry.id, E#entry.type]),
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
@@ -156,7 +156,7 @@ render_element(#product_entry{entry=E})->
   Ms = E#entry.media,
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   EntryActionsLine = [
-    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, TitleId, EntryId}, source=[TitleId, EntryId]},
+    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, TitleId, EntryId}, source=[TitleId, EntryId]},
     #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, PostId}}
   ],
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
