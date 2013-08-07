@@ -9,7 +9,7 @@
 
 -define(PAGE_SIZE, case wf:session(page_size) of list -> 2; _ -> 8 end).
 
-main()-> #dtl{file="dev", bindings=[{title,<<"reviews">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
 
 body()->
   wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){$(e.target).addClass('text-warning').siblings().removeClass('text-warning');});"),

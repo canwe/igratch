@@ -18,7 +18,7 @@
 
 -define(ROOT, code:priv_dir(web)++"/static").
 
-main()-> #dtl{file="dev", bindings=[{title,<<"account">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"account">>},{body, body()}]}.
 
 body()->
   index:header() ++ [

@@ -5,7 +5,7 @@
 -include_lib("kvs/include/users.hrl").
 -include("records.hrl").
 
-main() -> #dtl{file="dev", bindings=[{title,<<"review">>},{body, body()}]}.
+main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
   index:header()++[

@@ -7,7 +7,7 @@
 
 -define(PAGE_SIZE, case wf:session(page_size) of list -> 2; _ -> 8 end).
 
-main() -> wf:session(page_size, list), #dtl{file="dev", bindings=[{title,<<"Store">>},{body, body()}]}.
+main() -> wf:session(page_size, list), #dtl{file="prod", bindings=[{title,<<"Store">>},{body, body()}]}.
 
 body() -> index:header() ++[
   #section{class=[section, "main-no-slider"], body=[

@@ -3,7 +3,7 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 
-main() -> #dtl{file = "dev", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
+main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
 body() -> header() ++ [
   #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=

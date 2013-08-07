@@ -3,7 +3,7 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
 
-main()-> #dtl{file="dev", bindings=[{title,<<"notifications">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]}.
 
 body()-> index:header() ++ [
   #panel{id="main-container", class=["container-fluid", "main-no-slider", account], body=[

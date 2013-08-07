@@ -10,7 +10,7 @@
 
 -define(PAGE_SIZE, case wf:session(page_size) of list -> 2; _ -> 8 end).
 
-main()-> #dtl{file="dev", bindings=[{title,<<"admin">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 
 body()-> index:header() ++ [
   #section{class=[section], body=[
