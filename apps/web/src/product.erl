@@ -11,7 +11,7 @@
 -define(ROOT, code:priv_dir(web)).
 -record(struct, {lst=[]}).
 
-main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
+main() -> #dtl{file="dev", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
   Id = wf:qs(<<"id">>),
@@ -96,22 +96,35 @@ entry_form(P, Fid, Title, TabId) ->
   EditorId = wf:temp_id(),
   SaveId = wf:temp_id(),
   User = wf:user(),
-  Medias = wf:session(medias),
-  error_logger:info_msg("Medias: ~p", [length(Medias)]),
+  Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
   case User of undefined->[]; _-> [
     #h3{body="post "++Title},
     #panel{class=["row-fluid"], body=[
       #panel{class=[span9], body=[
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm}
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm},
+        #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
+        #panel{body=preview_medias(Medias)}
       ]},
       #panel{class=[span3], body=[]}
-    ]},
-    #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
-    #list{class=[thumbnails], body=[
-      [begin [] end || M <- Medias]
     ]}
   ] end.
+
+preview_medias(Medias)->
+  L = length(Medias),
+  if L > 0 ->
+    #carousel{indicators=false, items=[
+      #panel{class=["row-fluid"], body=[
+        begin
+          Id = wf:temp_id(),
+          #panel{id=Id, class=[span3], style="position:relative;", body=[
+            #button{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
+            #link{class=[thumbnail], body=[
+              #image{image="holder.js/100%x120", style="max-width:100%"}
+            ]} ]} end || M <- lists:sublist(Medias, I, 4)
+      ]} || I <- lists:seq(1, (L div 4)+1) ],
+      caption=#panel{body= <<"Entry will be posted with this medias.">>}}; 
+    true-> [] end.
 
 feed(ProdId, Fid, features)-> feed(ProdId, lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
 feed(ProdId, Fid, _TabId) -> feed(ProdId, kvs_feed:entries(Fid, undefined, 10)).
