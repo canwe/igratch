@@ -20,14 +20,14 @@ body() ->
     case kvs:get(product, list_to_integer(binary_to_list(Id))) of
       {ok, P} -> [
         #panel{class=["row-fluid", "page-header"], body=[
-          #h5{class=[span9],body=[<<"Categories:">>,
-            #small{body=[
-              #link{body= <<" Action ">>}, <<"|">>,
-              #link{body= <<" Shooter (FPS) ">>},<<"|">>,
-              #link{body= <<" Weekly Deals ">>}, <<"|">>,
-              #link{body= <<" Collections ">>}
-            ]}
-          ]},
+          #h4{class=[span9], style="line-height:30px;", body= [#link{url="/reviews", body= <<"Categories ">>, style="color:#999"}, #small{body=[[
+            begin
+              error_logger:info_msg("check ~p", [I]),
+              Name = case kvs:get(group,I) of {ok, G}-> G#group.name; _ -> "noname" end,
+              [<<" | ">>, #link{url="/reviews?id="++I, body=[#span{class=["icon-asterisk"]},Name]}]
+            end
+          ] || #group_subscription{where=I} <- kvs_group:participate("product"++integer_to_list(P#product.id))]} ]},
+
           #panel{class=[span3, "input-append"], style="margin:10px 0", body=[
             #textbox{id="search-button", placeholder= <<"Search">>},
             #button{class=[btn], body= <<"Go!">>}

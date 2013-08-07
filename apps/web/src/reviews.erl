@@ -12,6 +12,7 @@
 main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
 
 body()->
+  case wf:qs(<<"id">>) of undefined ->skip; I -> error_logger:info_msg("~p RECEIVED!", [I]),wf:wire(wf:f("$('a[href=\"#~s\"]').addClass('text-warning').tab('show');", [binary_to_list(I)])) end,
   wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){$(e.target).addClass('text-warning').siblings().removeClass('text-warning');});"),
   index:header() ++ [
   #section{class=[section], body=[
