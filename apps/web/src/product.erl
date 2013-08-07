@@ -8,8 +8,6 @@
 -include("records.hrl").
 
 -define(PAGE_SIZE, 4).
--define(ROOT, code:priv_dir(web)).
--record(struct, {lst=[]}).
 
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
@@ -105,26 +103,11 @@ entry_form(P, Fid, Title, TabId) ->
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
         #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId},
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId, MsId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
-        #panel{id=MsId, body=preview_medias(MsId, Medias)}
+        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
       ]},
       #panel{class=[span3], body=[]}
     ]}
   ] end.
-
-preview_medias(Id, Medias)->
-  L = length(Medias),
-  if L > 0 ->
-    #carousel{indicators=false, style="border:1px solid #eee;", items=[
-      #panel{class=["row-fluid"], body=[
-        #panel{class=[span3], style="position:relative;", body=[
-          #link{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
-          #link{class=[thumbnail], body=[
-            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x120">>;Th -> Th end}
-          ]}
-        ]}|| M <- lists:sublist(Medias, I, 4)
-      ]}|| I <- lists:seq(1, L, 4) ],
-      caption=#panel{body= <<"Entry will be posted with this medias.">>}};
-    true-> [] end.
 
 feed(ProdId, Fid, features)-> feed(ProdId, lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
 feed(ProdId, Fid, _TabId) -> feed(ProdId, kvs_feed:entries(Fid, undefined, 10)).
@@ -181,24 +164,25 @@ event({post_entry, Fid, ProductId, Eid, Ttid, TabId, MsId}) ->
   User = wf:user(),
   From = User#user.email,
   EntryId =uuid(),
-  [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [Fid, From, Title, Desc, Medias, EntryType]) || {To, RoutingType} <- Recipients],
 
-  wf:session(medias, []),
-  wf:update(MsId, []);
+  [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [Fid, From, Title, Desc, Medias, EntryType, Eid, Ttid, MsId]) || {To, RoutingType} <- Recipients];
 
-event({edit_entry, E=#entry{}, ProdId, Title, Desc}) ->
+event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
+  User = wf:user(),
   Tid = wf:temp_id(), Did = wf:temp_id(),
+  Medias = case wf:session(medias) of undefined -> []; L -> L end,
   wf:update(Title, #textbox{id=Tid, value=wf:js_escape(wf:q(Title))}),
-  wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc))}),
+  wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc)), root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId}),
   wf:insert_bottom(Desc, #panel{class=["btn-toolbar"], body=[
     #link{postback={save_entry, E, ProdId, Desc, Title, Tid, Did}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
     #link{postback={cancel_entry, E, Title, Desc}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
-  ]});
+  ]}),
+  wf:insert_bottom(Desc, #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias) });
 
 event({save_entry, #entry{id=Eid, type={Type, _Layout}}, ProductId, Dbox, Tbox, Tid, Did})->
   Title = wf:q(Tid), Description = wf:q(Did),
   Recipients = [{ProductId, product}|[{Where, group} || #group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), Type==reviews]],
-
+  error_logger:info_msg("Recipients: ~p", [Recipients]),
   [ msg:notify([kvs_feed, RouteType, To, entry, Eid, edit], [Tbox, Dbox, Title, Description]) || {To, RouteType} <- Recipients];
 
 event({cancel_entry, E=#entry{}, Title, Desc})->
@@ -214,7 +198,7 @@ event({remove_media, M, Id}) ->
   Ms = case wf:session(medias) of undefined -> []; Mi -> Mi end,
   New = lists:filter(fun(E)-> error_logger:info_msg("take ~p compare with ~p and = ~p", [E,M, E/=M]),  E/=M end, Ms),
   wf:session(medias, New),
-  wf:update(Id, preview_medias(Id, New));
+  wf:update(Id, product_ui:preview_medias(Id, New));
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 api_event(attach_media, Args, Tag)->
@@ -234,11 +218,11 @@ api_event(attach_media, Args, Tag)->
   Medias = case wf:session(medias) of undefined -> []; M -> M end,
   NewMedias = [Media | Medias],
   wf:session(medias, NewMedias),
-  wf:update(Target, preview_medias(Target, NewMedias));
+  wf:update(Target, product_ui:preview_medias(Target, NewMedias));
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery([product, To, entry, EntryId, add],
-                 [Fid, From, Title, Desc, Medias, {TabId, _L}=Type])->
+                 [Fid, From, Title, Desc, Medias, {TabId, _L}=Type, Eid, Tid, MsId])->
   Entry = #entry{id = {EntryId, Fid},
                  entry_id = EntryId,
                  type=Type,
@@ -251,13 +235,17 @@ process_delivery([product, To, entry, EntryId, add],
                  feed_id = Fid},
 
   E = #product_entry{entry=Entry, prod_id=To},
+  wf:session(medias, []),
+  wf:update(MsId, []),
+  wf:wire(wf:f("$('#~s').val('');", [Tid])),
+  wf:wire(wf:f("$('#~s').html('');", [Eid])),
   wf:insert_top(TabId, E);
 process_delivery([product, _UsrId, entry, _Eid, edit],
                  [Tbox, Dbox, Title, Description])->
   wf:update(Tbox, wf:js_escape(Title)),
   wf:update(Dbox, wf:js_escape(Description));
 
-process_delivery([product, _, entry, _, delete], [_, Id]) ->
+process_delivery([product, _, entry, _, delete], [_|Id]) ->
   wf:remove(Id);
 
 process_delivery(_R, _M) -> skip.

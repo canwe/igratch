@@ -8,15 +8,7 @@
 -include_lib("kvs/include/membership.hrl").
 -include("records.hrl").
 
--record(struct, {lst=[]}).
-
--define(SYSTEM_MESSAGE_EXPIRES, 600).
--define(SYSTEM_MESSAGE_STAYS_FOR_READING, 20).
--define(LIKERS_TO_SHOW, 5).
-
 -record(price, {?ELEMENT_BASE(account), value, currencies=[{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}], span}).
-
--define(ROOT, code:priv_dir(web)++"/static").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"account">>},{body, body()}]}.
 
@@ -152,13 +144,16 @@ inputs(developer) ->
  ] end;
 inputs(reviewer)->
   User = wf:user(),
+  Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
+  MsId = wf:temp_id(),
   case User of undefined -> []; _->
   #panel{class=["row-fluid"], body=[
       #panel{class=[span10], body=[
         #h3{body= <<"Submit review">>},
         #textbox{class=[span12], placeholder= <<"Title">>},
-        #htmlbox{class=[span12]},
-        #panel{class=["btn-toolbar"], body=[#link{class=[btn, capital, "btn-gray", "pull-right"], body=[#i{class=["icon-ok", "icon-white"]}, <<" Post">>]}]}
+        #htmlbox{class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId},
+        #panel{class=["btn-toolbar"], body=[#link{class=[btn, capital, "btn-gray", "pull-right"], body=[#i{class=["icon-ok", "icon-white"]}, <<" Post">>]}]},
+        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
       ]},
       #panel{class=[span2], body=[
         #h3{body= <<"cover">>},

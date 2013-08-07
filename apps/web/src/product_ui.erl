@@ -92,7 +92,7 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId
   TitleId = wf:temp_id(),
   Ms = E#entry.media,
   EntryActionsLine = #list{class=[unstyled, inline], style="display:inline-block;", body=[
-              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, TitleId, EntryId}, source=[TitleId, EntryId]}},
+              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, TitleId, EntryId, wf:temp_id()}, source=[TitleId, EntryId]}},
               #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, ProdId, PostId}}}
             ]},
   Entry = #panel{id=PostId, class=["blog-post"], body=[
@@ -146,7 +146,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   Comments = kvs_comment:read_comments(E#entry.comments_rear),
   CommentId = wf:temp_id(),
   CommentsId = wf:temp_id(),
-
+  User = wf:user(),
   Ms = E#entry.media,
   Entry = #panel{id=PostId, class=["blog-post"], body=[
     #header{class=["blog-header"], body=[
@@ -163,7 +163,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
         #h3{body= <<"5 comments">>},
         #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
         #h3{class=["comments-form"], body= <<"Add your comment">>},
-        #htmlbox{id=CommentId},
+        #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm},
         #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
       ]}
   ]},
@@ -178,7 +178,7 @@ render_element(#product_entry{entry=E, prod_id=ProdId})->
   Ms = E#entry.media,
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   EntryActionsLine = [
-    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, TitleId, EntryId}, source=[TitleId, EntryId]},
+    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, TitleId, EntryId, wf:temp_id()}, source=[TitleId, EntryId]},
     #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId, PostId}}
   ],
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
@@ -188,7 +188,7 @@ render_element(#product_entry{entry=E, prod_id=ProdId})->
           #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
     ]},
     #figure{class=["thumbnail-figure"], body=[
-      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
+      [#entry_media{media=Me, fid=E#entry.entry_id} || Me <- Ms],
       #figcaption{class=["thumbnail-title"], body=[
 %            #h3{body=#span{body= E#entry.title}}
       ]}
@@ -237,6 +237,21 @@ render_element(#entry_media{media=Media, fid=Fid}) ->
 %    #image{image=Media#media.url}
   ]},
   element_panel:render_element(M).
+
+preview_medias(Id, Medias)->
+  L = length(Medias),
+  if L > 0 ->
+    #carousel{indicators=false, style="border:1px solid #eee;", items=[
+      #panel{class=["row-fluid"], body=[
+        #panel{class=[span3], style="position:relative;", body=[
+          #link{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
+          #link{class=[thumbnail], body=[
+            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x120">>;Th -> Th end}
+          ]}
+        ]}|| M <- lists:sublist(Medias, I, 4)
+      ]}|| I <- lists:seq(1, L, 4) ],
+      caption=#panel{body= <<"Entry will be posted with this medias.">>}};
+    true-> [] end.
 
 timestamp_label({0, _}, Time) ->
   {_, H} = calendar:now_to_local_time(Time),

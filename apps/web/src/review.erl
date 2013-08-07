@@ -82,8 +82,9 @@ event({comment_reply, {Cid, {Eid, Fid}}})->
   error_logger:info_msg("reply to ~p", [Cid]),
   CommentId = wf:temp_id(),
   PanelId =wf:temp_id(),
+  User =wf:user(),
   wf:insert_bottom(Cid, #panel{id=PanelId, body=[
-    #htmlbox{id=CommentId},
+    #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, img_tool=gm},
     #panel{class=["btn-toolbar"], body=[
       #link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, {Eid, Fid}, CommentId, Cid, Cid, PanelId}, source=[CommentId]},
       #link{class=[btn, "btn-large"], body= <<"Cancel">>, postback={comment_cancel, PanelId}}
