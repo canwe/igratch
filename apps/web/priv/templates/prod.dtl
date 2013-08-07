@@ -14,5 +14,6 @@
   <div id="n2ostatus" style="display:none"></div>
   <script src="/static/js/all.min.js"></script>
   <script src="/static/js/bootstrap.min.js"></script>
+  <script src="/static/js/holder.js"></script>
 </body>
 </html>

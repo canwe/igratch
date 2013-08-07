@@ -13,7 +13,7 @@ body() ->
     case kvs:all_by_index(entry, #entry.entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end) of [E|_] ->
       {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
       Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
-      {From, Av} = case kvs:get(user, E#entry.from) of {ok, U} -> {U#user.display_name, U#user.avatar}; {error, _} -> {E#entry.from, <<"/static/holder.js/150x150">>} end,
+      {From, Av} = case kvs:get(user, E#entry.from) of {ok, U} -> {U#user.display_name, U#user.avatar}; {error, _} -> {E#entry.from, <<"holder.js/150x150">>} end,
       #panel{class=["row-fluid"], body=[
         #panel{class=[span3], body=[
           #panel{class=[sidebar], body=[

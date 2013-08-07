@@ -131,7 +131,7 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
             #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
             #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
           ]} ]},
-        #panel{class=[span4, shadow], body=[#image{image="/static/js/holder.js/278x132", alt="Row Three Image", class=["BorderAndShadow"]}]},
+        #panel{class=[span4, shadow], body=[#image{image="holder.js/278x132", alt="Row Three Image", class=["BorderAndShadow"]}]},
         #panel{class=[span5, "article-text"], body=[
           #h3{body= E#entry.title},
           #p{body= [E#entry.description, #link{body= <<"Read">>, postback={read_entry, E#entry.id}}]} ]} ]} ]} ]},
@@ -208,9 +208,9 @@ render_element(#entry_comment{comment=#comment{}=C})->
   {Cid, {Eid, Fid}} = C#comment.id,
   {Author, Avatar} = case kvs:get(user, C#comment.author_id) of 
       {ok, User} -> {User#user.display_name, case User#user.avatar of
-        undefined-> #image{class=["media-objects","img-circle"], data_fields=[{<<"data-src">>, <<"holder.js/64x64">>}]};
+        undefined-> #image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>};
         Img-> #image{class=["media-object", "img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end};
-      {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], data_fields=[{<<"data-src">>, <<"holder.js/64x64">>}]}} end,
+      {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>}} end,
   {{Y, M, D}, _} = calendar:now_to_datetime(C#comment.creation_time),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
 
