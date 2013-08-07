@@ -5,7 +5,10 @@
 -include_lib("kvs/include/users.hrl").
 -include("records.hrl").
 
-main() -> #dtl{file="dev", bindings=[{title,<<"review">>},{body, body()}]}.
+main() ->
+    case wf:user() of
+        undefined -> wf:redirect("/login");
+        _ ->  #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]} end.
 
 body() ->
   index:header()++[
