@@ -11,7 +11,7 @@
 -define(ROOT, code:priv_dir(web)).
 -record(struct, {lst=[]}).
 
-main() -> #dtl{file="dev", bindings=[{title,<<"product">>},{body, body()}]}.
+main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
   Id = wf:qs(<<"id">>),
