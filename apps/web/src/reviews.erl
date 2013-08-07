@@ -36,4 +36,5 @@ body()->
 
 event(init) -> [];
 event(<<"PING">>) -> [];
+event({read_entry, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.

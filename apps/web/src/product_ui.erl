@@ -127,11 +127,14 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
           #h3{ class=[blue], body= Category},
           #p{class=[username], body= #link{body=From}},
           #p{class=[datestamp], body=[ #span{body= Date} ]},
-          #p{class=[statistics], body=[#i{class=["icon-user"]},#span{body= <<"1,045">>},#i{class=["icon-comment"]},#span{body= <<"25">>} ]} ]},
-        #panel{class=[span4, shadow], body=[#image{image="holder.js/278x132", alt="Row Three Image", class=["BorderAndShadow"]}]},
+          #p{class=[statistics], body=[
+            #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
+            #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
+          ]} ]},
+        #panel{class=[span4, shadow], body=[#image{image="/static/js/holder.js/278x132", alt="Row Three Image", class=["BorderAndShadow"]}]},
         #panel{class=[span5, "article-text"], body=[
           #h3{body= E#entry.title},
-          #p{body= [E#entry.description, #link{body= <<"Read">>}]} ]} ]} ]} ]},
+          #p{body= [E#entry.description, #link{body= <<"Read">>, postback={read_entry, E#entry.id}}]} ]} ]} ]} ]},
 
   element_panel:render_element(Entry);
 
