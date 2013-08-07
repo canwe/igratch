@@ -84,7 +84,7 @@ event({comment_reply, {Cid, {Eid, Fid}}})->
   PanelId =wf:temp_id(),
   User =wf:user(),
   wf:insert_bottom(Cid, #panel{id=PanelId, body=[
-    #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, img_tool=gm},
+    #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
     #panel{class=["btn-toolbar"], body=[
       #link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, {Eid, Fid}, CommentId, Cid, Cid, PanelId}, source=[CommentId]},
       #link{class=[btn, "btn-large"], body= <<"Cancel">>, postback={comment_cancel, PanelId}}
