@@ -115,6 +115,27 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId
   ]},
   element_panel:render_element(Entry);
 
+render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
+  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+  {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
+  Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
+
+  Entry = #panel{class=["row-fluid"], body=[
+    #panel{class=["homepage-article"], body=[
+      #panel{class=["homepage-article-inner", clearfix], body=[
+        #panel{class=[span3, "article-meta"], body=[
+          #h3{ class=[blue], body= Category},
+          #p{class=[username], body= #link{body=From}},
+          #p{class=[datestamp], body=[ #span{body= Date} ]},
+          #p{class=[statistics], body=[#i{class=["icon-user"]},#span{body= <<"1,045">>},#i{class=["icon-comment"]},#span{body= <<"25">>} ]} ]},
+        #panel{class=[span4, shadow], body=[#image{image="holder.js/278x132", alt="Row Three Image", class=["BorderAndShadow"]}]},
+        #panel{class=[span5, "article-text"], body=[
+          #h3{body= E#entry.title},
+          #p{body= [E#entry.description, #link{body= <<"Read">>}]} ]} ]} ]} ]},
+
+  element_panel:render_element(Entry);
+
+
 render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
@@ -213,3 +234,14 @@ render_element(#entry_media{media=Media, fid=Fid}) ->
     #image{image=Media#media.url}
   ]},
   element_panel:render_element(M).
+
+timestamp_label({0, _}, Time) ->
+  {_, H} = calendar:now_to_local_time(Time),
+  io_lib:format("~2..0b:~2..0b:~2..0b", tuple_to_list(H));
+timestamp_label({Days, _}, _) when Days < 7 -> io_lib:format("~p " ++ "days ago", [Days]);
+timestamp_label({Days, _}, _) when Days < 31 -> io_lib:format("~p " ++ "weeks ago", [trunc(Days/7)]);
+timestamp_label({Days, _}, _) when Days < 365 -> io_lib:format("~p " ++ "months ago", [trunc(Days/30)]);
+timestamp_label({Days, _}, _) when Days > 365 -> io_lib:format("~p " ++ "years ago", [trunc(Days/365)]);
+timestamp_label({Days, _}, _) -> io_lib:format("~p days ago", [Days]).
+
+
