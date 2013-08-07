@@ -104,7 +104,7 @@ entry_form(P, Fid, Title, TabId) ->
       #panel{class=[span9], body=[
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
         #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId},
-        #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
+        #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId, MsId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
         #panel{id=MsId, body=preview_medias(MsId, Medias)}
       ]},
       #panel{class=[span3], body=[]}
@@ -172,7 +172,7 @@ aside()-> [
 event(init) -> wf:reg(product_channel), [];
 event(<<"PING">>) -> [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({post_entry, Fid, ProductId, Eid, Ttid, TabId}) ->
+event({post_entry, Fid, ProductId, Eid, Ttid, TabId, MsId}) ->
   Desc = wf:q(Eid),
   Title = wf:q(Ttid),
   Recipients = [{ProductId, product}|[{Where, group} || #group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
@@ -183,7 +183,8 @@ event({post_entry, Fid, ProductId, Eid, Ttid, TabId}) ->
   EntryId =uuid(),
   [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [Fid, From, Title, Desc, Medias, EntryType]) || {To, RoutingType} <- Recipients],
 
-  wf:session(medias, []);
+  wf:session(medias, []),
+  wf:update(MsId, []);
 
 event({edit_entry, E=#entry{}, ProdId, Title, Desc}) ->
   Tid = wf:temp_id(), Did = wf:temp_id(),
