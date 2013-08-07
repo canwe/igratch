@@ -8,7 +8,7 @@
 -include("records.hrl").
 
 -define(PAGE_SIZE, 4).
--define(ROOT, code:priv_dir(web)++"/static").
+-define(ROOT, code:priv_dir(web)).
 -record(struct, {lst=[]}).
 
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
@@ -20,9 +20,8 @@ body() ->
     case kvs:get(product, list_to_integer(binary_to_list(Id))) of
       {ok, P} -> [
         #panel{class=["row-fluid", "page-header"], body=[
-          #h4{class=[span9], style="line-height:30px;", body= [#link{url="/reviews", body= <<"Categories ">>, style="color:#999"}, #small{body=[[
+          #h4{class=[span9], style="line-height:30px;", body= [#link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, #small{body=[[
             begin
-              error_logger:info_msg("check ~p", [I]),
               Name = case kvs:get(group,I) of {ok, G}-> G#group.name; _ -> "noname" end,
               [<<" | ">>, #link{url="/reviews?id="++I, body=[#span{class=["icon-asterisk"]},Name]}]
             end
@@ -97,25 +96,21 @@ entry_form(P, Fid, Title, TabId) ->
   EditorId = wf:temp_id(),
   SaveId = wf:temp_id(),
   User = wf:user(),
-  LayoutId = wf:temp_id(),
+  Medias = wf:session(medias),
+  error_logger:info_msg("Medias: ~p", [length(Medias)]),
   case User of undefined->[]; _-> [
     #h3{body="post "++Title},
     #panel{class=["row-fluid"], body=[
       #panel{class=[span9], body=[
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12]}
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm}
       ]},
-      #panel{class=[span3], body=[
-        #upload{root=?ROOT++"/"++User#user.email, post_write=attach_media, img_tool=gm, preview=true},
-        #h3{body= <<"Layout:">>},
-        #select{id=LayoutId, style="width:100%", body=[
-          #option{label= <<"default">>, value= <<"default">>},
-          #option{label= <<"jumbotron">>, value= <<"jumbotron">>},
-          #option{label= <<"figure">>, value= <<"figure">>}
-        ]}
-      ]}
+      #panel{class=[span3], body=[]}
     ]},
-    #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId, LayoutId}, source=[TitleId, EditorId, LayoutId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]} 
+    #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
+    #list{class=[thumbnails], body=[
+      [begin [] end || M <- Medias]
+    ]}
   ] end.
 
 feed(ProdId, Fid, features)-> feed(ProdId, lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
@@ -164,12 +159,11 @@ aside()-> [
 event(init) -> wf:reg(product_channel), [];
 event(<<"PING">>) -> [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({post_entry, Fid, ProductId, Eid, Ttid, TabId, Lid}) ->
+event({post_entry, Fid, ProductId, Eid, Ttid, TabId}) ->
   Desc = wf:q(Eid),
   Title = wf:q(Ttid),
-  Layout = wf:q(Lid),
   Recipients = [{ProductId, product}|[{Where, group} || #group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
-  EntryType = {TabId, Layout},
+  EntryType = {TabId, default},
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   User = wf:user(),
   From = User#user.email,
@@ -214,14 +208,14 @@ api_event(attach_media, Args, _)->
   Media = #media{id = Id,
     width = 200,
     height = 200,
-    url = "/static"++File,
+    url = File,
     type = {attachment, Type},
-    thumbnail_url = "/static"++Thumb},
+    thumbnail_url = Thumb},
   error_logger:info_msg("~p attached", [Media]),
   Medias = case wf:session(medias) of undefined -> []; M -> M end,
   NewMedias = [Media | Medias],
   wf:session(medias, NewMedias);
-api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
+api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery([product, To, entry, EntryId, add],
                  [Fid, From, Title, Desc, Medias, {TabId, _L}=Type])->

@@ -171,7 +171,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=E, prod_id=ProdId})->
-  error_logger:info_msg("Render entry: ~p ~p", [E#entry.id, E#entry.type]),
+%  error_logger:info_msg("Render entry: ~p ~p", [E#entry.id, E#entry.type]),
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
   TitleId = wf:temp_id(),
