@@ -97,33 +97,33 @@ entry_form(P, Fid, Title, TabId) ->
   SaveId = wf:temp_id(),
   User = wf:user(),
   Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
+  MsId = wf:temp_id(),
   case User of undefined->[]; _-> [
     #h3{body="post "++Title},
     #panel{class=["row-fluid"], body=[
       #panel{class=[span9], body=[
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm},
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId},
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
-        #panel{body=preview_medias(Medias)}
+        #panel{id=MsId, body=preview_medias(MsId, Medias)}
       ]},
       #panel{class=[span3], body=[]}
     ]}
   ] end.
 
-preview_medias(Medias)->
+preview_medias(Id, Medias)->
   L = length(Medias),
   if L > 0 ->
-    #carousel{indicators=false, items=[
+    #carousel{indicators=false, style="border:1px solid #eee;", items=[
       #panel{class=["row-fluid"], body=[
-        begin
-          Id = wf:temp_id(),
-          #panel{id=Id, class=[span3], style="position:relative;", body=[
-            #button{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
-            #link{class=[thumbnail], body=[
-              #image{image="holder.js/100%x120", style="max-width:100%"}
-            ]} ]} end || M <- lists:sublist(Medias, I, 4)
-      ]} || I <- lists:seq(1, (L div 4)+1) ],
-      caption=#panel{body= <<"Entry will be posted with this medias.">>}}; 
+        #panel{class=[span3], style="position:relative;", body=[
+          #link{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
+          #link{class=[thumbnail], body=[
+            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x120">>;Th -> Th end}
+          ]}
+        ]}|| M <- lists:sublist(Medias, I, 4)
+      ]}|| I <- lists:seq(1, L, 4) ],
+      caption=#panel{body= <<"Entry will be posted with this medias.">>}};
     true-> [] end.
 
 feed(ProdId, Fid, features)-> feed(ProdId, lists:reverse(kvs_feed:entries(Fid, undefined, 10)));
@@ -208,26 +208,32 @@ event({remove_entry, E=#entry{type={Type, _Layout}}, ProductId, Id})->
 
   [msg:notify([kvs_feed, RouteType, To, entry, E#entry.id, delete], [(wf:user())#user.email, Id]) || {To, RouteType} <- Recipients];
 
-event({read_entry, {Id,_}})->
-  wf:redirect("/review?id="++Id);
+event({read_entry, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({remove_media, M, Id}) ->
+  Ms = case wf:session(medias) of undefined -> []; Mi -> Mi end,
+  New = lists:filter(fun(E)-> error_logger:info_msg("take ~p compare with ~p and = ~p", [E,M, E/=M]),  E/=M end, Ms),
+  wf:session(medias, New),
+  wf:update(Id, preview_medias(Id, New));
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
-api_event(attach_media, Args, _)->
+api_event(attach_media, Args, Tag)->
+  error_logger:info_msg("Tag~p", [Tag]),
   Props = n2o_json:decode(Args),
+  Target = binary_to_list(proplists:get_value(<<"preview">>, Props#struct.lst)),
   Id = proplists:get_value(<<"id">>, Props#struct.lst),
-  File = binary_to_list(proplists:get_value(<<"file">>, Props#struct.lst)) -- ?ROOT,
+  File = binary_to_list(proplists:get_value(<<"file">>, Props#struct.lst)),
   Type = proplists:get_value(<<"type">>, Props#struct.lst),
-  Thumb = binary_to_list(proplists:get_value(<<"thumb">>, Props#struct.lst)) -- ?ROOT,
+  Thumb = binary_to_list(proplists:get_value(<<"thumb">>, Props#struct.lst)),
   Media = #media{id = Id,
     width = 200,
     height = 200,
     url = File,
     type = {attachment, Type},
     thumbnail_url = Thumb},
-  error_logger:info_msg("~p attached", [Media]),
   Medias = case wf:session(medias) of undefined -> []; M -> M end,
   NewMedias = [Media | Medias],
-  wf:session(medias, NewMedias);
+  wf:session(medias, NewMedias),
+  wf:update(Target, preview_medias(Target, NewMedias));
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery([product, To, entry, EntryId, add],

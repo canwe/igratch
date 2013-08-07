@@ -232,9 +232,9 @@ render_element(#entry_comment{comment=#comment{}=C})->
   element_panel:render_element(Comment);
 
 render_element(#entry_media{media=Media, fid=Fid}) ->
-  error_logger:info_msg("RENDER: ~p", [Media]),
+  %error_logger:info_msg("RENDER: ~p", [Media]),
   M = #panel{body=[
-    #image{image=Media#media.url}
+%    #image{image=Media#media.url}
   ]},
   element_panel:render_element(M).
 
