@@ -119,7 +119,6 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
-
   Entry = #panel{class=["row-fluid"], body=[
     #panel{class=["homepage-article"], body=[
       #panel{class=["homepage-article-inner", clearfix], body=[
@@ -131,7 +130,7 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
             #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
             #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
           ]} ]},
-        #panel{class=[span4, shadow], body=[#image{image="holder.js/278x132", alt="Row Three Image", class=["BorderAndShadow"]}]},
+        #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
         #panel{class=[span5, "article-text"], body=[
           #h3{body= E#entry.title},
           #p{body= [E#entry.description, #link{body= <<"Read">>, postback={read_entry, E#entry.id}}]} ]} ]} ]} ]},
@@ -231,8 +230,18 @@ render_element(#entry_comment{comment=#comment{}=C})->
   ]},
   element_panel:render_element(Comment);
 
+render_element(#entry_media{media=undefined, mode=reviews}) -> 
+  element_image:render_element(#image{image="holder.js/270x124/text:no media", alt="Row Three Image", class=["BorderAndShadow"]});
+render_element(#entry_media{media=[], mode=reviews}) -> 
+  element_image:render_element(#image{image="holder.js/270x124/text:no media", alt="Row Three Image", class=["BorderAndShadow"]});
+render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], mode=reviews}) ->
+  element_image:render_element(#image{image="holder.js/270x124/text:no media", alt=T, class=["BorderAndShadow"]});
+render_element(#entry_media{media=[#media{title=Title, thumbnail_url=Thumb}|_], mode=reviews}) ->
+  Ext = filename:extension(Thumb),
+  Name = filename:basename(Thumb, Ext),
+  Dir = filename:dirname(Thumb),
+  element_image:render_element(#image{class=["BorderAndShadow"], alt=Title, image=filename:join([Dir, Name++"_270x124"++Ext])});
 render_element(#entry_media{media=Media, fid=Fid}) ->
-  %error_logger:info_msg("RENDER: ~p", [Media]),
   M = #panel{body=[
 %    #image{image=Media#media.url}
   ]},
@@ -246,7 +255,7 @@ preview_medias(Id, Medias)->
         #panel{class=[span3], style="position:relative;", body=[
           #link{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
           #link{class=[thumbnail], body=[
-            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x120">>;
+            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x80">>;
               Th ->
                 Ext = filename:extension(Th),
                 Name = filename:basename(Th, Ext),
