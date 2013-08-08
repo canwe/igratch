@@ -21,7 +21,9 @@ route(<<"/store">>) -> {store, []};
 route(<<"/review">>) -> {review, []};
 route(<<"/reviews">>) -> {reviews, []};
 route(<<"/notifications">>) -> {notifications, []};
-route(<<"/account">>) -> {account, []};
+route(<<"/profile">>) -> {profile, []};
+route(<<"/mygames">>) -> {mygames, []};
+route(<<"/myreviews">>) -> {myreviews, []};
 route(<<"/ws/">>) -> {index, []};
 route(<<"/ws/admin">>) -> {admin, []};
 route(<<"/ws/index">>) -> {index, []};
@@ -32,7 +34,9 @@ route(<<"/ws/store">>) -> {store, []};
 route(<<"/ws/review">>) -> {review, []};
 route(<<"/ws/reviews">>) -> {reviews, []};
 route(<<"/ws/notifications">>) -> {notifications, []};
-route(<<"/ws/account">>) -> {account, []};
+route(<<"/ws/profile">>) -> {profile, []};
+route(<<"/ws/mygames">>) -> {mygames, []};
+route(<<"/ws/myreviews">>) -> {myreviews, []};
 route(<<"/favicon.ico">>) -> {static_file, []};
 route(_) -> {index, []}.
 

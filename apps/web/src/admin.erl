@@ -12,40 +12,52 @@
 
 main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 
-body()-> index:header() ++ [
-  #section{class=[section], body=[
-    #panel{class=[container], body=[
-      #h3{body= <<"Control Panel">>},
-      #list{class=[nav, "nav-tabs", "sky-nav", "entry-type-tabs"], body=[
-        #li{class=[active], body=[#link{url= <<"#categories">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Categories">>}]},
-        #li{body=[#link{url= <<"#users">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Users">>}]},
-        #li{body=[#link{url= <<"#products">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Products">>}]}
-      ]},
-
-      #panel{class=["tab-content"], body=[
-        #panel{id=categories, class=["tab-pane", active], body=[
-          #h3{body= <<"Category">>},
-          #panel{class=["row-fluid"], body=[
-            #panel{class=[span8], body=[
-              #panel{class=[controls, "controls-row"], body=[
-%                #textbox{id=cat_tag, class=[span3], placeholder= <<"tag">>},
-                #textbox{id=cat_name, class=[span12], placeholder= <<"name">>}
-              ]},
-              #textarea{id=cat_desc, class=[span12], placeholder= <<"description">>},
-              #link{id=save_cat, class=[btn, "btn-large", "pull-right"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc]}
+body() -> index:header() ++ [
+  #section{id=content, body=
+    #panel{class=[container], body=
+      #panel{class=[row, dashboard], body=[
+        #panel{class=[span3], body=dashboard:sidebar_menu(admin, [#li{class=[divider]}, subnav() ])},
+        #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
+          #panel{class=["tab-content"], body=[
+            #panel{id=categories, class=["tab-pane", active], body=[
+              dashboard:section(input(), "icon-user"),
+              dashboard:section(categories(), "icon-list")
+            ]},
+            #panel{id=users, class=["tab-pane"], body=[
+              dashboard:section(users(), "icon-user")
+            ]},
+            #panel{id=products, class=["tab-pane"], body=[
+              dashboard:section(products(), "icon-user")
             ]}
-          ]},
-          #h3{body= <<"Categories">>},
-          #table{id=cats, class=[table, "table-hover"], body=[[#tr{cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}]} || G=#group{id=Id, name=Name, description=Desc}<-kvs:all(group)]]}
-        ]},
-        #panel{id=users, class=["tab-pane"], body=[
-        ]},
-        #panel{id=products, class=["tab-pane"], body=[
-        ]}
-      ]}
-    ]}
-  ]}
+          ]}
+        ]} ]} } }
   ] ++ index:footer().
+
+subnav() -> [
+    #li{class=[active], body=[#link{url= <<"#categories">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"categories">>}]},
+    #li{body=[#link{url= <<"#users">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"users">>}]},
+    #li{body=[#link{url= <<"#products">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"products">>}]}
+  ].
+
+input()-> [
+  #h3{body= <<"Add category">>},
+    #panel{class=["row-fluid"], body=[#panel{class=[span8], body=[
+    #panel{class=[controls, "controls-row"], body=[
+      #textbox{id=cat_name, class=[span12], placeholder= <<"name">>}
+    ]},
+    #textarea{id=cat_desc, class=[span12], placeholder= <<"description">>},
+      #link{id=save_cat, class=[btn, "btn-large"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc]} 
+    ]} ]} ].
+
+categories()->[
+  #h3{body= <<"Categories">>},
+  #table{id=cats, class=[table, "table-hover"], body=[[#tr{cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}]} || G=#group{id=Id, name=Name, description=Desc}<-kvs:all(group)]]}
+].
+
+users()->[
+  #h3{body= <<"Users">>} ].
+products()->[
+  #h3{body= <<"Products">>} ].
 
 list_products(Page) -> [#product_row{product=P} || P <- lists:sublist(kvs:all(product), (Page-1) * ?PAGE_SIZE + 1, ?PAGE_SIZE)].
 pagination(Page)->

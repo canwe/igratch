@@ -112,7 +112,7 @@ header() -> [
                   #list{class=["dropdown-menu"], body=[
                     #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
                   ]}]},
-                #li{body=#link{body= <<"My Account">>, url= <<"/account">>}}]
+                #li{body=#link{body= <<"My Account">>, url= <<"/profile">>}}]
             end
           ]} ]} ]} ]} ]} ].
 
