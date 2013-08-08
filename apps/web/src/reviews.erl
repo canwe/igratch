@@ -10,7 +10,7 @@
 -define(PAGE_SIZE, case wf:session(page_size) of list -> 4; _ -> 8 end).
 -record(info, {entries, toolbar, category, fid}).
 
-main()-> #dtl{file="dev", bindings=[{title,<<"reviews">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
 
 body()->
   case wf:qs(<<"id">>) of undefined ->skip; I -> error_logger:info_msg("~p RECEIVED!", [I]),wf:wire(wf:f("$('a[href=\"#~s\"]').addClass('text-warning').tab('show');", [binary_to_list(I)])) end,
