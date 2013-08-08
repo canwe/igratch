@@ -119,21 +119,30 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
-  Entry = #panel{class=["row-fluid"], body=[
-    #panel{class=["homepage-article"], body=[
-      #panel{class=["homepage-article-inner", clearfix], body=[
-        #panel{class=[span3, "article-meta"], body=[
-          #h3{ class=[blue], body= Category},
-          #p{class=[username], body= #link{body=From}},
-          #p{class=[datestamp], body=[ #span{body= Date} ]},
-          #p{class=[statistics], body=[
-            #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
-            #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
-          ]} ]},
-        #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
-        #panel{class=[span5, "article-text"], body=[
-          #h3{body= E#entry.title},
-          #p{body= [E#entry.description, #link{body= <<"Read">>, postback={read_entry, E#entry.id}}]} ]} ]} ]} ]},
+
+  Short = re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(E#entry.description,
+    "<img[^>]*>",           "...", [global, {return, list}]),
+      "\\s+$",              "", [global, {return, list}]),
+        "^\\s+",            "", [global, {return, list}]),
+          "<br[\\s+]/>",    "", [global, {return, list}]),
+            "<p></p>",      "", [global, {return, list}]),
+              "<p>",        "", [global, {return, list}]),
+                "</p>",     "", [global, {return, list}]),
+
+  Entry = #panel{class=["row-fluid", article], body=[
+    #panel{class=[span3, "article-meta"], body=[
+      #h3{ class=[blue], body= Category},
+      #p{class=[username], body= #link{body=From}},
+      #p{class=[datestamp], body=[ #span{body= Date} ]},
+      #p{class=[statistics], body=[
+        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
+        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
+      ]} ]},
+
+      #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
+      #panel{class=[span5, "article-text"], body=[
+        #h3{body= E#entry.title},
+        Short, #link{class=[more], body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read_entry, E#entry.id}} ]} ]},
 
   element_panel:render_element(Entry);
 

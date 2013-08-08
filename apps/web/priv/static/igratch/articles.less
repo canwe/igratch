@@ -1,10 +1,46 @@
 /************* ARTICLES *************/
+.article{
+  margin-top:20px;
+  border-bottom:1px solid #ced0d2;
+
+  .shadow {
+    background:url('/static/img/image-shadow.png') no-repeat 0px 132px;
+    @media (max-width: 980px){
+      text-align:center;
+      background:url('/static/img/image-shadow.png') no-repeat 50% 132px;
+    }
+  }
+
+  & .article-text{
+    overflow: hidden;
+    max-height: 132px;
+    height: 9em;
+    position:relative;
+
+    & p {
+      margin:0;
+      display:inline;
+    }
+    & h3 {
+      color:#9b9c9e;
+      margin:0;
+      padding:0;
+      line-height:2em;
+    }
+    & a.more {
+      position: absolute;bottom: 0;right: 0;background: inherit;
+      background-color:@bodyBackground;
+      padding-left:10px;
+    }
+  }
+}
+
 .homepage-article, .game-article  {
     border-bottom:1px solid white;
     margin-bottom:30px;
 }
 .homepage-article-inner, .game-article-inner {
-    border-bottom:1px solid #ced0d2;
+
 }
 .statistics span {
     margin-right:5px;
@@ -22,9 +58,6 @@ p.username {
 }
 .statistics span {
     margin-right:5px;
-}
-.article-text h3 {
-    color:#9b9c9e;
 }
 i {
     opacity:0.5;
