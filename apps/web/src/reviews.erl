@@ -7,7 +7,7 @@
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
--define(PAGE_SIZE, case wf:session(page_size) of list -> 4; _ -> 8 end).
+-define(PAGE_SIZE, case wf:session(page_size) of grid -> 8; _ -> 4 end).
 -record(info, {entries, toolbar, category, fid}).
 
 main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
