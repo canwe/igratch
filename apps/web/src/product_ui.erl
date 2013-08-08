@@ -120,14 +120,15 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
 
-  Short = re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(E#entry.description,
+  Short = re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(E#entry.description,
     "<img[^>]*>",           "...", [global, {return, list}]),
       "\\s+$",              "", [global, {return, list}]),
         "^\\s+",            "", [global, {return, list}]),
-          "<br[\\s+]/>",    "", [global, {return, list}]),
-            "<p></p>",      "", [global, {return, list}]),
-              "<p>",        "", [global, {return, list}]),
-                "</p>",     "", [global, {return, list}]),
+          "\n",            "<br/>", [global, {return, list}]),
+            "<br[\\s+]/>",  "", [global, {return, list}]),
+              "<p></p>",    "", [global, {return, list}]),
+                "<p>",      "", [global, {return, list}]),
+                  "</p>",   "", [global, {return, list}]),
 
   Entry = #panel{class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
@@ -142,7 +143,8 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
       #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
       #panel{class=[span5, "article-text"], body=[
         #h3{class=[title], body= E#entry.title},
-        Short, #link{class=[more], body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read_entry, E#entry.id}} ]} ]},
+        Short, #link{class=[more], body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read_entry, E#entry.id}} ]}
+  ]},
 
   element_panel:render_element(Entry);
 
@@ -240,11 +242,11 @@ render_element(#entry_comment{comment=#comment{}=C})->
   element_panel:render_element(Comment);
 
 render_element(#entry_media{media=undefined, mode=reviews}) -> 
-  element_image:render_element(#image{image="holder.js/270x124/text:no media", alt="Row Three Image", class=["BorderAndShadow"]});
+  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}], alt="no media", class=["BorderAndShadow"]});
 render_element(#entry_media{media=[], mode=reviews}) -> 
-  element_image:render_element(#image{image="holder.js/270x124/text:no media", alt="Row Three Image", class=["BorderAndShadow"]});
+  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt="no media", class=["BorderAndShadow"]});
 render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], mode=reviews}) ->
-  element_image:render_element(#image{image="holder.js/270x124/text:no media", alt=T, class=["BorderAndShadow"]});
+  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt=T, class=["BorderAndShadow"]});
 render_element(#entry_media{media=[#media{title=Title, thumbnail_url=Thumb}|_], mode=reviews}) ->
   Ext = filename:extension(Thumb),
   Name = filename:basename(Thumb, Ext),
