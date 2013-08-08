@@ -156,8 +156,8 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   Comments = kvs_comment:read_comments(E#entry.comments_rear),
   CommentId = wf:temp_id(),
   CommentsId = wf:temp_id(),
-  User = wf:user(),
   Ms = E#entry.media,
+  Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
   Entry = #panel{id=PostId, class=["blog-post"], body=[
     #header{class=["blog-header"], body=[
           #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
@@ -173,7 +173,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
         #h3{body= <<"5 comments">>},
         #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
         #h3{class=["comments-form"], body= <<"Add your comment">>},
-        #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
+        #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
         #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
       ]}
   ]},

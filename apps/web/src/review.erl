@@ -5,10 +5,7 @@
 -include_lib("kvs/include/users.hrl").
 -include("records.hrl").
 
-main() ->
-    case wf:user() of
-        undefined -> wf:redirect("/login");
-        _ ->  #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]} end.
+main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
   index:header()++[
@@ -75,16 +72,16 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({comment_entry, Eid, Cid, Csid, Parent, EditorId})->
   Comment = wf:q(Cid),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
-  User = wf:user(),
+  From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
-  msg:notify([kvs_feed, entry, Eid, comment, product:uuid(), add], [User#user.email, Parent, Comment, Medias, Csid, EditorId]);
+  msg:notify([kvs_feed, entry, Eid, comment, product:uuid(), add], [From, Parent, Comment, Medias, Csid, EditorId]);
 
 event({comment_reply, {Cid, {Eid, Fid}}})->
   CommentId = wf:temp_id(),
   PanelId =wf:temp_id(),
-  User =wf:user(),
+  Dir = "static/" ++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
   wf:insert_bottom(Cid, #panel{id=PanelId, body=[
-    #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
+    #htmlbox{id=CommentId, root=?ROOT, dir=Dir, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
     #panel{class=["btn-toolbar"], body=[
       #link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, {Eid, Fid}, CommentId, Cid, Cid, PanelId}, source=[CommentId]},
       #link{class=[btn, "btn-large"], body= <<"Cancel">>, postback={comment_cancel, PanelId}}
@@ -110,5 +107,6 @@ process_delivery([_, Eid, comment, Cid, add],
   case EditorId of
     "" -> wf:wire(wf:f("$('#~s').parent().find('.mce-content-body').html('');", [Csid]));
     _ ->  wf:remove(EditorId)
-  end;
+  end,
+  wf:wire("Holder.run();");
 process_delivery(_R, _M) -> skip.

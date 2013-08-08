@@ -98,12 +98,13 @@ entry_form(P, Fid, Title, TabId) ->
   User = wf:user(),
   Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
   MsId = wf:temp_id(),
+  Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
   case User of undefined->[]; _-> [
     #h3{body="post "++Title},
     #panel{class=["row-fluid"], body=[
       #panel{class=[span9], body=[
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}]},
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}]},
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId, MsId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
         #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
       ]},
@@ -163,18 +164,17 @@ event({post_entry, Fid, ProductId, Eid, Ttid, TabId, MsId}) ->
   Recipients = [{ProductId, product}|[{Where, group} || #group_subscription{where=Where, type=member} <- kvs_group:participate("product"++integer_to_list(ProductId)), TabId==reviews]],
   EntryType = {TabId, default},
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
-  User = wf:user(),
-  From = User#user.email,
+  From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
   EntryId =uuid(),
 
   [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [Fid, From, Title, Desc, Medias, EntryType, Eid, Ttid, MsId]) || {To, RoutingType} <- Recipients];
 
 event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
-  User = wf:user(),
   Tid = wf:temp_id(), Did = wf:temp_id(),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
+  Dir = "static/"++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
   wf:update(Title, #textbox{id=Tid, value=wf:js_escape(wf:q(Title))}),
-  wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc)), root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}),
+  wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc)), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}),
   wf:insert_bottom(Desc, #panel{class=["btn-toolbar"], body=[
     #link{postback={save_entry, E, ProdId, Desc, Title, Tid, Did}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
     #link{postback={cancel_entry, E, Title, Desc}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
