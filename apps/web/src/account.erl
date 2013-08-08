@@ -136,7 +136,7 @@ inputs(developer) ->
     ]},
     #panel{class=[span2], body=[
       #h3{body= <<"cover">>},
-      #upload{root=?ROOT++"/"++User#user.email, post_write=attach_cover, img_tool=gm, preview=true},
+      #upload{preview=true, root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, size=[{270, 124}, {200, 200}, {139, 80}]},
       #h3{body= <<"categories">>},
       #textboxlist{id=cats}
     ]}
@@ -151,14 +151,11 @@ inputs(reviewer)->
       #panel{class=[span10], body=[
         #h3{body= <<"Submit review">>},
         #textbox{class=[span12], placeholder= <<"Title">>},
-        #htmlbox{class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId},
+        #htmlbox{class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]},
         #panel{class=["btn-toolbar"], body=[#link{class=[btn, capital, "btn-gray", "pull-right"], body=[#i{class=["icon-ok", "icon-white"]}, <<" Post">>]}]},
         #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
       ]},
-      #panel{class=[span2], body=[
-        #h3{body= <<"cover">>},
-        #upload{root=?ROOT++"/"++User#user.email, post_write=attach_cover, img_tool=gm, preview=true}
-      ]}
+      #panel{class=[span2], body=[]}
   ]} end.
 
 feed(Fid) ->
@@ -182,7 +179,7 @@ event(save) ->
   {Price, _Rest} = string:to_float(wf:q(price)),
   Currency = wf:q(currency),
   Categories = [1],
-  TitlePic = wf:session(cover),
+  TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Product = #product{
     creator= User#user.username,
     owner=User#user.username,
@@ -196,7 +193,7 @@ event(save) ->
   case kvs_products:register(Product) of
     {ok, P} ->
       msg:notify([kvs_products, product, init], [P#product.id, P#product.feed, P#product.blog, P#product.features, P#product.specs, P#product.gallery, P#product.videos, P#product.bundles]),
-      wf:session(cover, undefined),
+      wf:session(medias, []),
       [kvs_group:join(P#product.name, G) || G <- string:tokens(Cats, ",")],
       wf:wire(wf:f("$('#products > tbody:first').append('~s');", [wf:js_escape(binary_to_list(wf:render(#product_row{product=P}))) ]));
     E -> error_logger:info_msg("E: ~p", [E]), error
@@ -205,39 +202,7 @@ event({product_feed, Id})-> wf:redirect("/product?id="++integer_to_list(Id));
 event(<<"PING">>) -> ok;
 event(Event) -> error_logger:info_msg("[account]Page event: ~p", [Event]), ok.
 
-api_event(attach_cover, Tag, _) ->
-  Args = n2o_json:decode(Tag),
-  Props = Args#struct.lst,
-  wf:session(cover, "/static"++ [binary_to_list(proplists:get_value(<<"file">>, Props))--?ROOT]),
-  error_logger:info_msg("[ext] Here we go. Attach cover! ~p ", [Props]);
-api_event(attach_media, Tag, _Term) ->
-  Args = n2o_json:decode(Tag),
-  Props = Args#struct.lst,
-  error_logger:info_msg("[ext] Here we go. Attach media! ~p ", [Props]),
-
-  Id = proplists:get_value(<<"id">>, Props),
-  File = proplists:get_value(<<"file">>, Props),
-  Name = filename:basename(File),
-  Type = proplists:get_value(<<"type">>, Props),
-  Thumb = proplists:get_value(<<"thumb">>, Props),
-  %User = wf:user(),
-
-%  {{Y, M, D}, _} = calendar:local_time(),
-%  Date = integer_to_list(Y) ++ "-" ++ integer_to_list(M) ++ "-" ++ integer_to_list(D),
-
-  ThisMedia = #media{id = Id,
-    title = Name,
-    width = 130,
-    height = 130,
-    url = "/static"++binary_to_list(File)--?ROOT,
-    type = {attachment, Type},
-    thumbnail_url = "/static"++binary_to_list(Thumb)--?ROOT},
-  error_logger:info_msg("MEDIAS? ~p", [wf:session(medias)]),
-  Medias = wf:session(medias),
-%  Medias = case State of undefined -> []; [] -> [];  M -> M end,
-  NewMedias = [ ThisMedia | Medias ],
-  error_logger:info_msg("new medias: ~p", [NewMedias]),
-  wf:session(medias, NewMedias);
+api_event(attach_media, Tag, Term) -> product:api_event(attach_media, Tag, Term);
 api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery(_R, _M) -> skip.

@@ -163,7 +163,7 @@ render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
         #h3{body= <<"5 comments">>},
         #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
         #h3{class=["comments-form"], body= <<"Add your comment">>},
-        #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm},
+        #htmlbox{id=CommentId, root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
         #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
       ]}
   ]},
@@ -246,7 +246,13 @@ preview_medias(Id, Medias)->
         #panel{class=[span3], style="position:relative;", body=[
           #link{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
           #link{class=[thumbnail], body=[
-            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x120">>;Th -> Th end}
+            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x120">>;
+              Th ->
+                Ext = filename:extension(Th),
+                Name = filename:basename(Th, Ext),
+                Dir = filename:dirname(Th),
+                filename:join([Dir, Name++"_139x80"++Ext])
+             end}
           ]}
         ]}|| M <- lists:sublist(Medias, I, 4)
       ]}|| I <- lists:seq(1, L, 4) ],

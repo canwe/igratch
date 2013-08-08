@@ -103,7 +103,7 @@ entry_form(P, Fid, Title, TabId) ->
     #panel{class=["row-fluid"], body=[
       #panel{class=[span9], body=[
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId},
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}]},
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, TabId, MsId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
         #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
       ]},
@@ -174,7 +174,7 @@ event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
   Tid = wf:temp_id(), Did = wf:temp_id(),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   wf:update(Title, #textbox{id=Tid, value=wf:js_escape(wf:q(Title))}),
-  wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc)), root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId}),
+  wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc)), root=?ROOT, dir="static/"++User#user.email, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}),
   wf:insert_bottom(Desc, #panel{class=["btn-toolbar"], body=[
     #link{postback={save_entry, E, ProdId, Desc, Title, Tid, Did}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
     #link{postback={cancel_entry, E, Title, Desc}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
@@ -203,8 +203,7 @@ event({remove_media, M, Id}) ->
   wf:update(Id, product_ui:preview_medias(Id, New));
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
-api_event(attach_media, Args, Tag)->
-  error_logger:info_msg("Tag~p", [Tag]),
+api_event(attach_media, Args, _Tag)->
   Props = n2o_json:decode(Args),
   Target = binary_to_list(proplists:get_value(<<"preview">>, Props#struct.lst)),
   Id = proplists:get_value(<<"id">>, Props#struct.lst),
@@ -212,8 +211,6 @@ api_event(attach_media, Args, Tag)->
   Type = proplists:get_value(<<"type">>, Props#struct.lst),
   Thumb = binary_to_list(proplists:get_value(<<"thumb">>, Props#struct.lst)),
   Media = #media{id = Id,
-    width = 200,
-    height = 200,
     url = File,
     type = {attachment, Type},
     thumbnail_url = Thumb},
