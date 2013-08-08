@@ -8,6 +8,7 @@
 -include("records.hrl").
 
 -define(PAGE_SIZE, case wf:session(page_size) of list -> 4; _ -> 8 end).
+-record(info, {entries, toolbar, category, fid}).
 
 main()-> #dtl{file="dev", bindings=[{title,<<"reviews">>},{body, body()}]}.
 
@@ -37,11 +38,12 @@ body()->
               Last = case Entries of []-> []; E-> lists:last(E) end,
               EsId = wf:temp_id(),
               BtnId = wf:temp_id(),
+              Info = #info{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
               NoMore = length(Entries) < ?PAGE_SIZE,
               #panel{id=Id, class=["tab-pane"], body=[
                 #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
                 #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-                  if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, postback={check_more, Last, Fid, EsId, BtnId, Name}} end
+                  if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, postback={check_more, Last, Info}} end
                 ]}
               ]}
             end ||#group{id=Id, name=Name, feed=Fid} <- kvs:all(group)]]},
@@ -54,41 +56,40 @@ event(init) -> wf:reg(product_channel),[];
 event(<<"PING">>) -> [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read_entry, {Id,_}})-> wf:redirect("/review?id="++Id);
-event({check_more, Start, Fid, PanelId, BtnId, Category})->
-  read_entries(case Start of undefined -> undefined; S -> S#entry.entry_id end, Fid, PanelId, BtnId, Category),
-  wf:update(BtnId, []);
+event({check_more, Start, Info = #info{}}) ->
+  read_entries(case Start of undefined -> undefined; S -> S#entry.entry_id end, Info),
+  wf:update(Info#info.toolbar, []);
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review] api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-
-process_delivery([show_entry], [Entry, PanelId, BtnId, Category, Fid]) ->
-  wf:insert_bottom(PanelId, #product_entry{entry=Entry, mode=line, category=Category}),
+process_delivery([show_entry], [Entry, #info{} = Info]) ->
+  wf:insert_bottom(Info#info.entries, #product_entry{entry=Entry, mode=line, category=Info#info.category}),
   wf:wire("Holder.run();"), % hack to update the image placeholders
-  wf:update(BtnId, #link{class=[btn, "btn-large"], body= <<"more">>, postback={check_more, Entry, Fid, PanelId, BtnId, Category}});
+  wf:update(Info#info.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, postback={check_more, Entry, Info}});
 
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery(_R, _M) -> skip.
 
-read_entries(StartFrom, FeedId, PanelId, BtnId, Category)->
+read_entries(StartFrom, #info{fid=Fid}=I)->
   Feed = case StartFrom of
-    undefined-> kvs:get(feed, FeedId);
-    S -> kvs:get(entry, {S, FeedId})
+    undefined-> kvs:get(feed, Fid);
+    S -> kvs:get(entry, {S, Fid})
   end,
   case Feed of
     {error, not_found} -> [];
-    {ok, #feed{}=F} -> traverse_entries(F#feed.top, ?PAGE_SIZE, PanelId, BtnId, Category, FeedId);
-    {ok, #entry{prev = E}} -> traverse_entries(E, ?PAGE_SIZE, PanelId, BtnId, Category, FeedId)
+    {ok, #feed{}=F} -> traverse_entries(F#feed.top, ?PAGE_SIZE, I);
+    {ok, #entry{prev = E}} -> traverse_entries(E, ?PAGE_SIZE, I)
   end.
 
-traverse_entries(undefined,_,_,BtnId,_,_) -> self() ! {delivery, [reviews, no_more], [BtnId]}, [];
-traverse_entries(_,0,_,_,_,_) -> [];
-traverse_entries(Next, Count, PanelId, BtnId, Category, Fid)->
+traverse_entries(undefined,_, #info{toolbar=BtnId}) -> self() ! {delivery, [reviews, no_more], [BtnId]}, [];
+traverse_entries(_,0,_) -> [];
+traverse_entries(Next, Count, I)->
   case kvs:get(entry, Next) of
     {error, not_found} -> [];
     {ok, R}->
-      self() ! {delivery, [reviews, show_entry], [R, PanelId, BtnId, Category, Fid]},
-      [R | traverse_entries(R#entry.prev, Count-1, PanelId, BtnId, Category, Fid)]
+      self() ! {delivery, [reviews, show_entry], [R, I]},
+      [R | traverse_entries(R#entry.prev, Count-1, I)]
   end.
 
 
