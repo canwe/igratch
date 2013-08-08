@@ -141,7 +141,7 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
 
       #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
       #panel{class=[span5, "article-text"], body=[
-        #h3{body= E#entry.title},
+        #h3{class=[title], body= E#entry.title},
         Short, #link{class=[more], body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read_entry, E#entry.id}} ]} ]},
 
   element_panel:render_element(Entry);
