@@ -21,7 +21,7 @@ body()->
       #panel{class=["page-header"], body=[
           #h2{body= [#link{url="#all", body= <<"Categories ">>, style="color: black", data_fields=[{<<"data-toggle">>, <<"tab">>}]}, #small{body=[
           begin
-            wf:wire(#api{name="api_"++Name, tag=tab}),
+            wf:wire(#api{name="api_"++Id, tag=tab}),
             wf:wire(wf:f("$('#~s').on('shown', function(e){console.log('shown' + e.target);});", [Id])),
           [
             <<" / ">>,
