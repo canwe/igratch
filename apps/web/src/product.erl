@@ -13,6 +13,8 @@ main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
   Id = wf:qs(<<"id">>),
+  Tab = wf:qs(<<"tab">>),
+  wf:wire(io_lib:format("$('a[href=\"#~s\"]').tab('show');",[Tab])),
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, list_to_integer(binary_to_list(Id))) of
