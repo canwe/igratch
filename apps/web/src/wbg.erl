@@ -17,7 +17,7 @@ init([]) ->
     workers_sup:start_child(Props)
   end || #product{id=Id, feed=F, blog = B, features = Ft, specs = S, gallery = G, videos =V, bundles=Bn} <-kvs:all(product)],
 
-  [workers_sup:start_child([{id, Id}, {type, group},{feed, F}]) || #group{id=Id, feed=F} <- kvs:all(group)],
+  [workers_sup:start_child([{id, Id}, {type, group},{feed, F}, {products, D}]) || #group{id=Id, feed=F, products=D} <- kvs:all(group)],
   [workers_sup:start_child([{id, Id}, {type, user}, {feed, F}]) || #user{email = Id, feed=F} <- kvs:all(user)],
 
   {ok, #state{}}.
@@ -34,8 +34,8 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 handle_notice([kvs_products, product, init], [Id, F, B, Ft, S, G, V, Bn])->
   Props = [{id, Id},{type, product}, {feed, F}, {blog, B}, {features, Ft}, {specs, S},{gallery, G}, {videos, V}, {bundles, Bn}],
   workers_sup:start_child(Props);
-handle_notice([kvs_group, group, init], [Id, Fid])->
-  workers_sup:start_child([{id, Id}, {type, group}, {feed, Fid}]);
+handle_notice([kvs_group, group, init], [Id, Fid, PFid])->
+  workers_sup:start_child([{id, Id}, {type, group}, {feed, Fid}, {products, PFid}]);
 handle_notice(_R, _M) -> skip.
 
 pid(Name) ->

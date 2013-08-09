@@ -19,10 +19,11 @@ init([Params]) ->
   Gallery = proplists:get_value(gallery, Params, undefined),
   Videos  = proplists:get_value(videos,  Params, undefined),
   Bundles = proplists:get_value(bundles, Params, undefined),
+  Products= proplists:get_value(products, Params, undefined),
   error_logger:info_msg("init worker ~p", [Params]),
   {ok, #state{
     owner = Id,
-    type =Type, feed = Feed, blog = Blog, features=Features, specs=Specs, gallery=Gallery, videos=Videos, bundles=Bundles}}.
+    type =Type, feed = Feed, blog = Blog, features=Features, specs=Specs, gallery=Gallery, videos=Videos, bundles=Bundles, products=Products}}.
 
 handle_call(_,_From,State) -> {reply,ok, State}.
 handle_cast(_M, State) -> {noreply, State}.

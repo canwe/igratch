@@ -83,8 +83,9 @@ event(save_cat) ->
   case kvs_group:create(Creator, Id, Name, Desc, Publicity) of 
     {ok, G} ->
       error_logger:info_msg("Creted ~p", [G]),
-      msg:notify([kvs_group, group, init], [G#group.id, G#group.feed]),
-      wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(#tr{cells=[#td{body= G#group.id}, #td{body=G#group.description}]})]));
+      msg:notify([kvs_group, group, init], [G#group.id, G#group.feed, G#group.products]),
+      wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(#tr{cells=[#td{body= G#group.id},#td{body=G#group.name}, #td{body=G#group.description}]})])),
+      wf:wire("$('#cat_name').val('');$('#cat_desc').val('')");
     {error, _} -> skip
   end;
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
