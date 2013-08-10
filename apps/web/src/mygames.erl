@@ -142,4 +142,4 @@ process_delivery([user, _, entry, _, add],
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);
-process_delivery(_,_) -> error_logger:info_msg("!DELIVERY"),skip.
+process_delivery(_,_) -> skip.

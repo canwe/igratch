@@ -11,24 +11,24 @@ main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
 
 body()->
   case wf:qs(<<"id">>) of undefined ->skip; I -> wf:wire(wf:f("$('a[href=\"#~s\"]').addClass('text-warning').tab('show');", [binary_to_list(I)])) end,
-  wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){$(e.target).addClass('text-warning').siblings().removeClass('text-warning');});"),
+  %wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){$(e.target).addClass('text-warning').siblings().removeClass('text-warning');});"),
   index:header() ++ [
   #section{class=[section], body=[
     #panel{class=[container], body=[
       #panel{class=["page-header"], body=[
-          #h2{body= [#link{url="#all", body= <<"Categories ">>, style="color: black", data_fields=[{<<"data-toggle">>, <<"tab">>}]}, #small{body=[
-          begin
-            wf:wire(#api{name="api_"++Id, tag=tab}),
-            wf:wire(wf:f("$('#~s').on('shown', function(e){console.log('shown' + e.target);});", [Id])),
-          [
-            <<" / ">>,
-            #link{url="#"++Id, data_fields=[{<<"data-toggle">>, <<"tab">>}], body=[#span{class=["icon-asterisk"]},Name]}
-          ] end || #group{id=Id, name=Name} <- kvs:all(group)]} ]}
+          #h2{body= [
+            #link{url="#all", body= <<"Categories ">>, style="color: black", data_fields=[{<<"data-toggle">>, <<"tab">>}]}, 
+            #small{body=[
+              begin 
+                [<<" / ">>, #link{url="#"++Id, data_fields=[{<<"data-toggle">>, <<"tab">>}], body=[#span{class=["icon-asterisk"]},Name]}]
+              end || #group{id=Id, name=Name} <- kvs:all(group)
+            ]} 
+          ]}
       ]},
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
           #panel{id=all, class=["tab-pane", active], body=[
-            [[#product_entry{entry=E, mode=line, category=Name} || E <- lists:reverse(kvs_feed:entries(lists:keyfind(feed,1,Feeds), undefined, 10))] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
+            [[#product_entry{entry=E, mode=line, category=Name} || E <- kvs_feed:entries(lists:keyfind(feed,1,Feeds), undefined, 10)] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
           ]},
           [ begin
               Fid = lists:keyfind(feed,1,Feeds),
@@ -44,7 +44,8 @@ body()->
                   if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end
                 ]}
               ]}
-            end ||#group{id=Id, name=Name, feeds=Feeds} <- kvs:all(group)]]},
+            end ||#group{id=Id, name=Name, feeds=Feeds} <- kvs:all(group)]
+        ]},
         #panel{class=[span3], body=[<<"">>]} ]}
     ]}
   ]}
@@ -54,8 +55,8 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[review] api_event ~p, Tag ~p
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read_entry, {Id,_}})-> wf:redirect("/review?id="++Id);
-event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
+event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
+event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);

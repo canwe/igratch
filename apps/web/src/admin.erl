@@ -5,10 +5,7 @@
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
-
 -include("records.hrl").
-
--define(PAGE_SIZE, case wf:session(page_size) of list -> 2; _ -> 8 end).
 
 main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 

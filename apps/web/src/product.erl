@@ -20,7 +20,7 @@ body() ->
           #h4{class=[span9], style="line-height:30px;", body= [#link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, #small{body=[[
             begin
               Name = case kvs:get(group,I) of {ok, G}-> G#group.name; _ -> "noname" end,
-              [<<" | ">>, #link{url="/reviews?id="++I, body=[#span{class=["icon-asterisk"]},Name]}]
+              [<<" | ">>, #link{url="/store?id="++I, body=[#span{class=["icon-asterisk"]},Name]}]
             end
           ] || #group_subscription{where=I} <- kvs_group:participate(P#product.id)]} ]},
 
@@ -122,15 +122,30 @@ aside()-> [
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({post_entry, Fid, ProductId, Eid, Ttid, Feed, MsId}) ->
-  Desc = wf:q(Eid),
+event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
+  error_logger:info_msg("POST "),
+  Desc = wf:q(EditorId),
   Title = wf:q(Ttid),
-  Recipients = [{product, ProductId} | [{group, Where} || #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), Feed==reviews]],
-  EntryType = {Feed, default},
+  Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
+    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), Feed==reviews],
+
+  Recipients = [{product, ProductId, {Feed, Fid}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]],
+  error_logger:info_msg("Recipients: ~p", [Recipients]),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
-
-  [msg:notify([kvs_feed, RoutingType, To, entry, new, add, Fid], [Fid, From, Title, Desc, Medias, EntryType, Eid, Ttid, MsId]) || {RoutingType, To} <- Recipients];
+  EntryId = kvs:uuid(),
+  [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
+              [#entry{id={EntryId, FeedId},
+                      entry_id=EntryId,
+                      feed_id=FeedId,
+                      created = now(),
+                      to = {RoutingType, To},
+                      from=From,
+                      type=Feed,
+                      media=Medias,
+                      title=wf:js_escape(Title),
+                      description=wf:js_escape(Desc),
+                      shared=""}, Ttid, EditorId, MediasId, Feed]) || {RoutingType, To, {_, FeedId}} <- Recipients];
 
 event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
   Tid = wf:temp_id(), Did = wf:temp_id(),
@@ -160,7 +175,7 @@ event({remove_entry, E=#entry{type={Feed, _Layout}}, ProductId, Id})->
 
   [msg:notify([kvs_feed, RouteType, To, entry, E#entry.id, delete, Feed], [(wf:user())#user.email, Id]) || {RouteType, To, Feed} <- Recipients];
 
-event({read_entry, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, entry, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({remove_media, M, Id}) ->
   Ms = case wf:session(medias) of undefined -> []; Mi -> Mi end,
   New = lists:filter(fun(E)-> error_logger:info_msg("take ~p compare with ~p and = ~p", [E,M, E/=M]),  E/=M end, Ms),
@@ -190,6 +205,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p
 
 process_delivery([product, To, entry, EntryId, add],
                  [Fid, From, Title, Desc, Medias, {TabId, _L}=Type, Eid, Tid, MsId])->
+
   Entry = #entry{id = {EntryId, Fid},
                  entry_id = EntryId,
                  type=Type,
@@ -207,6 +223,16 @@ process_delivery([product, To, entry, EntryId, add],
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
   wf:insert_top(TabId, E);
+
+process_delivery([product, To, entry, _, add],
+                 [#entry{} = Entry, Eid, Tid, MsId, TabId])->
+  wf:session(medias, []),
+  wf:update(MsId, []),
+  wf:wire(wf:f("$('#~s').val('');", [Tid])),
+  wf:wire(wf:f("$('#~s').html('');", [Eid])),
+  wf:insert_top(TabId, #product_entry{entry=Entry, prod_id=To}),
+  wf:wire("Holder.run();");
+
 process_delivery([product, _UsrId, entry, _Eid, edit],
                  [Tbox, Dbox, Title, Description])->
   wf:update(Tbox, wf:js_escape(Title)),

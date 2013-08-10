@@ -24,8 +24,8 @@ body() ->
               #p{class=[username], body= #link{body=From}},
               #p{class=[datestamp], body=[Date]},
               #p{class=[statistics], body=[
-                  #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read_entry, E#entry.id}},
-                  #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read_entry, E#entry.id}}
+                  #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
+                  #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}}
               ]},
               #panel{class=[], body=[
                   #link{url= <<"#">>, class=[btn, "btn-orange", capital], body= <<"Buy it!">>}

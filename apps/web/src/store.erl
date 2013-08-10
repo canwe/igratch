@@ -7,10 +7,7 @@
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
--define(PAGE_SIZE, case wf:session(page_size) of grid -> 8; _ -> 4 end).
--record(info, {entries, toolbar, category, fid}).
-
-main() -> wf:session(page_size, list), #dtl{file="prod", bindings=[{title,<<"Store">>},{body, body()}]}.
+main() -> #dtl{file="prod", bindings=[{title,<<"Store">>},{body, body()}]}.
 
 body()->
   case wf:qs(<<"id">>) of undefined ->skip; I -> error_logger:info_msg("~p RECEIVED!", [I]),wf:wire(wf:f("$('a[href=\"#~s\"]').addClass('text-warning').tab('show');", [binary_to_list(I)])) end,
@@ -21,8 +18,6 @@ body()->
       #panel{class=["page-header"], body=[
           #h2{body= [#link{url="#all", body= <<"Categories ">>, style="color: black", data_fields=[{<<"data-toggle">>, <<"tab">>}]}, #small{body=[
           begin
-            wf:wire(#api{name="api_"++Id, tag=tab}),
-            wf:wire(wf:f("$('#~s').on('shown', function(e){console.log('shown' + e.target);});", [Id])),
           [
             <<" / ">>,
             #link{url="#"++Id, data_fields=[{<<"data-toggle">>, <<"tab">>}], body=[#span{class=["icon-asterisk"]},Name]}
@@ -31,7 +26,7 @@ body()->
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
           #panel{id=all, class=["tab-pane", active], body=[
-            [[#product_entry{entry=E, mode=line, category=Name} || E <- kvs_feed:entries(lists:keyfind(products,1,Feeds), undefined, 10)] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
+            [[#product_entry{entry=E, mode=line, category=Name} || E <- kvs_feed:entries(lists:keyfind(products,1,Feeds), undefined, ?PAGE_SIZE)] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
           ]},
           [ begin
               Fid = lists:keyfind(products,1,Feeds),
@@ -39,28 +34,16 @@ body()->
               Last = case Entries of []-> []; E-> lists:last(E) end,
               EsId = wf:temp_id(),
               BtnId = wf:temp_id(),
-              Info = #info{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
+              Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
               NoMore = length(Entries) < ?PAGE_SIZE,
               #panel{id=Id, class=["tab-pane"], body=[
                 #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
                 #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-                  if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, postback={check_more, Last, Info}} end
+                  if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end
                 ]}
               ]}
             end ||#group{id=Id, name=Name, feeds=Feeds} <- kvs:all(group)]]},
         #panel{class=[span3], body=[<<"">>]} ]}
-    ]}
-  ]}
-  ] ++ index:footer().
-
-
-body2() -> index:header() ++[
-  #section{class=[section, "main-no-slider"], body=[
-    #panel{class=[container], body=[
-      #panel{class=["row-fluid"], body=[
-        #table{id=products, class=[table, "table-hover"], body=[list_products(1)] }
-      ]},
-      #panel{class=[pagination, "pagination-large","pagination-centered"],body=[ #list{id=pagination, body=pagination(1)} ]}
     ]}
   ]},
   #section{class=[section, alt], body=#panel{class=[container], body=[
@@ -70,9 +53,8 @@ body2() -> index:header() ++[
         #link{class=[btn, "btn-large", "btn-info"], body= <<"contact us">>}
       ]}
   ]}}
-  ] ++index:footer().
+  ] ++ index:footer().
 
-list_products(Page) -> [#product_row{product=P} || P <- lists:sublist(kvs:all(product), (Page-1) * ?PAGE_SIZE + 1, ?PAGE_SIZE)].
 
 body1()-> index:header() ++ [
   #panel{id="main-container", class=["container-fluid", "main-no-slider"], body=[
@@ -136,7 +118,9 @@ pagination(Page)->
   ].
 
 event(init) -> [];
-event({product_feed, Id})-> wf:redirect("/product?id=" ++ integer_to_list(Id));
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
+event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
+event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
 event({page, Page})->
   wf:update(pagination, pagination(Page)),
   wf:update(products, wf:js_escape(wf:render(list_products(Page))));
@@ -150,3 +134,8 @@ event(to_grid)->
   wf:update(products, list_products(1)),
   wf:update(pagination, pagination(1));
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
+
+process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
+process_delivery([no_more], M) -> product:process_delivery([no_more], M);
+process_delivery(_,_) -> skip.
+
