@@ -56,7 +56,6 @@ render_element(#product_hero{product=P}) ->
     ]}
   ]},
   element_panel:render_element(Hero);
-
 %render_element(#product_entry{entry=#entry{type={features, "figure"}}=E}) ->
 %  PostId = wf:temp_id(),
 %  EntryId= wf:temp_id(),
@@ -114,7 +113,7 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId
   ]},
   element_panel:render_element(Entry);
 
-render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
+render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Category})->
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
@@ -131,7 +130,7 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
 
   Entry = #panel{class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
-      #h3{ class=[blue], body= Category},
+      #h3{class=[blue], body= Category},
       #p{class=[username], body= #link{body=From}},
       #p{class=[datestamp], body=[ #span{body= Date} ]},
       #p{class=[statistics], body=[
@@ -142,11 +141,11 @@ render_element(#product_entry{entry=#entry{}=E, mode=line, category=Category})->
       #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
       #panel{class=[span5, "article-text"], body=[
         #h3{class=[title], body= E#entry.title},
-        Short, #link{class=[more], body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read_entry, E#entry.id}} ]}
+        Short, #link{class=[more], body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}],
+          postback={read, Type, E#entry.id}} ]}
   ]},
 
   element_panel:render_element(Entry);
-
 
 render_element(#product_entry{entry=#entry{type={reviews, _}}=E, mode=full})->
   PostId = wf:temp_id(),

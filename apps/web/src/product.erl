@@ -7,8 +7,6 @@
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
--define(PAGE_SIZE, 4).
-
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
@@ -131,7 +129,6 @@ event({post_entry, Fid, ProductId, Eid, Ttid, Feed, MsId}) ->
   EntryType = {Feed, default},
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
-%  EntryId =uuid(),
 
   [msg:notify([kvs_feed, RoutingType, To, entry, new, add, Fid], [Fid, From, Title, Desc, Medias, EntryType, Eid, Ttid, MsId]) || {RoutingType, To} <- Recipients];
 
@@ -169,6 +166,9 @@ event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> error_logger:info_msg("take ~p compare with ~p and = ~p", [E,M, E/=M]),  E/=M end, Ms),
   wf:session(medias, New),
   wf:update(Id, product_ui:preview_medias(Id, New));
+event({check_more, Start, Info = #info_more{}}) ->
+  read_entries(case Start of undefined -> undefined; S -> S#entry.entry_id end, Info),
+  wf:update(Info#info_more.toolbar, []);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 api_event(attach_media, Args, _Tag)->
@@ -212,20 +212,35 @@ process_delivery([product, _UsrId, entry, _Eid, edit],
   wf:update(Tbox, wf:js_escape(Title)),
   wf:update(Dbox, wf:js_escape(Description));
 
+process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
+  error_logger:info_msg("show!"),
+  wf:insert_bottom(Info#info_more.entries, #product_entry{entry=Entry, mode=line}),
+  wf:wire("Holder.run();"),
+  wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
+process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([product, _, entry, _, delete], [_|Id]) ->
   wf:remove(Id);
 
-process_delivery(_R, _M) -> skip.
+process_delivery(_R, _M) -> error_logger:info_msg("prodyct delivery"),skip.
 
-uuid() ->
-  R1 = random:uniform(round(math:pow(2, 48))) - 1,
-  R2 = random:uniform(round(math:pow(2, 12))) - 1,
-  R3 = random:uniform(round(math:pow(2, 32))) - 1,
-  R4 = random:uniform(round(math:pow(2, 30))) - 1,
-  R5 = erlang:phash({node(), now()}, round(math:pow(2, 32))),
+read_entries(StartFrom, #info_more{fid=Fid}=I)->
+  error_logger:info_msg("Start from: ~p", [StartFrom]),
+  Feed = case StartFrom of
+    undefined-> kvs:get(feed, Fid);
+    S -> kvs:get(entry, {S, Fid})
+  end,
+  case Feed of
+    {error, not_found} -> error_logger:info_msg("no fid ~p", [Feed]),[];
+    {ok, #feed{}=F} -> traverse_entries(F#feed.top, ?PAGE_SIZE, I);
+    {ok, #entry{prev = E}} -> traverse_entries(E, ?PAGE_SIZE, I)
+  end.
 
-  UUIDBin = <<R1:48, 4:4, R2:12, 2:2, R3:32, R4: 30>>,
-  <<TL:32, TM:16, THV:16, CSR:8, CSL:8, N:48>> = UUIDBin,
-
-  lists:flatten(io_lib:format("~8.16.0b-~4.16.0b-~4.16.0b-~2.16.0b~2.16.0b-~12.16.0b-~8.16.0b",
-                              [TL, TM, THV, CSR, CSL, N, R5])).
+traverse_entries(undefined,_, #info_more{toolbar=BtnId}) -> self() ! {delivery, [somepath, no_more], [BtnId]}, [];
+traverse_entries(_,0,_) -> [];
+traverse_entries(Next, Count, I)->
+  case kvs:get(entry, Next) of
+    {error, not_found} -> [];
+    {ok, R}->
+      self() ! {delivery, [somepath, show_entry], [R, I]},
+      [R | traverse_entries(R#entry.prev, Count-1, I)]
+  end.

@@ -57,9 +57,21 @@ input() ->
  ] end.
 
 games()->
-  case wf:user() of undefined -> []; User ->[
-    #h3{body= <<"My games">>, class=[blue]},
-    #panel{id=myproducts, body= [#product_entry{entry=E} || E <- kvs_feed:entries(lists:keyfind(products,1,User#user.feeds), undefined, 10)]} ] end.
+  case wf:user() of undefined -> []; User ->
+    {_, Fid} = Feed = lists:keyfind(products,1,User#user.feeds),
+    error_logger:info_msg("More id feed ~p", [Feed]),
+    Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
+    Last = case Entries of []-> []; E-> lists:last(E) end,
+    EsId = wf:temp_id(),
+    BtnId = wf:temp_id(),
+    error_logger:info_msg("Pid: ~p", [self()]),
+    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, module=pid_to_list(self())},
+    NoMore = length(Entries) < ?PAGE_SIZE,
+    [#h3{body= <<"My games">>, class=[blue]},
+    #panel{id=myproducts, body=[
+      #panel{id=EsId, body=[#product_entry{entry=E, mode=line} || E <- Entries]},
+      #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
+        if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback = {check_more, Last, Info}} end ]} ]} ] end.
 
 control_event("cats", _) ->
   SearchTerm = wf:q(term),
@@ -72,7 +84,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, 
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({save, TabId, MsId}) ->
+event({save, TabId, MediasId}) ->
   User = wf:user(),
   Title = wf:q(title),
   Descr = wf:q(brief),
@@ -93,63 +105,41 @@ event({save, TabId, MsId}) ->
   case kvs_products:register(Product) of
     {ok, P} ->
       Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
-      error_logger:info_msg("Groups: ~p", [Groups]),
-
-      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
 
       Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
         [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
 
       Medias = case wf:session(medias) of undefined -> []; M -> M end,
 
-      error_logger:info_msg("Recipients:"),
-      [error_logger:info_msg(" - ~p", [R]) ||R <- Recipients],
-      error_logger:info_msg("Workers: "),
-      [error_logger:info_msg("- ~p", [W]) || W <-supervisor:which_children(workers_sup)],
+      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
 
-
-%      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add,Fid],
-%                  [Fid, P#product.owner, Title, Descr, Medias, {TabId, product}, title, brief, MsId]) || {RoutingType, To, {Feed, Fid}} <- Recipients],
       [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
-                  [#entry{feed_id=Fid,
+                  [#entry{id={P#product.id, Fid},
+                          feed_id=Fid,
                           created = now(),
                           to = {RoutingType, To},
                           from=P#product.owner,
-                          type={TabId, product},
+                          type= product,
                           media=Medias,
                           title=wf:js_escape(Title),
                           description=wf:js_escape(Descr),
-                          shared=""}, title, brief, MsId, TabId]) || {RoutingType, To, {_, Fid}} <- Recipients],
+                          shared=""}, title, brief, MediasId, TabId]) || {RoutingType, To, {_, Fid}} <- Recipients],
 
       msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
-
-    E -> error_logger:info_msg("E: ~p", [E]), error
+    _ -> error
   end;
-event({product_feed, Id})-> wf:redirect("/product?id="++integer_to_list(Id));
-event({read_entry, {Id,_}})-> error_logger:info_msg("read ~p", [Id]),wf:redirect("/review?id="++Id);
-event(Event) -> error_logger:info_msg("[account]Page event: ~p", [Event]), ok.
+event({read, product, {Id,_}})-> error_logger:info_msg("read ~p", [Id]),wf:redirect("/product?id="++Id);
+event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
-process_delivery([user, To, entry, EntryId, add],
-%                 [Fid, From, Title, Desc, Medias, {TabId, _L}=Type, Eid, Tid, MsId])->
+process_delivery([user, _, entry, _, add],
                  [#entry{} = Entry, Eid, Tid, MsId, TabId])->
-  error_logger:info_msg("-> ui add entry ~p", [EntryId]),
-%  Entry = #entry{id = {EntryId, Fid},
-%                 entry_id = EntryId,
-%                 type=Type,
-%                 created = now(),
-%                 from = From,
-%                 to = To,
-%                 title = wf:js_escape(Title),
-%                 description = wf:js_escape(Desc),
-%                 media = Medias,
-%                 feed_id = Fid},
-
-  E = #product_entry{entry=Entry},
   wf:session(medias, []),
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, E);
+  wf:insert_top(TabId, #product_entry{entry=Entry, mode=line}),
+  wf:wire("Holder.run();");
 
-process_delivery(_R, M) -> error_logger:info_msg("-> ui delivery:  ~p", [ok]), skip.
-
+process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
+process_delivery([no_more], M) -> product:process_delivery([no_more], M);
+process_delivery(_,_) -> error_logger:info_msg("!DELIVERY"),skip.
