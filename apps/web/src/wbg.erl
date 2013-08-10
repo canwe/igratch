@@ -4,40 +4,29 @@
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/users.hrl").
+-include("records.hrl").
+
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([start_link/0, pid/1]).
+-export([start_link/0]).
 -record(state,{}).
 
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 init([]) ->
-  wf:reg(product_channel),
-  [begin
-    Props = [{id, Id}, {type, product}, {feed, F}, {blog, B}, {features, Ft}, {specs, S},{gallery, G}, {videos, V}, {bundles, Bn}],
-    workers_sup:start_child(Props)
-  end || #product{id=Id, feed=F, blog = B, features = Ft, specs = S, gallery = G, videos =V, bundles=Bn} <-kvs:all(product)],
+  wf:reg(?MAIN_CH),
 
-  [workers_sup:start_child([{id, Id}, {type, group},{feed, F}, {products, D}]) || #group{id=Id, feed=F, products=D} <- kvs:all(group)],
-  [workers_sup:start_child([{id, Id}, {type, user}, {feed, F}]) || #user{email = Id, feed=F} <- kvs:all(user)],
+  [handle_notice([ok, user,    init], [Id, Feeds]) || #user{email=Id, feeds=Feeds} <- kvs:all(user)],
+  [handle_notice([ok, group,   init], [Id, Feeds]) || #group{id = Id, feeds=Feeds} <- kvs:all(group)],
+  [handle_notice([ok, product, init], [Id, Feeds]) || #product{id=Id, feeds=Feeds} <- kvs:all(product)],
 
   {ok, #state{}}.
 
-handle_call(_Msg, _From, State) -> {reply, ok, State}.
-handle_cast(_Msg, State) -> {noreply, State}.
-handle_info({delivery, Route, Msg}, State)->
-  handle_notice(Route, Msg),
-  {noreply, State};
-handle_info(_Info, State) -> {noreply, State}.
-terminate(_Reason, _State) -> ok.
-code_change(_OldVsn, State, _Extra) -> {ok, State}.
+handle_call(_,_,S) -> {reply, ok, S}.
+handle_cast(_,S) -> {noreply, S}.
+handle_info({delivery, Route, Msg}, S) -> handle_notice(Route, Msg), {noreply, S};
+handle_info(_,S) -> {noreply, S}.
+terminate(_,_S) -> ok.
+code_change(_,S,_) -> {ok, S}.
 
-handle_notice([kvs_products, product, init], [Id, F, B, Ft, S, G, V, Bn])->
-  Props = [{id, Id},{type, product}, {feed, F}, {blog, B}, {features, Ft}, {specs, S},{gallery, G}, {videos, V}, {bundles, Bn}],
-  workers_sup:start_child(Props);
-handle_notice([kvs_group, group, init], [Id, Fid, PFid])->
-  workers_sup:start_child([{id, Id}, {type, group}, {feed, Fid}, {products, PFid}]);
-handle_notice(_R, _M) -> skip.
-
-pid(Name) ->
-  R=[Pid||{{p,l,SName},Pid,_Value}<-qlc:e(gproc:table()),Name==SName],
-  case R of [] -> undefined; [A] -> A; _ -> ambiguous end.
+handle_notice([_, Type, init], [Id, Feeds]) -> workers_sup:start_child([{id, Id}, {type, Type}, {feeds, Feeds}]);
+handle_notice(_,_) -> skip.

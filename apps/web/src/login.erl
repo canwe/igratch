@@ -2,13 +2,12 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include("records.hrl").
 
 -define(HTTP_ADDRESS, case application:get_env(web, http_address) of {ok, A} -> A; _ -> "" end).
 -define(FB_APP_ID, case application:get_env(web, fb_id) of {ok, Id} -> Id; _-> "" end).
 -define(GPLUS_CLIENT_ID, case application:get_env(web, gplus_client_id) of {ok, Id} -> Id; _-> "" end).
 -define(GPLUS_COOKIE_POLICY, case application:get_env(web, gplus_cookiepolicy) of {ok, P} -> P; _-> "" end).
-
--record(struct, {lst=[]}).
 
 main() ->
   twitter_callback(),
@@ -58,12 +57,9 @@ body() ->
 
         ]},
         #panel{class=["modal-footer"], body=[
-          #link{class=["pull-left", "link-forgot"], body= <<"forgot password?">>},
+          #link{class=["pull-left", "link-forgot", disabled], body= <<"forgot password?">>},
           #button{id=login, class=[btn, "btn-info", "btn-large"], body= <<"Sign in">>, postback=login, source=[user,pass]}
-        ]}
-      ]}
-    ]},
-    #panel{class=["pull-center"], body=[<<"Not a member?">>, #link{body= <<" Sign Up">>} ]} ]} ]} ]} ] 
+        ]} ]} ]} ]} ]} ]} ] 
     ++ index:footer() ++ [
       facebook_sdk(),
       gplus_sdk()
@@ -89,10 +85,10 @@ api_event(Name,Tag,_Term) -> error_logger:info_msg("Login Name ~p~n, Tag ~p~n",[
 login_user(User) -> wf:user(User), wf:redirect("/account").
 login(Key, Args)-> case Args of [{error, E}|_Rest] -> error_logger:info_msg("oauth error: ~p", [E]);
     _ -> case kvs:get(user,email_prop(Args,Key)) of
-              {ok,Existed} -> {Id, RegData} = registration_data(Args, Key, Existed), login_user(RegData);
-              {error,_} -> {Id, RegData} = registration_data(Args, Key, #user{}),
+              {ok,Existed} -> RegData = registration_data(Args, Key, Existed), login_user(RegData);
+              {error,_} -> RegData = registration_data(Args, Key, #user{feeds=?USR_CHUNK}),
                   case kvs_user:register(RegData) of
-                      {ok, Registered} -> error_logger:info_msg("User: ~p", [Registered]),login_user(Registered);
+                      {ok, U} -> msg:notify([kvs_user, user, init], [U#user.email, U#user.feeds]), login_user(U);
                       {error, E} -> error_logger:info_msg("error: ~p", [E]) end end end.
 
 twitter_callback()->
@@ -119,8 +115,7 @@ registration_data(Props, facebook_id, Ori)->
     undefined -> {1, 1, 1970};
     BD -> list_to_tuple([list_to_integer(X) || X <- string:tokens(binary_to_list(BD), "/")])
   end,
-  {proplists:get_value(id, Props), Ori#user{
-    username = re:replace(UserName, "\\.", "_", [{return, list}]),
+  Ori#user{
     display_name = UserName,
     avatar = "https://graph.facebook.com/" ++ UserName ++ "/picture",
     email = email_prop(Props, facebook_id),
@@ -130,15 +125,14 @@ registration_data(Props, facebook_id, Ori)->
     age = {element(3, BirthDay), element(1, BirthDay), element(2, BirthDay)},
     register_date = erlang:now(),
     status = ok
-  }};
+  };
 registration_data(Props, googleplus_id, Ori)->
   Id = proplists:get_value(<<"id">>, Props),
   Name = proplists:get_value(<<"name">>, Props),
   GivenName = proplists:get_value(<<"givenName">>, Name#struct.lst),
   FamilyName = proplists:get_value(<<"familyName">>, Name#struct.lst),
   Image = proplists:get_value(<<"image">>, Props),
-  {Id, Ori#user{
-    username = string:to_lower(binary_to_list(<< GivenName/binary, <<"_">>/binary, FamilyName/binary>>)),
+  Ori#user{
     display_name = proplists:get_value(<<"displayName">>, Props),
     avatar = lists:nth(1,string:tokens(binary_to_list(proplists:get_value(<<"url">>, Image#struct.lst)), "?")),
     email = email_prop(Props,googleplus_id),
@@ -148,12 +142,10 @@ registration_data(Props, googleplus_id, Ori)->
     register_date = erlang:now(),
     sex = proplists:get_value(gender, Props),
     status = ok
-  }};
+  };
 registration_data(Props, twitter_id, Ori)->
   Id = proplists:get_value(<<"id_str">>, Props),
-  UserName = binary_to_list(proplists:get_value(<<"screen_name">>, Props)),
-  {Id, Ori#user{
-    username = re:replace(UserName, "\\.", "_", [{return, list}]),
+  Ori#user{
     display_name = proplists:get_value(<<"screen_name">>, Props),
     avatar = proplists:get_value(<<"profile_image_url">>, Props),
     name = proplists:get_value(<<"name">>, Props),
@@ -162,7 +154,7 @@ registration_data(Props, twitter_id, Ori)->
     twitter_id = Id,
     register_date = erlang:now(),
     status = ok
-  }}.
+  }.
 
 email_prop(Props, twitter_id) -> binary_to_list(proplists:get_value(<<"screen_name">>, Props)) ++ "@twitter.com";
 email_prop(Props, _) -> binary_to_list(proplists:get_value(<<"email">>, Props)).

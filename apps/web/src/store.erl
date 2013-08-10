@@ -31,9 +31,10 @@ body()->
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
           #panel{id=all, class=["tab-pane", active], body=[
-            [[#product_entry{entry=E, mode=line, category=Name} || E <- lists:reverse(kvs_feed:entries(Fid, undefined, 10))] || #group{products=Fid, name=Name} <- kvs:all(group)]
+            [[#product_entry{entry=E, mode=line, category=Name} || E <- kvs_feed:entries(lists:keyfind(products,1,Feeds), undefined, 10)] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
           ]},
           [ begin
+              Fid = lists:keyfind(products,1,Feeds),
               Entries = kvs_feed:entries(Fid, undefined, ?PAGE_SIZE),
               Last = case Entries of []-> []; E-> lists:last(E) end,
               EsId = wf:temp_id(),
@@ -46,7 +47,7 @@ body()->
                   if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, postback={check_more, Last, Info}} end
                 ]}
               ]}
-            end ||#group{id=Id, name=Name, products=Fid} <- kvs:all(group)]]},
+            end ||#group{id=Id, name=Name, feeds=Feeds} <- kvs:all(group)]]},
         #panel{class=[span3], body=[<<"">>]} ]}
     ]}
   ]}

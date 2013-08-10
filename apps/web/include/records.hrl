@@ -1,4 +1,8 @@
 -define(ROOT, code:priv_dir(web)).
+-define(MAIN_CH, games_ch).
+-define(USR_CHUNK, [feed, direct, products, starred, pinned]).
+-define(GRP_CHUNK, [feed, products]).
+-define(PRD_CHUNK, [features, specs, gallery, videos, reviews, news, bundles]).
 
 -record(struct, {lst=[]}).
 -record(product_figure,{?ELEMENT_BASE(product_ui), product}).

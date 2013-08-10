@@ -8,9 +8,10 @@
 main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
+  error_logger:info_msg("Review id ~p", [wf:qs(<<"id">>)]),
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
-    case kvs:all_by_index(entry, #entry.entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end) of [E|_] ->
+    case kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end) of [E|_] ->
       {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
       Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
       {From, Av} = case kvs:get(user, E#entry.from) of {ok, U} -> {U#user.display_name, U#user.avatar}; {error, _} -> {E#entry.from, <<"holder.js/150x150">>} end,
@@ -40,8 +41,7 @@ body() ->
   #section{class=[section], body=#panel{class=[container], body=[
     #h3{body= <<"more reviews">>, class=[blue, offset3]},
     #panel{class=["row-fluid"], body=more_article()}
-  ]}}
-  ]++index:footer().
+  ]}} ]++index:footer().
 
 more_article() ->
   #panel{class=["game-article","shadow-fix"], body=[
@@ -67,14 +67,14 @@ more_article() ->
     ]}
   ]}.
 
-event(init) -> wf:reg(product_channel),[];
+event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({comment_entry, Eid, Cid, Csid, Parent, EditorId})->
   Comment = wf:q(Cid),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
-  msg:notify([kvs_feed, entry, Eid, comment, product:uuid(), add], [From, Parent, Comment, Medias, Csid, EditorId]);
+  msg:notify([kvs_feed, entry, Eid, comment, add], [From, Parent, Comment, Medias, Csid, EditorId]);
 
 event({comment_reply, {Cid, {Eid, Fid}}})->
   CommentId = wf:temp_id(),

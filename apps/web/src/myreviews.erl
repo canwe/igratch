@@ -8,8 +8,6 @@
 -include_lib("kvs/include/membership.hrl").
 -include("records.hrl").
 
--record(price, {?ELEMENT_BASE(account), value, currencies=[{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}], span}).
-
 main()-> #dtl{file="prod", bindings=[{title,<<"my reviews">>},{body, body()}]}.
 
 body()->
@@ -41,9 +39,9 @@ input()->
       #panel{class=[span2], body=[]}
   ]} ] end.
 
-reviews() ->
+reviews() ->[
   #h3{class=[blule], body= <<"My Reviews">>},
-  [[#product_entry{entry=E, mode=line, category=Name} || E <- lists:reverse(kvs_feed:entries(Fid, undefined, 10))] || #group{feed=Fid, name=Name} <- kvs:all(group)].
+  [[#product_entry{entry=E, mode=line, category=Name} || E <- lists:reverse(kvs_feed:entries(lists:keyfind(feed,1,Feeds), undefined, 10))] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]].
 
 control_event("cats", _) ->
   SearchTerm = wf:q(term),
@@ -52,7 +50,7 @@ control_event("cats", _) ->
 control_event(_, _) -> ok.
 
 
-event(init) -> wf:reg(product_channel), [];
+event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id="++integer_to_list(Id));
 event(Event) -> error_logger:info_msg("[account]Page event: ~p", [Event]), ok.

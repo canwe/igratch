@@ -8,6 +8,8 @@
 -include_lib("kvs/include/membership.hrl").
 -include("records.hrl").
 
+-define(GRP_CACHE, kvs:all(group)).
+
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
 body()->
@@ -57,19 +59,19 @@ input() ->
 games()->
   case wf:user() of undefined -> []; User ->[
     #h3{body= <<"My games">>, class=[blue]},
-    #panel{id=myproducts, body= [#product_entry{entry=E} || E <- lists:reverse(kvs_feed:entries(User#user.direct, undefined, 10))]} ] end.
+    #panel{id=myproducts, body= [#product_entry{entry=E} || E <- kvs_feed:entries(lists:keyfind(products,1,User#user.feeds), undefined, 10)]} ] end.
 
 control_event("cats", _) ->
   SearchTerm = wf:q(term),
-  Data = [ [list_to_binary(Id++"="++Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- kvs:all(group), string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
+  Data = [ [list_to_binary(Id++"="++Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- ?GRP_CACHE, string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
   element_textboxlist:process_autocomplete("cats", Data, SearchTerm);
 control_event(_, _) -> ok.
 
 api_event(attach_media, Tag, Term) -> product:api_event(attach_media, Tag, Term);
 api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-event(init) -> wf:reg(product_channel), [];
-event({delivery, [_|Route], Msg}) -> error_logger:info_msg("Message delivered: ~p", [Msg]),process_delivery(Route, Msg);
+event(init) -> wf:reg(?MAIN_CH), [];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({save, TabId, MsId}) ->
   User = wf:user(),
   Title = wf:q(title),
@@ -77,32 +79,49 @@ event({save, TabId, MsId}) ->
   Cats = wf:q(cats),
   {Price, _Rest} = string:to_float(wf:q(price)),
   Currency = wf:q(currency),
-  Categories = [1],
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Product = #product{
-    creator= User#user.email,
-    owner=User#user.email,
+    creator = User#user.email,
+    owner = User#user.email,
     title = list_to_binary(Title),
-    cover = TitlePic,
     brief = list_to_binary(Descr),
-    categories = Categories,
+    cover = TitlePic,
     price = Price,
-    currency = Currency
+    currency = Currency,
+    feeds = ?PRD_CHUNK
   },
   case kvs_products:register(Product) of
     {ok, P} ->
-      msg:notify([kvs_products, product, init], [P#product.id, P#product.feed, P#product.blog, P#product.features, P#product.specs, P#product.gallery, P#product.videos, P#product.bundles]),
+      Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
+      error_logger:info_msg("Groups: ~p", [Groups]),
 
-      [kvs_group:join(P#product.name, G) || G <- string:tokens(Cats, ",")],
+      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
 
-      Recipients = [{user, P#product.owner, User#user.direct}|[{{group, products}, Where, auto} || Where <- string:tokens(Cats, ",")]],
-      Medias = case wf:session(medias) of undefined -> []; L -> L end,
-      EntryId = "product_" ++ integer_to_list(P#product.id), %product:uuid() put to etc.
+      Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
+        [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
 
-      error_logger:info_msg("Recipients: ~p", [Recipients]),
-      error_logger:info_msg("Media: ~p", [Medias]),
+      Medias = case wf:session(medias) of undefined -> []; M -> M end,
 
-      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [Fid, P#product.owner, Title, Descr, Medias, {TabId, product}, title, brief, MsId]) || {RoutingType, To, Fid} <- Recipients];
+      error_logger:info_msg("Recipients:"),
+      [error_logger:info_msg(" - ~p", [R]) ||R <- Recipients],
+      error_logger:info_msg("Workers: "),
+      [error_logger:info_msg("- ~p", [W]) || W <-supervisor:which_children(workers_sup)],
+
+
+%      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add,Fid],
+%                  [Fid, P#product.owner, Title, Descr, Medias, {TabId, product}, title, brief, MsId]) || {RoutingType, To, {Feed, Fid}} <- Recipients],
+      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
+                  [#entry{feed_id=Fid,
+                          created = now(),
+                          to = {RoutingType, To},
+                          from=P#product.owner,
+                          type={TabId, product},
+                          media=Medias,
+                          title=wf:js_escape(Title),
+                          description=wf:js_escape(Descr),
+                          shared=""}, title, brief, MsId, TabId]) || {RoutingType, To, {_, Fid}} <- Recipients],
+
+      msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
 
     E -> error_logger:info_msg("E: ~p", [E]), error
   end;
@@ -111,25 +130,26 @@ event({read_entry, {Id,_}})-> error_logger:info_msg("read ~p", [Id]),wf:redirect
 event(Event) -> error_logger:info_msg("[account]Page event: ~p", [Event]), ok.
 
 process_delivery([user, To, entry, EntryId, add],
-                 [Fid, From, Title, Desc, Medias, {TabId, _L}=Type, Eid, Tid, MsId])->
+%                 [Fid, From, Title, Desc, Medias, {TabId, _L}=Type, Eid, Tid, MsId])->
+                 [#entry{} = Entry, Eid, Tid, MsId, TabId])->
+  error_logger:info_msg("-> ui add entry ~p", [EntryId]),
+%  Entry = #entry{id = {EntryId, Fid},
+%                 entry_id = EntryId,
+%                 type=Type,
+%                 created = now(),
+%                 from = From,
+%                 to = To,
+%                 title = wf:js_escape(Title),
+%                 description = wf:js_escape(Desc),
+%                 media = Medias,
+%                 feed_id = Fid},
 
-  Entry = #entry{id = {EntryId, Fid},
-                 entry_id = EntryId,
-                 type=Type,
-                 created = now(),
-                 from = From,
-                 to = To,
-                 title = wf:js_escape(Title),
-                 description = wf:js_escape(Desc),
-                 media = Medias,
-                 feed_id = Fid},
-
-  E = #product_entry{entry=Entry, prod_id=To},
+  E = #product_entry{entry=Entry},
   wf:session(medias, []),
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
   wf:insert_top(TabId, E);
 
-process_delivery(_R, _M) -> skip.
+process_delivery(_R, M) -> error_logger:info_msg("-> ui delivery:  ~p", [ok]), skip.
 

@@ -12,11 +12,10 @@ render_element(#product_row{product=P}) ->
 
   Row = #tr{id=wf:temp_id(), postback={product_feed, P#product.id},cells=[
     #td{body=[
-      #h4{body = P#product.name},
+      #h4{body = P#product.title},
       #p{body=[#span{style="display:block;", body = P#product.creator}, #small{body= Date}]},
       #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
       #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]} ]},
-    #td{body= P#product.title},
     #td{body= P#product.brief}
   ]},
   element_tr:render_element(Row);
@@ -49,7 +48,7 @@ render_element(#product_hero{product=P}) ->
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
         #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
           body= [<<"buy for ">>,#span{body= "$"++ if is_float(P#product.price) -> float_to_list(P#product.price, [{decimals, 2}, compact]); is_integer(P#product.price) -> integer_to_list(P#product.price);true-> [0] end }],
-          postback={product, integer_to_list(P#product.id)}}
+          postback={product, P#product.id}}
       ]}
     ]},
     #panel{class=[span6, "text-center"], body=[

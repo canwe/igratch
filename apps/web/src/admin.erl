@@ -71,19 +71,19 @@ pagination(Page)->
   ].
 
 
-event(init) -> wf:reg(product_channel), [];
+event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(save_cat) ->
   Name = wf:q(cat_name),
   Desc = wf:q(cat_desc),
-%  Id = wf:q(cat_tag),
-  Id = wf:temp_id(),
   Publicity = public,
   Creator = (wf:user())#user.email,
-  case kvs_group:create(Creator, Id, Name, Desc, Publicity) of 
+  RegData = #group{name = Name, description = Desc, scope = Publicity, creator = Creator, owner = Creator, feeds = ?GRP_CHUNK},
+
+  case kvs_group:register(RegData) of
     {ok, G} ->
-      error_logger:info_msg("Creted ~p", [G]),
-      msg:notify([kvs_group, group, init], [G#group.id, G#group.feed, G#group.products]),
+      msg:notify([kvs_group, group, init], [G#group.id, G#group.feeds]),
+
       wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(#tr{cells=[#td{body= G#group.id},#td{body=G#group.name}, #td{body=G#group.description}]})])),
       wf:wire("$('#cat_name').val('');$('#cat_desc').val('')");
     {error, _} -> skip
