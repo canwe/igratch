@@ -123,13 +123,14 @@ aside()-> [
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
-  error_logger:info_msg("POST "),
+  User = wf:user(),
   Desc = wf:q(EditorId),
   Title = wf:q(Ttid),
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
     #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), Feed==reviews],
 
-  Recipients = [{product, ProductId, {Feed, Fid}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]],
+  Recipients = [{product, ProductId, {Feed, Fid}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]] 
+    ++ [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}],
   error_logger:info_msg("Recipients: ~p", [Recipients]),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,

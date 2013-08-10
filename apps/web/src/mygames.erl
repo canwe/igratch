@@ -59,13 +59,11 @@ input() ->
 games()->
   case wf:user() of undefined -> []; User ->
     {_, Fid} = Feed = lists:keyfind(products,1,User#user.feeds),
-    error_logger:info_msg("More id feed ~p", [Feed]),
     Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
     Last = case Entries of []-> []; E-> lists:last(E) end,
     EsId = wf:temp_id(),
     BtnId = wf:temp_id(),
-    error_logger:info_msg("Pid: ~p", [self()]),
-    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, module=pid_to_list(self())},
+    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId},
     NoMore = length(Entries) < ?PAGE_SIZE,
     [#h3{body= <<"My games">>, class=[blue]},
     #panel{id=myproducts, body=[

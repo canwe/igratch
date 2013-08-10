@@ -159,7 +159,7 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
 
   element_panel:render_element(Entry);
 
-render_element(#product_entry{entry=E, prod_id=ProdId})->
+render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
 %  error_logger:info_msg("Render entry: ~p ~p", [E#entry.id, E#entry.type]),
   PostId = wf:temp_id(),
   EntryId= wf:temp_id(),
@@ -243,7 +243,7 @@ preview_medias(Id, Medias)->
     #carousel{indicators=false, style="border:1px solid #eee;", items=[
       #panel{class=["row-fluid"], body=[
         #panel{class=[span3], style="position:relative;", body=[
-          #link{class=[close], style="position:absolute; right:10px;top:5px;",  body= <<"&times;">>, postback={remove_media, M, Id}},
+          #link{class=[close], style="position:absolute; right:10px;top:5px; color:red;",  body= <<"&times;">>, postback={remove_media, M, Id}},
           #link{class=[thumbnail], body=[
             #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x80">>;
               Th ->

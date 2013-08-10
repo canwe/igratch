@@ -12,12 +12,28 @@ main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
 body()->
   case wf:qs(<<"id">>) of undefined ->skip; I -> wf:wire(wf:f("$('a[href=\"#~s\"]').addClass('text-warning').tab('show');", [binary_to_list(I)])) end,
   wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){$(e.target).addClass('text-warning').siblings().removeClass('text-warning');});"),
+  Groups = kvs:all(group),
+  Size = (length(Groups)-1) div ?PAGE_SIZE + 1,
+  {Tabs, Reviews} = lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
+    {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
+    Entries = kvs_feed:entries(Feed, undefined, Size),
+    Last = case Entries of []-> []; E-> lists:last(E) end,
+    EsId = wf:temp_id(),
+    BtnId = wf:temp_id(),
+    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
+    NoMore = length(Entries) < ?PAGE_SIZE,
+    {#panel{id=Id, class=["tab-pane"], body=[
+      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
+        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
+          if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]} ]},
+    [Acc|Entries]} end, [], kvs:all(group)),
+
   index:header() ++ [
   #section{class=[section], body=[
     #panel{class=[container], body=[
       #panel{class=["page-header"], body=[
           #h2{body= [
-            #link{url="#all", body= <<"Categories ">>, style="color: black", data_fields=[{<<"data-toggle">>, <<"tab">>}]}, 
+            #link{url="#all", body= <<"Categories ">>, style="color: black", data_fields=[{<<"data-toggle">>, <<"tab">>}]},
             #small{body=[
               begin 
                 [<<" / ">>, #link{url="#"++Id, data_fields=[{<<"data-toggle">>, <<"tab">>}], body=[#span{class=["icon-asterisk"]},Name]}]
@@ -27,24 +43,7 @@ body()->
       ]},
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
-          #panel{id=all, class=["tab-pane", active], body=[
-            [[#product_entry{entry=E, mode=line, category=Name} || E <- kvs_feed:entries(lists:keyfind(feed,1,Feeds), undefined, 10)] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
-          ]},
-          [ begin
-              Fid = lists:keyfind(feed,1,Feeds),
-              Entries = kvs_feed:entries(Fid, undefined, ?PAGE_SIZE),
-              Last = case Entries of []-> []; E-> lists:last(E) end,
-              EsId = wf:temp_id(),
-              BtnId = wf:temp_id(),
-              Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
-              NoMore = length(Entries) < ?PAGE_SIZE,
-              #panel{id=Id, class=["tab-pane"], body=[
-                #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
-                #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-                  if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end
-                ]}
-              ]}
-            end ||#group{id=Id, name=Name, feeds=Feeds} <- kvs:all(group)]
+          #panel{id=all, class=["tab-pane", active], body=[#product_entry{entry=E, mode=line} || E<- lists:flatten(Reviews)]}, Tabs
         ]},
         #panel{class=[span3], body=[<<"">>]} ]}
     ]}
