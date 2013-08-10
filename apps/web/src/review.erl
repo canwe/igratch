@@ -74,7 +74,7 @@ event({comment_entry, Eid, Cid, Csid, Parent, EditorId})->
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
-  msg:notify([kvs_feed, entry, Eid, comment, add], [From, Parent, Comment, Medias, Csid, EditorId]);
+  msg:notify([kvs_feed, entry, Eid, comment, kvs:uuid(), add], [From, Parent, Comment, Medias, Csid, EditorId]);
 
 event({comment_reply, {Cid, {Eid, Fid}}})->
   CommentId = wf:temp_id(),
@@ -94,6 +94,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p,
 
 process_delivery([_, Eid, comment, Cid, add],
                  [From, Parent, Content, Medias, Csid, EditorId])->
+  error_logger:info_msg("comment add"),
   Entry = #entry_comment{comment=#comment{
       id={Cid, Eid},
       entry_id=Eid,
