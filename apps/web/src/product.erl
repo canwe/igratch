@@ -11,7 +11,7 @@ main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
   Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
-%  case wf:qs(<<"tab">>) of undefined -> wf:wire("$('a[href=\"#features\"]').tab('show');"); Tab -> wf:wire(io_lib:format("$('a[href=\"#~s\"]').tab('show');",[Tab])) end,
+  case wf:qs(<<"tab">>) of undefined -> wf:wire("$('a[href=\"#reviews\"]').tab('show');"); Tab -> wf:wire(io_lib:format("$('a[href=\"#~s\"]').tab('show');",[Tab])) end,
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, binary_to_list(Id)) of
@@ -55,7 +55,7 @@ essential(P)->[
     #li{body=[#link{url= <<"#bundles">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Bundles">>}]}
   ]} ].
 details(P) -> #panel{class=["tab-content"], body=[
-  #panel{id=Feed, class=["tab-pane"], body=[ feed(P#product.id, Fid, Feed), entry_form(P, Fid, Feed)]} || {Feed, Fid} <- P#product.feeds]}.
+  #panel{id=Feed, class=["tab-pane", if Feed==features -> "active;"; true -> "" end], body=[ feed(P#product.id, Fid, Feed), entry_form(P, Fid, Feed)]} || {Feed, Fid} <- P#product.feeds]}.
 
 
 entry_form(P, Fid, Feed) ->
@@ -176,7 +176,7 @@ event({cancel_entry, E=#entry{}, Title, Desc}) ->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
 
-event({remove_entry, E=#entry{entry_id=Eid}, ProductId, Id}) ->
+event({remove_entry, E=#entry{}, ProductId, Id}) ->
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
     #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), E#entry.type == reviews],
   Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Gid, lists:keyfind(feed, 1, Feeds)} || #group{id=Gid, feeds=Feeds} <-Groups]],
@@ -214,12 +214,12 @@ api_event(attach_media, Args, _Tag)->
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery([product, To, entry, _, add],
-                 [#entry{} = Entry, Tid, Eid, MsId, TabId])->
+                 [#entry{description=D} = Entry, Tid, Eid, MsId, TabId])->
   wf:session(medias, []),
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, #product_entry{entry=Entry, prod_id=To}),
+  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D)}, prod_id=To}),
   wf:wire("Holder.run();");
 
 process_delivery([product,_,entry,_,edit], [#entry{title=Title, description=Desc}, Tbox, Dbox]) ->

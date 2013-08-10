@@ -119,7 +119,7 @@ event(Event) -> error_logger:info_msg("[account]Page event: ~p", [Event]), ok.
 api_event(attach_media, Tag, Term) -> product:api_event(attach_media, Tag, Term);
 api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([user, _To, entry, _, add],
+process_delivery([user,_,entry,_,add],
                  [#entry{} = Entry, Tid, Eid, MsId, myreviews])->
   wf:session(medias, []),
   wf:update(MsId, []),

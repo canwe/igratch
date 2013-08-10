@@ -54,7 +54,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[review] api_event ~p, Tag ~p
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, review, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);

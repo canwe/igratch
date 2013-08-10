@@ -2,10 +2,32 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/groups.hrl").
+-include("records.hrl").
 
 main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
-body() -> header() ++ [
+body() -> 
+  Groups = kvs:all(group),
+  Size = (length(Groups)-1) div ?PAGE_SIZE + 1,
+  {Tabs, Reviews} = lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
+    {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
+    Entries = kvs_feed:entries(Feed, undefined, Size),
+    Last = case Entries of []-> []; E-> lists:last(E) end,
+    EsId = wf:temp_id(),
+    BtnId = wf:temp_id(),
+    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
+    NoMore = length(Entries) < ?PAGE_SIZE,
+    {#panel{id=Id, class=["tab-pane"], body=[
+      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
+        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
+          if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]} ]},
+    [Acc|Entries]} end, [], kvs:all(group)),
+  wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){
+    $(e.target).parent().siblings().find('a.text-warning').removeClass('text-warning');
+  });"),
+
+  header() ++ [
   #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=
     #carousel{class=["product-carousel"], items=[slide() || _ <-lists:seq(1,3)],
       caption=#panel{class=["row-fluid"],body=[
@@ -15,40 +37,23 @@ body() -> header() ++ [
   #section{class=["row-fluid"], body=[
     #panel{class=[container], body=[
       #panel{class=["row-fluid"], body=[
-        #panel{class=["span9"], body=[
-          article("RPG",       "/static/img/row1.jpg", "Lorem ipsum dolor sit amet", long_description()),
-          article("ADVENTURE", "/static/img/row2.jpg", "Lorem ipsum dolor sit amet", long_description()),
-          article("STRATEGY",  "/static/img/row3.jpg", "Lorem ipsum dolor sit amet", long_description()),
-          article("ACTION",    "/static/img/row4.jpg", "Lorem ipsum dolor sit amet", long_description()) ]},
-
+        #panel{class=[span9, "tab-content"], body=[
+          #panel{id=all, class=["tab-pane", active], body=[#product_entry{entry=E, mode=line} || E<- lists:flatten(Reviews)]}, Tabs
+        ]},
         #aside{class=[span3], body=[
           #panel{class=[sidebar], body=[
             #panel{class=["row-fluid"], body=[
               #h3{ class=[blue], body= <<"TAGS">>},
-              #list{class=[inline, tagcloud],body=[
-                #li{body=#link{url= <<"#">>, body= <<"Pellentesque">>}},
-                #li{body=#link{url= <<"#">>, body= <<"habitant">>}},
-                #li{body=#link{url= <<"#">>, body=#small{body= <<"senectus">>}}},
-                #li{body=#link{url= <<"#">>, body=#strong{body= <<"et">>}}},
-                #li{body=#link{url= <<"#">>, body= <<"malesuada">>}, class=["tag-small"]},
-                #li{body=#link{url= <<"#">>, body= <<"Vivamus">>}, class=["tag-large"]},
-                #li{body=#link{url= <<"#">>, body= <<"mi">>}, class=["tag-mini"]},
-                #li{body=#link{url= <<"#">>, body=#strong{body= <<"est">>}}},
-                #li{body=#link{url= <<"#">>, body=#small{body= <<"molestie">>}}},
-                #li{body=#link{url= <<"#">>, body= <<"rutrum">>}, class=["tag-large"]},
-                #li{body=#link{url= <<"#">>, body= <<"quis">>}},
-                #li{body=#link{url= <<"#">>, body=#small{body= <<"scelerisque">>}}},
-                #li{body=#link{url= <<"#">>, body= <<"netus">>}},
-                #li{body=#link{url= <<"#">>, body= <<"fames">>}, class=["tag-huge"]},
-                #li{body=#link{url= <<"#">>, body=#strong{body= <<"ac">>}}},
-                #li{body=#link{url= <<"#">>, body= <<"morbi">>}}
-              ]}
+              #list{class=[inline, tagcloud], body=[
+                #li{body=#link{url="#all", body= <<"all">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
+                [#li{body=#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}}
+                || #group{id=Id, name=Name, description=Desc}<-kvs:all(group)] ]}
             ]},
             #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, [popular_item() || _ <-lists:seq(1,7)] ]}
           ]}
         ]}
-      ]},
-      #panel{class=["btn-center"], body=[#button{class=[btn], body= <<"SHOW MORE">>}]}
+      ]}
+%      #panel{class=["btn-center"], body=[#button{class=[btn], body= <<"SHOW MORE">>}]}
     ]}
   ]} ] ++ footer().
 
@@ -145,4 +150,10 @@ error(Msg)->
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 event(init) -> [];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
+event({read, review, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("Event: ~p", [Event]).
+
+process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
+process_delivery([no_more], M) -> product:process_delivery([no_more], M);
+process_delivery(_R, _M) -> skip.
