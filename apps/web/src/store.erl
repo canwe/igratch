@@ -107,32 +107,10 @@ body1()-> index:header() ++ [
     ]}
   ]} ] ++ index:footer().
 
-pagination(Page)->
-  PageCount = (length(kvs:all(product))-1) div ?PAGE_SIZE + 1,
-  error_logger:info_msg("Page: ~p", [PageCount]),
-  [
-  #li{class=[if Page==1-> "disabled"; true->[] end, "previous"], body=#link{body=#i{class=["icon-circle-arrow-left", "icon-large"]}, postback={page, 1} }},
-  [#li{class=if I==Page -> active;true->[] end,body=#link{id="pglink"++integer_to_list(I),body=#span{style="line-height:normal;", body=integer_to_list(I)}, postback={page, I} }} 
-    || I <- lists:seq(1, PageCount)],
-  #li{class=[if PageCount==Page -> "disabled";true->[] end,"next"], body=#link{body=#i{class=["icon-circle-arrow-right", "icon-large"]}, postback={page, PageCount}}}
-  ].
-
 event(init) -> [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
-event({page, Page})->
-  wf:update(pagination, pagination(Page)),
-  wf:update(products, wf:js_escape(wf:render(list_products(Page))));
-event({product, Id})-> wf:redirect("/product?id=" ++ Id);
-event(to_list)->
-  wf:session(page_size, list),
-  wf:update(products, wf:js_escape(list_products(1))),
-  wf:update(pagination, pagination(1));
-event(to_grid)->
-  wf:session(page_size, grid),
-  wf:update(products, list_products(1)),
-  wf:update(pagination, pagination(1));
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);

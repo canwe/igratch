@@ -10,8 +10,8 @@
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
-  Id = wf:qs(<<"id">>),
-  case wf:qs(<<"tab">>) of undefined -> []; Tab -> wf:wire(io_lib:format("$('a[href=\"#~s\"]').tab('show');",[Tab])) end,
+  Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
+%  case wf:qs(<<"tab">>) of undefined -> wf:wire("$('a[href=\"#features\"]').tab('show');"); Tab -> wf:wire(io_lib:format("$('a[href=\"#~s\"]').tab('show');",[Tab])) end,
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, binary_to_list(Id)) of
@@ -143,8 +143,8 @@ event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
                       from=From,
                       type=Feed,
                       media=Medias,
-                      title=wf:js_escape(Title),
-                      description=wf:js_escape(Desc),
+                      title=Title,
+                      description=Desc,
                       shared=""}, Ttid, EditorId, MediasId, Feed]) || {RoutingType, To, {_, FeedId}} <- Recipients];
 
 event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
@@ -159,21 +159,30 @@ event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
   ]}),
   wf:insert_bottom(Desc, #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias) });
 
-event({save_entry, #entry{id=Eid, type={EFeed, _Layout}}, ProductId, Dbox, Tbox, Tid, Did})->
-  Title = wf:q(Tid), Description = wf:q(Did),
-  Recipients = [{product, ProductId, EFeed}|[{group, Where, feed} || #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), EFeed==reviews]],
+event({save_entry, #entry{}=E, ProductId, Dbox, Tbox, Tid, Did})->
+  Title = wf:q(Tid),
+  Description = wf:q(Did),
+
+  Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
+    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), E#entry.type == reviews],
+  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]],
+
   error_logger:info_msg("Recipients: ~p", [Recipients]),
 
-  [ msg:notify([kvs_feed, RouteType, To, entry, Eid, edit, Feed], [Tbox, Dbox, Title, Description]) || {RouteType, To, Feed} <- Recipients];
+  [ msg:notify([kvs_feed, RouteType, To, entry, Fid, edit], [E#entry{title=Title, description=Description}, Tbox, Dbox]) || {RouteType, To, Fid} <- Recipients];
 
-event({cancel_entry, E=#entry{}, Title, Desc})->
+event({cancel_entry, E=#entry{}, Title, Desc}) ->
   wf:update(Title, wf:js_escape(E#entry.title)),
   wf:update(Desc, wf:js_escape(E#entry.description));
-event({remove_entry, E=#entry{type={Feed, _Layout}}, ProductId, Id})->
 
-  Recipients = [{product, ProductId, Feed}|[{group, Where, feed} || #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), Feed==reviews]],
+event({remove_entry, E=#entry{entry_id=Eid}, ProductId, Id}) ->
+  Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
+    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), E#entry.type == reviews],
+  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Gid, lists:keyfind(feed, 1, Feeds)} || #group{id=Gid, feeds=Feeds} <-Groups]],
 
-  [msg:notify([kvs_feed, RouteType, To, entry, E#entry.id, delete, Feed], [(wf:user())#user.email, Id]) || {RouteType, To, Feed} <- Recipients];
+  error_logger:info_msg("Recipients: ~", [Recipients]),
+
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email, Id]) || {RouteType, To, Fid} <- Recipients];
 
 event({read, entry, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({remove_media, M, Id}) ->
@@ -203,29 +212,8 @@ api_event(attach_media, Args, _Tag)->
   wf:update(Target, product_ui:preview_medias(Target, NewMedias));
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([product, To, entry, EntryId, add],
-                 [Fid, From, Title, Desc, Medias, {TabId, _L}=Type, Eid, Tid, MsId])->
-
-  Entry = #entry{id = {EntryId, Fid},
-                 entry_id = EntryId,
-                 type=Type,
-                 created = now(),
-                 from = From,
-                 to = To,
-                 title = wf:js_escape(Title),
-                 description = wf:js_escape(Desc),
-                 media = Medias,
-                 feed_id = Fid},
-
-  E = #product_entry{entry=Entry, prod_id=To},
-  wf:session(medias, []),
-  wf:update(MsId, []),
-  wf:wire(wf:f("$('#~s').val('');", [Tid])),
-  wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, E);
-
 process_delivery([product, To, entry, _, add],
-                 [#entry{} = Entry, Eid, Tid, MsId, TabId])->
+                 [#entry{} = Entry, Tid, Eid, MsId, TabId])->
   wf:session(medias, []),
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
@@ -233,10 +221,9 @@ process_delivery([product, To, entry, _, add],
   wf:insert_top(TabId, #product_entry{entry=Entry, prod_id=To}),
   wf:wire("Holder.run();");
 
-process_delivery([product, _UsrId, entry, _Eid, edit],
-                 [Tbox, Dbox, Title, Description])->
+process_delivery([product,_,entry,_,edit], [#entry{title=Title, description=Desc}, Tbox, Dbox]) ->
   wf:update(Tbox, wf:js_escape(Title)),
-  wf:update(Dbox, wf:js_escape(Description));
+  wf:update(Dbox, wf:js_escape(Desc));
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   error_logger:info_msg("show!"),
@@ -244,19 +231,16 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery([product, _, entry, _, delete], [_|Id]) ->
-  wf:remove(Id);
-
-process_delivery(_R, _M) -> error_logger:info_msg("prodyct delivery"),skip.
+process_delivery([product, _, entry, _, delete], [_,_|Id]) -> wf:remove(Id);
+process_delivery(_R, _M) -> skip.
 
 read_entries(StartFrom, #info_more{fid=Fid}=I)->
-  error_logger:info_msg("Start from: ~p", [StartFrom]),
   Feed = case StartFrom of
     undefined-> kvs:get(feed, Fid);
     S -> kvs:get(entry, {S, Fid})
   end,
   case Feed of
-    {error, not_found} -> error_logger:info_msg("no fid ~p", [Feed]),[];
+    {error, not_found} -> [];
     {ok, #feed{}=F} -> traverse_entries(F#feed.top, ?PAGE_SIZE, I);
     {ok, #entry{prev = E}} -> traverse_entries(E, ?PAGE_SIZE, I)
   end.

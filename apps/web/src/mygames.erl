@@ -121,8 +121,8 @@ event({save, TabId, MediasId}) ->
                           from=P#product.owner,
                           type= product,
                           media=Medias,
-                          title=wf:js_escape(Title),
-                          description=wf:js_escape(Descr),
+                          title=Title,
+                          description=Descr,
                           shared=""}, title, brief, MediasId, TabId]) || {RoutingType, To, {_, Fid}} <- Recipients],
 
       msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);

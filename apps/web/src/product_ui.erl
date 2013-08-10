@@ -185,10 +185,10 @@ render_element(#product_entry{entry=E, prod_id=ProdId})->
     #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
 
     #footer{class=["blog-footer", "row-fluid"], body=[
-      #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read_entry, E#entry.id}},
-      #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read_entry, E#entry.id}},
+      #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
+      #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}},
       EntryActionsLine,
-      #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read_entry, E#entry.id}}
+      #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, E#entry.id}}
     ]}
   ]},
   element_panel:render_element(Entry);
