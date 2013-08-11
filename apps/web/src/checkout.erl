@@ -13,12 +13,29 @@ body() ->
   % payment confirmation data PID/Order
   % PId = wf:qs(<<"pid">>),
   % OrderGUID = wf:qs(<<"order">>),
-
   index:header() ++ [
   #section{class=[section], body=[
     #panel{class=[container], body=[
       #panel{class=["page-header"], body=[ #h1{class=[], body= [<<"Checkout: ">>, #small{body= <<"review order">>}]} ]},
-      case wf:qs(<<"product_id">>) of undefined -> index:error(<<"no product to checkout">>);
+      case wf:qs(<<"product_id">>) of 
+        undefined ->
+          Pm = wf:session(payment),
+          case wf:qs(<<"status">>) of
+            <<"approve">> ->
+                case kvs:get(payment, Pm#payment.id) of
+                  {ok, Payment} ->
+                    msg:notify([kvs_payment, user, (wf:user())#user.email, set_state], {Payment#payment.id, done, paypal}),
+                    wf:redirect("/profile");
+                  _ -> index:error(<<"not found">>)
+                end;
+            <<"reject">> ->
+              case kvs:get(payment, Pm#payment.id) of
+                {ok, Payment} -> msg:notify([kvs_payment, user, (wf:user())#user.email, set_state], {Payment#payment.id, failed, paypal}); _ -> skip end,
+              [index:error(<<"payment was rejected, try again">>),
+              #panel{class=["btn-toolbar", "text-center"], body=[
+                #link{class=[btn, "btn-large", "btn-info"], body= <<"try again">>, url="/shopping_cart"} ]} ];
+            _ -> index:error(<<"no product to checkout">>)
+          end;
         Id -> error_logger:info_msg("id ~p", [Id]),
           case kvs:get(product, binary_to_list(Id)) of
             {error, not_found} -> index:error(<<"not_found">>);
@@ -85,15 +102,11 @@ event({buy, PurchaseId, #product{}=Product}) ->
     product = Product,
     info = paypal
   },
-  msg:notify([kvs_payment, user, User#user.email, add], {Pm});
-  % submit form\redirect;
+  msg:notify([kvs_payment, user, User#user.email, add], {Pm}),
+  wf:session(payment, Pm),
+  wf:redirect("/fakepp");
 
 event(Event) -> error_logger:info_msg("[buy_mobile]Page event: ~p", [Event]), ok.
-%event(Event)-> buy:event(Event).
-
-process_delivery([user, UserId, add], {Pm}) ->
-  error_logger:info_msg("Payment added: ~p", [Pm]),
-  ok;
 process_delivery(_R, _M) -> skip.
 
 

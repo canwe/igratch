@@ -47,15 +47,21 @@ profile_info(U) ->
 
 payments(User) -> [
   #h3{class=[blue], body= <<"Payments">>},
-  #table{class=[table, "table-hover", payments], body=[[
+  #table{class=[table, "table-hover", payments],
+    header=[#tr{cells=[
+      #th{body= <<"Date">>},
+      #th{body= <<"Status">>},
+      #th{body= <<"Price">>},
+      #th{body= <<"Game">>}
+    ]}],
+    body=[[
     begin
       {{Y, M, D}, _} = calendar:now_to_datetime(Py#payment.start_time),
       Date = io_lib:format("~p ~s ~p", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
     #tr{cells= [
       #td{body= [Date]},
-      #td{body= [atom_to_list(Py#payment.state)]},
-      #td{body= float_to_list(Price/100, [{decimals, 2}]) ++ Cur},
-      #td{body= atom_to_list(Py#payment.state)},
+      #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],body= [atom_to_list(Py#payment.state)]},
+      #td{body=[case Cur of "USD"-> #span{class=["icon-usd"]}; _ -> #span{class=["icon-money"]} end, float_to_list(Price/100, [{decimals, 2}])]},
       #td{body=#link{url="/product?id="++Id,body= Title}} ]} 
     end || #payment{product=#product{id=Id, title=Title, price=Price, currency=Cur}} = Py <-kvs_payment:payments(User#user.email)
 
