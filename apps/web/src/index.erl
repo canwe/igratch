@@ -149,10 +149,10 @@ error(Msg)->
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-event(init) -> [];
+event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
-event(Event) -> error_logger:info_msg("Event: ~p", [Event]).
+event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);

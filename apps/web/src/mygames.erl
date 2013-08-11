@@ -87,7 +87,13 @@ event({save, TabId, MediasId}) ->
   Title = wf:q(title),
   Descr = wf:q(brief),
   Cats = wf:q(cats),
-  {Price, _Rest} = string:to_float(wf:q(price)),
+  PriceStr = wf:q(price),
+  PriceStr2 = case string:to_float(PriceStr) of
+    {error, no_float} -> PriceStr;
+    {F, _} -> float_to_list(F, [{decimals, 2}])
+  end,
+  {P1, [_|Rest]} = string:to_integer(PriceStr2++"00"),
+  {P2, _} = string:to_integer(Rest),
   Currency = wf:q(currency),
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Product = #product{
@@ -96,7 +102,7 @@ event({save, TabId, MediasId}) ->
     title = list_to_binary(Title),
     brief = list_to_binary(Descr),
     cover = TitlePic,
-    price = Price,
+    price = P1+P2*100,
     currency = Currency,
     feeds = ?PRD_CHUNK
   },
@@ -107,6 +113,7 @@ event({save, TabId, MediasId}) ->
       Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
         [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
 
+      error_logger:info_msg("Message recipients: ~p", [Recipients]),
       Medias = case wf:session(medias) of undefined -> []; M -> M end,
 
       [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],

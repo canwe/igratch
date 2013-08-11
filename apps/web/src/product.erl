@@ -195,6 +195,16 @@ event({remove_media, M, Id}) ->
 event({check_more, Start, Info = #info_more{}}) ->
   read_entries(case Start of undefined -> undefined; S -> S#entry.entry_id end, Info),
   wf:update(Info#info_more.toolbar, []);
+event({checkout, #product{}=P}) ->
+  error_logger:info_msg("Checkout: ~p", [P]),
+  wf:redirect("/checkout?product_id="++P#product.id);
+event({add_cart, #product{}=P}) ->
+  error_logger:info_msg("Add to cart: ~p", [P]),
+  case wf:session(shoing_cart) of 
+    undefined -> wf:session(shopping_cart, [P]);
+    L -> wf:session([P|L])
+  end,
+  wf:redirect("/shopping_cart");
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 api_event(attach_media, Args, _Tag)->

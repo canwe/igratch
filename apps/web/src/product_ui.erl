@@ -6,6 +6,41 @@
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
+render_element(#product_cart{product=P}) ->
+  From = P#product.owner,
+
+  Entry = #panel{class=["row-fluid", article], style="margin-bottom:10px;padding-bottom:10px;", body=[
+    #panel{class=[span12, username], body=[
+      <<"From: ">>,#link{body=From}
+    ]},
+    #panel{class=[span12], body =[
+      #panel{class=["row-fluid"], body=[
+        #panel{class=[span3], style="position:relative;", body=[
+          #link{class=[thumbnail], body=[
+            #image{image= case P#product.cover of undefined -> <<"holder.js/100%x100/text:no cover">>;
+              Th ->
+                Ext = filename:extension(Th),
+                Name = filename:basename(Th, Ext),
+                Dir = filename:dirname(Th),
+                filename:join([Dir, Name++"_270x124"++Ext]) end}
+          ]}
+        ]},
+        #panel{class=[span6], style="overflow:hidden", body=[
+          #h3{body= P#product.title},
+          #p{body= [P#product.brief,
+            #link{class=[more], body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], url="/product?id="++P#product.id }
+          ]}
+        ]},
+        #panel{class=[span2], body=[ #h4{body= <<"Quantity:">>}, #textbox{class=[span12], value=1, disabled=true},
+          #link{class=[more], body=[#span{class=["icon-remove-circle"]}, <<" remove">>]}
+        ]},
+        #panel{class=[span1], body=[#span{class=["icon-usd"]}, #b{body=float_to_list(P#product.price/100, [{decimals, 2}])}  ]} 
+      ]}
+    ]}
+  ]},
+
+  element_panel:render_element(Entry);
+
 render_element(#product_row{product=P}) ->
   {{Y, M, D}, _} = calendar:now_to_datetime(P#product.creation_date),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
@@ -20,22 +55,6 @@ render_element(#product_row{product=P}) ->
   ]},
   element_tr:render_element(Row);
 
-render_element(#product_line{product=P, meta=Meta, controls=Controls})->
-  Line = #panel{class=[span12, "game-article", "shadow-fix"], body=[
-    #panel{class=["game-article-inner", clearfix], body=[
-      #panel{class=[span2, "article-meta"], body=Meta},
-
-      #panel{class=[span3, shadow], body=[
-        #image{class=["border"], alt= P#product.title, image=P#product.cover}
-      ]},
-      #panel{class=[span5, "article-text"], body=[
-        #p{body=[P#product.brief, #link{url= <<"#">>, body= <<"Read">>}]}
-      ]},
-      #panel{class=[span2, "dev-controls"], body=Controls}
-    ]}
-  ]},
-  element_panel:render_element(Line);
-
 render_element(#product_hero{product=P}) ->
   Hero = #panel{class=["row-fluid"], body=[
     #panel{class=[span6], body=[
@@ -46,9 +65,11 @@ render_element(#product_hero{product=P}) ->
           #li{body= <<"Game rating: Ages 16+">>}
         ]},
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
-        #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
-          body= [<<"buy for ">>,#span{body= "$"++ if is_float(P#product.price) -> float_to_list(P#product.price, [{decimals, 2}, compact]); is_integer(P#product.price) -> integer_to_list(P#product.price);true-> [0] end }],
-          postback={product, P#product.id}}
+        #panel{class=["btn-toolbar", "text-center"], body=[
+          #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
+            body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P}},
+          #button{class=[btn, "btn-large", "btn-warning"], body= [#span{class=["icon-shopping-cart"]}, <<" add to cart ">>], postback={add_cart, P}}
+        ]}
       ]}
     ]},
     #panel{class=[span6, "text-center"], body=[

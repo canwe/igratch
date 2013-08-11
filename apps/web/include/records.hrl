@@ -9,6 +9,7 @@
 -record(info_more, {entries, toolbar, category, fid, module, delegate}).
 -record(product_figure,{?ELEMENT_BASE(product_ui), product}).
 -record(product_row,   {?ELEMENT_BASE(product_ui), product}).
+-record(product_cart,  {?ELEMENT_BASE(product_ui), product}).
 -record(product_line,  {?ELEMENT_BASE(product_ui), product, meta, controls}).
 -record(product_hero,  {?ELEMENT_BASE(product_ui), product}).
 -record(product_entry, {?ELEMENT_BASE(product_ui), entry, mode=brief, prod_id, category}).
