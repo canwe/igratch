@@ -92,8 +92,9 @@ event({save, TabId, MediasId}) ->
     {error, no_float} -> PriceStr;
     {F, _} -> float_to_list(F, [{decimals, 2}])
   end,
-  {P1, [_|Rest]} = string:to_integer(PriceStr2++"00"),
-  {P2, _} = string:to_integer(Rest),
+  {P1, A} = string:to_integer(PriceStr2++".00"),
+  Rest = case A of [] -> "0"; [_|R]->R end,
+  P2 = case string:to_integer(Rest) of {error,no_integer}-> 0; {Re,_} -> Re  end,
   Currency = wf:q(currency),
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Product = #product{
@@ -102,7 +103,7 @@ event({save, TabId, MediasId}) ->
     title = list_to_binary(Title),
     brief = list_to_binary(Descr),
     cover = TitlePic,
-    price = P1+P2*100,
+    price = P2+P1*100,
     currency = Currency,
     feeds = ?PRD_CHUNK
   },
