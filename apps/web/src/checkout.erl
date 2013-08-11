@@ -24,12 +24,10 @@ body() ->
             {error, not_found} -> index:error(<<"not_found">>);
             {ok, P} -> 
               PurchaseId = kvs_payment:payment_id(),
-              #panel{class=["row-fluid"], body=[
+              #panel{class=["row-fluid", dashboard], body=[
                 #panel{class=[span9], body=[
-                  #panel{class=["dashboard", "row-fluid"], body=[
-                    #panel{class=[span6], body=dashboard:section(address(), "icon-home")},
-                    #panel{class=[span6], body=dashboard:section(payment(), "icon-usd")}
-                  ]},
+                  dashboard:section(address(), "icon-home"),
+                  dashboard:section(payment(), "icon-usd"),
                   dashboard:section(shipping(),"icon-truck")
                 ]},
 
@@ -53,19 +51,17 @@ address() -> [
     <<"Roháčova 141/18, Praha 3">>, #br{},
     <<"13000, Сzech Republic">>, #br{},
     #abbr{title="Phone", body= <<"P:">>}, <<"(044) 361-3263">>]},
-  #link{class=[muted],body= <<"change shipping address">>}
+    #link{class=[muted],body= <<"change shipping address">>}
   ].
 
 payment() -> [
   #h3{body= <<"Pay with">>},
   #select{class=[selectpicker], body=[
-    #option{body= <<"PayPal">>, value="paypal"}
-  ]}
-  ].
+    #option{body= <<"PayPal">>, value="paypal"} 
+  ]} ].
 shipping()-> [
   #h3{body= <<"Shipping">>},
-  #panel{body= <<"product info line: price">>}
-  #panel{body= <<"+ shipping information">>}
+  #panel{body= <<"+ shipping information">>} 
   ].
 
 process_result(success) ->
@@ -79,18 +75,25 @@ process_result(failure) -> not_found.
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 event(init) -> wf:reg(?MAIN_CH), [];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({buy, PurchaseId, #product{}=Product}) ->
   User = wf:user(),
-  error_logger:info_msg("Continue checkout ~p, Product ~p", [PurchaseId,Product]),
+  error_logger:info_msg("Continue checkout ~p, Product ~p", [PurchaseId,Product#product.id]),
 
   Pm = #payment{id = PurchaseId,
     user_id = User#user.email,
     product = Product,
     info = paypal
   },
-  msg:notify([kvs_payment, "user", User#user.email, "add_payment"], {Pm});
+  msg:notify([kvs_payment, user, User#user.email, add], {Pm});
   % submit form\redirect;
 
 event(Event) -> error_logger:info_msg("[buy_mobile]Page event: ~p", [Event]), ok.
 %event(Event)-> buy:event(Event).
+
+process_delivery([user, UserId, add], {Pm}) ->
+  error_logger:info_msg("Payment added: ~p", [Pm]),
+  ok;
+process_delivery(_R, _M) -> skip.
+
 
