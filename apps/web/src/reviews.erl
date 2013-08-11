@@ -13,10 +13,10 @@ body()->
   case wf:qs(<<"id">>) of undefined ->skip; I -> wf:wire(wf:f("$('a[href=\"#~s\"]').addClass('text-warning').tab('show');", [binary_to_list(I)])) end,
   wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){$(e.target).addClass('text-warning').siblings().removeClass('text-warning');});"),
   Groups = kvs:all(group),
-  Size = (length(Groups)-1) div ?PAGE_SIZE + 1,
+  Page = (length(Groups)-1) div ?PAGE_SIZE + 1,
   {Tabs, Reviews} = lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
     {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
-    Entries = kvs_feed:entries(Feed, undefined, Size),
+    Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
     Last = case Entries of []-> []; E-> lists:last(E) end,
     EsId = wf:temp_id(),
     BtnId = wf:temp_id(),

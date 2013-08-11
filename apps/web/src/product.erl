@@ -130,7 +130,8 @@ event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
     #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), Feed==reviews],
 
   Recipients = [{product, ProductId, {Feed, Fid}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]] 
-    ++ [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}],
+    ++ if Feed==reviews -> [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}];true-> [] end,
+
   error_logger:info_msg("Recipients: ~p", [Recipients]),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
@@ -227,7 +228,6 @@ process_delivery([product,_,entry,_,edit], [#entry{title=Title, description=Desc
   wf:update(Dbox, wf:js_escape(Desc));
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
-  error_logger:info_msg("show!"),
   wf:insert_bottom(Info#info_more.entries, #product_entry{entry=Entry, mode=line}),
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
