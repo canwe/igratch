@@ -2,6 +2,8 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/payments.hrl").
+-include_lib("kvs/include/products.hrl").
 
 main() -> 
 case wf:user() of undefined -> wf:redirect("/login"); _ -> [#dtl{file = "prod",  ext="dtl",bindings=[{title,<<"Account">>},{body,body()}]}] end.
@@ -46,11 +48,18 @@ profile_info(U) ->
 payments(User) -> [
   #h3{class=[blue], body= <<"Payments">>},
   #table{class=[table, "table-hover", payments], body=[[
+    begin
+      {{Y, M, D}, _} = calendar:now_to_datetime(Py#payment.start_time),
+      Date = io_lib:format("~p ~s ~p", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
     #tr{cells= [
-      #td{body= <<"27 Jun 2013">>},
-      #td{body= <<"Payment">>},
-      #td{body= <<"$59.99">>},
-      #td{body=#link{body= <<"Crysis 3">>}} ]}  ]]} ].
+      #td{body= [Date]},
+      #td{body= [atom_to_list(Py#payment.state)]},
+      #td{body= float_to_list(Price/100, [{decimals, 2}]) ++ Cur},
+      #td{body= atom_to_list(Py#payment.state)},
+      #td{body=#link{url="/product?id="++Id,body= Title}} ]} 
+    end || #payment{product=#product{id=Id, title=Title, price=Price, currency=Cur}} = Py <-kvs_payment:payments(User#user.email)
+
+  ]]} ].
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("dashboard Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 event(init) -> [].
