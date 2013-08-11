@@ -99,7 +99,7 @@ event({post_entry, EditorId, TitleId, MediasId}) ->
                       created = now(),
                       to = {RoutingType, To},
                       from=From,
-                      type=review,
+                      type=reviews,
                       media=Medias,
                       title=Title,
                       description=Desc,
@@ -113,7 +113,7 @@ event({remove_media, M, Id}) ->
 
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id="++Id);
-event({read, review, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[account]Page event: ~p", [Event]), ok.
 
 api_event(attach_media, Tag, Term) -> product:api_event(attach_media, Tag, Term);
