@@ -22,7 +22,7 @@ render_element(#product_cart{product=P}) ->
                 Ext = filename:extension(Th),
                 Name = filename:basename(Th, Ext),
                 Dir = filename:dirname(Th),
-                filename:join([Dir, Name++"_270x124"++Ext]) end}
+                filename:join([Dir, "thumbnail", Name++"_270x124"++Ext]) end}
           ]}
         ]},
         #panel{class=[span6], style="overflow:hidden", body=[

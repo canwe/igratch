@@ -93,7 +93,7 @@ event({save, TabId, MediasId}) ->
     {F, _} -> float_to_list(F, [{decimals, 2}])
   end,
   {P1, A} = string:to_integer(PriceStr2++".00"),
-  Rest = case A of [] -> "0"; [_|R]->R end,
+  Rest = case A of [_|R]->R; _ -> "0" end,
   P2 = case string:to_integer(Rest) of {error,no_integer}-> 0; {Re,_} -> Re  end,
   Currency = wf:q(currency),
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
