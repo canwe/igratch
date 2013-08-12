@@ -43,7 +43,9 @@ body()->
       ]},
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
-          #panel{id=all, class=["tab-pane", active], body=[#product_entry{entry=E, mode=line} || E<- lists:flatten(Reviews)]}, Tabs
+          #panel{id=all, class=["tab-pane", active], body=[#product_entry{entry=E, mode=line} || E <- lists:foldl(
+            fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end, [], lists:flatten(Reviews))
+          ]}, Tabs
         ]},
         #panel{class=[span3], body=[<<"">>]} ]}
     ]}
