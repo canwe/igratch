@@ -12,22 +12,7 @@ main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
 body()->
   case wf:qs(<<"id">>) of undefined ->skip; I -> wf:wire(wf:f("$('a[href=\"#~s\"]').addClass('text-warning').tab('show');", [binary_to_list(I)])) end,
   wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){$(e.target).addClass('text-warning').siblings().removeClass('text-warning');});"),
-  Groups = kvs:all(group),
-  Page = (length(Groups)-1) div ?PAGE_SIZE + 1,
-  {Tabs, Reviews} = lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
-    {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
-    Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
-    Last = case Entries of []-> []; E-> lists:last(E) end,
-    EsId = wf:temp_id(),
-    BtnId = wf:temp_id(),
-    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
-    NoMore = length(Entries) < ?PAGE_SIZE,
-    {#panel{id=Id, class=["tab-pane"], body=[
-      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
-        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-          if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]} ]},
-    [Acc|Entries]} end, [], kvs:all(group)),
-
+  {Tabs, Reviews} = reviews(),
   index:header() ++ [
   #section{class=[section], body=[
     #panel{class=[container], body=[
@@ -43,14 +28,32 @@ body()->
       ]},
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
-          #panel{id=all, class=["tab-pane", active], body=[#product_entry{entry=E, mode=line} || E <- lists:foldl(
-            fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end, [], lists:flatten(Reviews))
-          ]}, Tabs
+          #panel{id=all, class=["tab-pane", active], body=all(Reviews)}, Tabs
         ]},
         #panel{class=[span3], body=[<<"">>]} ]}
     ]}
   ]}
   ] ++ index:footer().
+
+all(Reviews) -> [
+  #product_entry{entry=E, mode=line} || E <- lists:foldl(
+    fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end, [], lists:flatten(Reviews)) ].
+
+reviews() ->
+  Groups = kvs:all(group),
+  lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
+    {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
+    Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
+    Last = case Entries of []-> []; E-> lists:last(E) end,
+    EsId = wf:temp_id(),
+    BtnId = wf:temp_id(),
+    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
+    NoMore = length(Entries) < ?PAGE_SIZE,
+    {#panel{id=Id, class=["tab-pane"], body=[
+      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
+        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
+          if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]} ]},
+    [Acc|Entries]} end, [], Groups).
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review] api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 

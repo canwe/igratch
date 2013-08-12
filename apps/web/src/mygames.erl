@@ -141,7 +141,7 @@ process_delivery([user, _, entry, _, add],
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
   wf:insert_top(TabId, #product_entry{entry=Entry, mode=line}),
   wf:wire("Holder.run();");
-
+process_delivery([check_more], M) -> product:process_delivery([check_more], M);
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);
 process_delivery(_,_) -> skip.

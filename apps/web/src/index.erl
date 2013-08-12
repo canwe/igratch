@@ -8,25 +8,10 @@
 main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
 body() -> 
-  Groups = kvs:all(group),
-  Pages = (length(Groups)-1) div ?PAGE_SIZE + 1,
-  {Tabs, Reviews} = lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
-    {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
-    Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
-    Last = case Entries of []-> []; E-> lists:last(E) end,
-    EsId = wf:temp_id(),
-    BtnId = wf:temp_id(),
-    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
-    NoMore = length(Entries) < ?PAGE_SIZE,
-    {#panel{id=Id, class=["tab-pane"], body=[
-      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name} || E <- Entries]},
-        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-          if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]} ]},
-    [Acc|Entries]} end, [], kvs:all(group)),
   wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){
     $(e.target).parent().siblings().find('a.text-warning').removeClass('text-warning');
   });"),
-
+  {Tabs, Reviews} = reviews:reviews(),
   header() ++ [
   #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=
     #carousel{class=["product-carousel"], items=[slide() || _ <-lists:seq(1,3)],
@@ -38,8 +23,7 @@ body() ->
     #panel{class=[container], body=[
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
-          #panel{id=all, class=["tab-pane", active], body=[#product_entry{entry=E, mode=line} || E<- lists:flatten(Reviews)]}, Tabs
-        ]},
+          #panel{id=all, class=["tab-pane", active], body=reviews:all(Reviews)}, Tabs]},
         #aside{class=[span3], body=[
           #panel{class=[sidebar], body=[
             #panel{class=["row-fluid"], body=[
