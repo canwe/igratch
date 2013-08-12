@@ -9,7 +9,7 @@ main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body,
 
 body() -> 
   Groups = kvs:all(group),
-  Size = (length(Groups)-1) div ?PAGE_SIZE + 1,
+  Pages = (length(Groups)-1) div ?PAGE_SIZE + 1,
   {Tabs, Reviews} = lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
     {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
     Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),

@@ -4,6 +4,7 @@
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/payments.hrl").
 -include_lib("kvs/include/products.hrl").
+-include("records.hrl").
 
 main() -> 
 case wf:user() of undefined -> wf:redirect("/login"); _ -> [#dtl{file = "prod",  ext="dtl",bindings=[{title,<<"Account">>},{body,body()}]}] end.

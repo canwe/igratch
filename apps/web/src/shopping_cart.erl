@@ -71,7 +71,7 @@ cart(Products)->[
   [#product_cart{product=P} || P <- Products] ].
 
 
-event(init) -> [];
+event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);

@@ -130,7 +130,7 @@ event({save, TabId, MediasId}) ->
       msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
     _ -> error
   end;
-event({read, product, {Id,_}})-> error_logger:info_msg("read ~p", [Id]),wf:redirect("/product?id="++Id);
+event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
 process_delivery([user, _, entry, _, add],

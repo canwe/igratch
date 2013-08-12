@@ -8,7 +8,6 @@
 main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
-  error_logger:info_msg("Review id ~p", [wf:qs(<<"id">>)]),
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end) of [E|_] ->

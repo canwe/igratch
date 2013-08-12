@@ -29,8 +29,8 @@ body()->
             [[#product_entry{entry=E, mode=line, category=Name} || E <- kvs_feed:entries(lists:keyfind(products,1,Feeds), undefined, ?PAGE_SIZE)] || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
           ]},
           [ begin
-              Fid = lists:keyfind(products,1,Feeds),
-              Entries = kvs_feed:entries(Fid, undefined, ?PAGE_SIZE),
+              {Feed,Fid} = lists:keyfind(products,1,Feeds),
+              Entries = kvs_feed:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
               Last = case Entries of []-> []; E-> lists:last(E) end,
               EsId = wf:temp_id(),
               BtnId = wf:temp_id(),
@@ -107,11 +107,11 @@ body1()-> index:header() ++ [
     ]}
   ]} ] ++ index:footer().
 
-event(init) -> [];
+event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
-event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
+event(Event) -> error_logger:info_msg("[store]Page event: ~p", [Event]), ok.
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);
