@@ -54,7 +54,7 @@ body()->
   ] ++ index:footer().
 
 all() -> [
-  #product_entry{entry=E} || E <-  lists:foldl(
+  #product_entry{entry=E, mode=line} || E <-  lists:foldl(
     fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end,
     [],
     lists:flatten([ [E || E <- kvs_feed:entries(Feed, undefined, ?PAGE_SIZE)]
