@@ -39,11 +39,14 @@ subnav() -> [
 input()-> [
   #h3{body= <<"Add category">>},
     #panel{class=["row-fluid"], body=[#panel{class=[span8], body=[
-    #panel{class=[controls, "controls-row"], body=[
-      #textbox{id=cat_name, class=[span12], placeholder= <<"name">>}
-    ]},
+    #textbox{id=cat_name, class=[span12], placeholder= <<"name">>},
     #textarea{id=cat_desc, class=[span12], placeholder= <<"description">>},
-      #link{id=save_cat, class=[btn, "btn-large"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc]} 
+    #select{id=cat_scope, class=[], body=[
+      #option{label= <<"scope">>, body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
+      #option{label= <<"Public">>, value = public},
+      #option{label= <<"Private">>, value = private}
+    ]},
+    #link{id=save_cat, class=[btn, "btn-large"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc, cat_scope]} 
     ]} ]} ].
 
 categories()->[
@@ -73,7 +76,8 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(save_cat) ->
   Name = wf:q(cat_name),
   Desc = wf:q(cat_desc),
-  Publicity = public,
+  Publicity = case wf:q(cat_scope) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
+  error_logger:info_msg("Scope: ~p", [Publicity]),
   Creator = (wf:user())#user.email,
   RegData = #group{name = Name, description = Desc, scope = Publicity, creator = Creator, owner = Creator, feeds = ?GRP_CHUNK},
 
