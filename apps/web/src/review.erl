@@ -8,6 +8,7 @@
 main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
+  {_Tabs, Reviews} = reviews:reviews(),
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end) of [E|_] ->
@@ -33,38 +34,14 @@ body() ->
           ]}
         ]},
         #panel{class=[span9], body=[
-          #product_entry{entry=E, mode=full}
+          #product_entry{entry=E, mode=full},
+          #h3{body= <<"more reviews">>, class=[blue, "text-center"]},
+          #panel{class=["row-fluid"], body=reviews:all(Reviews)}
         ]}
       ]};
       [] -> index:error(<<"not_found">>) end }},
-  #section{class=[section], body=#panel{class=[container], body=[
-    #h3{body= <<"more reviews">>, class=[blue, offset3]},
-    #panel{class=["row-fluid"], body=more_article()}
+  #section{class=[section], body=#panel{class=[container, "text-center"], body=[
   ]}} ]++index:footer().
-
-more_article() ->
-  #panel{class=["game-article","shadow-fix"], body=[
-    #panel{class=["game-article-inner", clearfix], body=[
-      #panel{class=[span3, "article-meta"], body=[
-        #h3{class=[blue, capital], body= <<"Action">>},
-        #p{class=[username], body= <<"John Smith">>}
-        #p{class=[datestamp], body=[ <<"Yesterday">>, #span{body= <<"1:00pm">>}]},
-        #p{class=[statistics], body=[
-          #i{class=["icon-user"]},
-          #span{body=[1,045]},
-          #i{class=["icon-comment"]},
-          #span{body= <<"25">>}
-        ]}
-      ]},
-      #panel{class=[span3, shadow], body=#image{class=["border"], alt= <<"Row Four Image">>, image= <<"/static/img/row4.jpg">>}},
-      #panel{class=[span6, "article-text"], body=[
-        #h3{class=["light-grey"], body= <<"Lorem ipsum dolor sit amet">>},
-        #p{body=[<<"Duis bibendum tortor at ligula condimentum sed dignissim elit tincidunt. Aliquam luctus ornare tortor ac hendrerit. Nam arcu odio, pretium et cursus nec, tempus ac massa. Nam eleifend quam eu justo adipiscing id eleifend tortor ullamcorper... ">>,
-          #link{url= <<"#">>, body= <<"Read">>}
-        ]}
-      ]}
-    ]}
-  ]}.
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
@@ -87,7 +64,7 @@ event({comment_reply, {Cid, {Eid, Fid}}})->
     ]}
   ]});
 event({comment_cancel, Id}) -> wf:remove(Id);
-
+event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
