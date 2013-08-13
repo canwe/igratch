@@ -95,6 +95,7 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({buy, PurchaseId, #product{}=Product}) ->
   User = wf:user(),
+  case User of undefined -> wf:redirect("/login"); _-> ok end,
   error_logger:info_msg("Continue checkout ~p, Product ~p", [PurchaseId,Product#product.id]),
 
   Pm = #payment{id = PurchaseId,
