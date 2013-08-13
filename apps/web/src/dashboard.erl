@@ -16,7 +16,7 @@ sidebar_menu(Page, List)->
       {mygames, <<"games">>},
       {notifications, <<"notifications">>},
       {admin, <<"admin">>} ]],
-  #panel{class=["docs-sidebar-menu", "dash-sidebar-menu"], body=#list{class=[nav, "nav-list", "docs-sidebar-nav", "dash-sidebar-nav", "affix-top"],
+  #panel{class=["dash-sidebar-menu"], body=#list{class=[nav, "nav-list","dash-sidebar-nav", "affix-top"],
     data_fields=[{<<"data-spy">>, <<"affix">>}],
     body=Lis}}.
 

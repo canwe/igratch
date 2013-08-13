@@ -10,7 +10,7 @@
 main()-> #dtl{file="prod", bindings=[{title,<<"fake">>},{body, body()}]}.
 
 body() -> index:header() ++ [
-  #section{body=#panel{class=[container, "main-no-slider"], body=#panel{class=["row-fluid"], body=[
+  #section{body=#panel{class=[container], body=#panel{class=["row-fluid"], body=[
     #panel{class=[alert, "alert-info","alert-block"], body=[<<"Fake PayPal processing">>]},
     #panel{class=["btn-toolbar", "text-center"], body=[
       #link{class=[btn, "btn-large", "btn-success"], body= <<"approve">>, url="/checkout?status=approve"},
