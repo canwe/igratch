@@ -1,13 +1,13 @@
 .btn {
-  background-image:none;
-//  padding:10px;
-  text-shadow:none;
-  font-weight:700;
-//  color: @white;
-  font-family: 'Oswald', sans-serif;
+  & .accent {
+    line-height:2em;
+    margin:5px -20px;
+  }
+  & .icon-facebook{margin-right:12px;}
+  & .icon-twitter{margin-right:12px;}
 }
 .btn-blue {
-    background-color:#048eb1;
+  background-color:#048eb1;
 }
 .btn-orange {
     background-color:#e69805;
@@ -22,6 +22,17 @@
     border:3px solid white;
 }
 
+.btn-violet{
+  .buttonBackground(@btnVioletBackground, @btnVioletBackgroundHighlight, @grayDark, 1px 1px 1px #14002f);
+  & .accent {
+    background-color: #2c005f;
+  }
+}
+
+.btn-info{ & .accent{background-color: #00517e;}}
+.btn-warning{ & .accent{background-color: #d15f00;}}
+.btn-success{ & .accent{background-color: #3d8300;}}
+
 .btn-center {
   width:100px;
   margin:0 auto;
@@ -32,13 +43,9 @@
 .btn-google-plus {
   .buttonBackground(@btnGooglePlusBackground, @btnGooglePlusBackgroundHighlight);
   & .icon-google-plus{margin-right:12px;}
-
-}
-
-.btn{& .icon-facebook{margin-right:12px;} & .icon-twitter{margin-right:12px;}}
-
-.btn-google-plus.active {
-  color: rgba(255,255,255,.75);
+  &.active{
+    color: rgba(255,255,255,.75);
+  }
 }
 
 .btn-buy {

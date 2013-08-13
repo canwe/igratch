@@ -16,9 +16,10 @@ body() ->
   header() ++ [
   #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=
     #carousel{class=["product-carousel"], items=featured(),
-      caption=#panel{class=["row-fluid"],body=[
-        box(50, 12.99, orange, pc), box(50, 12.99, green, wii),
-        box(50, 12.99, violet, xbox), box(50, 12.99, blue, pc) ]} }}},
+      caption= #panel{class=["btn-toolbar", "text-center"],body=[
+        box(50, 12.99, "btn-warning", "icon-windows"), box(50, 12.99, "btn-success", "icon-windows"),
+        box(50, 12.99, "btn-violet", "icon-windows"), box(50, 12.99, "btn-info", "icon-windows") ]} 
+    }}},
 
   #section{class=["row-fluid"], body=[
     #panel{class=[container], body=[
@@ -38,7 +39,6 @@ body() ->
           ]}
         ]}
       ]}
-%      #panel{class=["btn-center"], body=[#button{class=[btn], body= <<"SHOW MORE">>}]}
     ]}
   ]} ] ++ footer().
 
@@ -75,31 +75,12 @@ popular_item()->
     ]}
   ]}.
 
-article(Category, Image, DescrHead, Description)->
-  #panel{class=["row-fluid"], body=[
-    #panel{class=["homepage-article"], body=[
-      #panel{class=["homepage-article-inner", clearfix], body=[
-        #panel{class=[span3, "article-meta"], body=[
-          #h3{ class=[blue], body= list_to_binary(Category)},
-          #p{class=[username], body= <<"John Smith">>},
-          #p{class=[datestamp], body=[ <<"Yesterday">>, #span{body= <<"1:00pm">>} ]},
-          #p{class=[statistics], body=[#i{class=["icon-user"]},#span{body= <<"1,045">>},#i{class=["icon-comment"]},#span{body= <<"25">>} ]} ]},
-        #panel{class=[span4, shadow], body=[#image{image=list_to_binary(Image), alt="Row Three Image", class=["BorderAndShadow"]}]},
-        #panel{class=[span5, "article-text"], body=[
-          #h3{body= list_to_binary(DescrHead)},
-          #p{body= [list_to_binary(Description), #link{body= <<"Read">>}]} ]} ]} ]} ]}.
-
-long_description()->
-  "Duis bibendum tortor at ligula condimentum sed dignissim elit tincidunt."
-  "Aliquam luctus ornare tortor ac hendrerit. Nam arcu odio, pretium et cursus nec,"
-  " tempus ac massa. Nam eleifend quam eu justo adipiscing id eleifend tortor ullamcorper...".
-
 box(Discount, Price, ColorClass, IconClass)->
-  #panel{class=[box, span3, ColorClass], body=[
+  #button{class=[btn, "btn-large", ColorClass], body=[
     #p{body= <<"Lorem: Ipsum dolor sit amet">>},
-    #panel{class=[accent], body= list_to_binary(integer_to_list(Discount)++"% OFF")},
-    #panel{class=[price], body= list_to_binary("$"++io_lib:format("~.2f", [Price]))},
-    #panel{class=[hardware, IconClass]} ]}.
+    #p{class=[accent], body= list_to_binary(integer_to_list(Discount)++"% OFF")},
+    #p{class=["row-fluid"], body=[
+      #span{class=[IconClass, "pull-left"]}, #span{class=["pull-right"], body=[#span{class=["icon-usd"]},list_to_binary(io_lib:format("~.2f", [Price]))]} ]} ]}.
 
 header() -> [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[
