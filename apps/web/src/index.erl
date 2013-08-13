@@ -44,7 +44,7 @@ body() ->
 
 featured() ->
   case kvs:get(group, "featured") of
-    {error_notfound} -> [];
+    {error, not_found} -> [];
     {ok, G} ->
       Ps = lists:flatten([ case kvs:get(product, Who) of {ok, P}->P; {error,_}-> [] end || #group_subscription{who=Who}<-kvs_group:members(G#group.name)]),
       error_logger:info_msg("Featured items: ~p", [Ps]),
