@@ -2,7 +2,13 @@
 
 .product-carousel{
   & .carousel-inner{ max-height:500px;}
-  & .carousel-caption{background:none;}
+  & .carousel-caption{
+    background:none;
+    @media (max-width: 767px){
+      //
+      position:relative;
+    }
+  }
 }
 
 

@@ -47,7 +47,6 @@ featured() ->
     {error, not_found} -> [];
     {ok, G} ->
       Ps = lists:flatten([ case kvs:get(product, Who) of {ok, P}->P; {error,_}-> [] end || #group_subscription{who=Who}<-kvs_group:members(G#group.name)]),
-      error_logger:info_msg("Featured items: ~p", [Ps]),
       [begin
         {Cover, Class} = case P#product.cover of
           undefined -> {<<"holder.js/1170%x380/text:no cover">>, "img-polaroid"};

@@ -1,29 +1,21 @@
 .product-carousel{
-  
   margin-bottom: 0;
   border-bottom:1px solid black;
   & .carousel-control {
     border:none;
     .border-radius(0);
     opacity:1;
+    top:50%;
+    @media( max-width: 320px){
+    }
   }
   & .carousel-caption{
     background:none;
-  }
-}
-
-@media (max-width: 767px) and (min-width: 480px) {
-  .product-carousel {
-    width:100%;
-    float:left;
-    & .carousel-caption {
-      position: relative;
-      padding: 15px;
-      margin-top: 0px;
-      margin-bottom: 20px;
-      background: #333333;
-      background: rgba(0, 0, 0, 0.75);
+    @media (max-width: 767px){
+      position:relative;
+      background-color:@bodyBackground;
     }
+
   }
 }
 
@@ -32,7 +24,6 @@
 #slider-box {
   background-color: black;
   margin-bottom:50px;
-//  height:380px;
 }
 
 /******* SLIDES *******/
@@ -199,7 +190,6 @@
         position:relative;
         top:0;
         left:0;
-        width:130px;
         margin:0 auto;
     }
     .container .buy p {
@@ -208,10 +198,7 @@
 }
 @media (max-width: 320px) {
     .container .buy {
-        width:auto;
-    }
-    .container .buy p {
-        font-size:14pt;
+        width:100%;
     }
 }
 
