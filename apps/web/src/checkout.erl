@@ -94,18 +94,17 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Na
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({buy, PurchaseId, #product{}=Product}) ->
-  User = wf:user(),
-  case User of undefined -> wf:redirect("/login"); _-> ok end,
-  error_logger:info_msg("Continue checkout ~p, Product ~p", [PurchaseId,Product#product.id]),
-
-  Pm = #payment{id = PurchaseId,
-    user_id = User#user.email,
-    product = Product,
-    info = paypal
-  },
-  msg:notify([kvs_payment, user, User#user.email, add], {Pm}),
-  wf:session(payment, Pm),
-  wf:redirect("/fakepp");
+  case wf:user() of undefined -> wf:redirect("/login"); User ->
+    error_logger:info_msg("Continue checkout ~p, Product ~p", [PurchaseId,Product#product.id]),
+    Pm = #payment{id = PurchaseId,
+      user_id = User#user.email,
+      product = Product,
+      info = paypal
+    },
+    msg:notify([kvs_payment, user, User#user.email, add], {Pm}),
+    wf:session(payment, Pm),
+    wf:redirect("/fakepp")
+  end;
 
 event(Event) -> error_logger:info_msg("[buy_mobile]Page event: ~p", [Event]), ok.
 process_delivery(_R, _M) -> skip.
