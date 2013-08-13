@@ -51,7 +51,7 @@ input() ->
         postback={save, myproducts, MsId}, source=[title, brief, price, currency, cats]}]}
     ]},
     #panel{class=[span3], body=[
-      #upload{preview=true, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}]}
+      #upload{preview=true, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}, {1170, 380}]}
     ]}
   ]}
  ] end.

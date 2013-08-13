@@ -1,4 +1,7 @@
 .product-carousel{
+  
+  margin-bottom: 0;
+  border-bottom:1px solid black;
   & .carousel-control {
     border:none;
     .border-radius(0);
@@ -29,18 +32,19 @@
 #slider-box {
   background-color: black;
   margin-bottom:50px;
-  height:385px;
+//  height:380px;
 }
 
 /******* SLIDES *******/
 .slide-one {
-  background-image: url('/static/img/slide1.jpg');
-  .background-size(cover);
-  background-repeat: no-repeat;
-  background-position: top;
-
+  position: relative;
   min-height: 380px;
   height: 358px;
+  & h1 {
+    position:absolute;
+    top: 10%;
+    left:15%;
+  }
 }
 
 /************* OVERLAYS *************/
@@ -54,12 +58,11 @@
 	font-size: 18pt;
 	font-family: 'Oswald', sans-serif;
 	line-height: 46px;
-	background-image: url('/static/img/icon-buypc.png');
-	background-repeat: no-repeat;
-	background-position: left;
-	padding-left: 60px;
-	padding-right: 15px;
+    border-radius: 0;
+    padding-bottom: 5px;
+    padding-top: 5px;
 }
+
 .container .buy p {
     position:relative;
     top:5px;

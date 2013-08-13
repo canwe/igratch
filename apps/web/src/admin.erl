@@ -51,7 +51,8 @@ input()-> [
 
 categories()->[
   #h3{body= <<"Categories">>},
-  #table{id=cats, class=[table, "table-hover"], body=[[#tr{cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}]} || G=#group{id=Id, name=Name, description=Desc}<-kvs:all(group)]]}
+  #table{id=cats, class=[table, "table-hover"], body=[[#tr{class=[case Scope of private -> "info"; _-> "" end],
+    cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group)]]}
 ].
 
 users()->[
@@ -59,33 +60,23 @@ users()->[
 products()->[
   #h3{body= <<"Products">>} ].
 
-list_products(Page) -> [#product_row{product=P} || P <- lists:sublist(kvs:all(product), (Page-1) * ?PAGE_SIZE + 1, ?PAGE_SIZE)].
-pagination(Page)->
-  PageCount = (length(kvs:all(product))-1) div ?PAGE_SIZE + 1,
-  error_logger:info_msg("Page: ~p", [PageCount]),
-  [
-  #li{class=[if Page==1-> "disabled"; true->[] end, "previous"], body=#link{body=#i{class=["icon-circle-arrow-left", "icon-large"]}, postback={page, 1} }},
-  [#li{class=if I==Page -> active;true->[] end,body=#link{id="pglink"++integer_to_list(I),body=#span{style="line-height:normal;", body=integer_to_list(I)}, postback={page, I} }} 
-    || I <- lists:seq(1, PageCount)],
-  #li{class=[if PageCount==Page -> "disabled";true->[] end,"next"], body=#link{body=#i{class=["icon-circle-arrow-right", "icon-large"]}, postback={page, PageCount}}}
-  ].
-
-
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(save_cat) ->
   Name = wf:q(cat_name),
   Desc = wf:q(cat_desc),
   Publicity = case wf:q(cat_scope) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
-  error_logger:info_msg("Scope: ~p", [Publicity]),
   Creator = (wf:user())#user.email,
-  RegData = #group{name = Name, description = Desc, scope = Publicity, creator = Creator, owner = Creator, feeds = ?GRP_CHUNK},
+  Id = case Publicity of private -> Name; _ -> undefined end,
+  RegData = #group{id=Id, name = Name, description = Desc, scope = Publicity, creator = Creator, owner = Creator, feeds = ?GRP_CHUNK},
 
   case kvs_group:register(RegData) of
     {ok, G} ->
       msg:notify([kvs_group, group, init], [G#group.id, G#group.feeds]),
 
-      wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(#tr{cells=[#td{body= G#group.id},#td{body=G#group.name}, #td{body=G#group.description}]})])),
+      wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(
+        #tr{class=[case G#group.scope of private -> "info"; _-> "" end], cells=[
+          #td{body= G#group.id}, #td{body=G#group.name}, #td{body=G#group.description}, #td{body=atom_to_list(G#group.scope)} ]} )])),
       wf:wire("$('#cat_name').val('');$('#cat_desc').val('')");
     {error, _} -> skip
   end;

@@ -3,6 +3,7 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/groups.hrl").
+-include_lib("kvs/include/products.hrl").
 -include("records.hrl").
 
 main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
@@ -14,7 +15,7 @@ body() ->
   {Tabs, Reviews} = reviews:reviews(),
   header() ++ [
   #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=
-    #carousel{class=["product-carousel"], items=[slide() || _ <-lists:seq(1,3)],
+    #carousel{class=["product-carousel"], items=featured(),
       caption=#panel{class=["row-fluid"],body=[
         box(50, 12.99, orange, pc), box(50, 12.99, green, wii),
         box(50, 12.99, violet, xbox), box(50, 12.99, blue, pc) ]} }}},
@@ -41,9 +42,31 @@ body() ->
     ]}
   ]} ] ++ footer().
 
-slide() -> [
-  #panel{class=["slide-one"]}, %#image{image= <<"/static/img/slide1.jpg">>},
-  #panel{class=[buy], body=[#p{body=[ <<"Buy for ">>, #span{body= <<"$79.99">>}]}]} ].
+featured() ->
+  case kvs:get(group, "featured") of
+    {error_notfound} -> [];
+    {ok, G} ->
+      Ps = lists:flatten([ case kvs:get(product, Who) of {ok, P}->P; {error,_}-> [] end || #group_subscription{who=Who}<-kvs_group:members(G#group.name)]),
+      error_logger:info_msg("Featured items: ~p", [Ps]),
+      [begin
+        {Cover, Class} = case P#product.cover of
+          undefined -> {<<"holder.js/1170%x380/text:no cover">>, "img-polaroid"};
+          C -> 
+            Ext = filename:extension(C),
+            Name = filename:basename(C, Ext),
+            Dir = filename:dirname(C),
+            {filename:join([Dir, "thumbnail", Name++"_1170x380"++Ext]),""}
+        end,
+        [
+          #panel{class=["slide-one"], body=[
+            #h1{body=P#product.title},
+            #image{class=[Class], image=Cover}
+          ]},
+          #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win, buy],
+            body= [<<"Buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P}}
+        ]
+      end || P <- Ps]
+  end.
 
 popular_item()->
   #panel{class=["popular-item"], body=[
@@ -136,6 +159,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Na
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({checkout, #product{}=P}) -> wf:redirect("/checkout?product_id="++P#product.id);
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
