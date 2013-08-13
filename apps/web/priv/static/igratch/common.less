@@ -33,7 +33,7 @@ h1,h2,h3,h4,h5,h6,h7 {
   }
 
   &.navbar{
-    & .nav{margin-top:15px;}
+    & .nav {margin-top:15px;}
     & .nav > li > a {
       text-shadow:2px 2px black;
       color:#fffefe;
@@ -41,9 +41,7 @@ h1,h2,h3,h4,h5,h6,h7 {
       font-size:13.5pt;
       font-weight:700;
       padding: 15px;
-      &:hover{
-        color:#dcdee0;
-      }
+      &:hover{ color:#dcdee0; }
 
       &.profile-picture{
         padding: 0;
@@ -60,9 +58,12 @@ h1,h2,h3,h4,h5,h6,h7 {
     font-weight:700;
     text-shadow:2px 2px black;
     padding: 3px 20px 3px;
+    @media(max-width: 320px){
+      width:70%;
+    }
   }
 
-  & .btn-navbar {margin-top:15px;}
+  & .btn-navbar {margin-top:28px; @media(max-width:320px){margin-top: 20px; }}
 }
 
 .igfoot {

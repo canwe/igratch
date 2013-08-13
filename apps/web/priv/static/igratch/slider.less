@@ -38,8 +38,10 @@
 /******* SLIDES *******/
 .slide-one {
   position: relative;
-  min-height: 380px;
-  height: 358px;
+  @media(min-width:767px){
+    min-height: 380px;
+    height: 358px;
+  }
   & h1 {
     position:absolute;
     top: 10%;
