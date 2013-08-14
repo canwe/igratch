@@ -2,6 +2,7 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/products.hrl").
 -include("records.hrl").
@@ -144,5 +145,6 @@ event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);
-process_delivery([product,A,entry,B,edit], [E, Tbox, Dbox]) -> product:process_delivery([product,A,entry,B,edit], [E, Tbox, Dbox]);
+process_delivery([product,A,entry,B,edit], E) -> product:process_delivery([product,A,entry,B,edit], E#entry{description=product_ui:shorten(E#entry.description)});
+process_delivery([product,A,entry,B,delete], [E,C]) -> product:process_delivery([product,A,entry,B,delete], [E,C]);
 process_delivery(_R, _M) -> skip.

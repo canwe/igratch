@@ -4,6 +4,9 @@
 -define(GRP_CHUNK, [feed, products]).
 -define(PRD_CHUNK, [features, specs, gallery, videos, reviews, news, bundles]).
 -define(PAGE_SIZE, 4).
+-define(ID_TITLE(Id),   Id++"t").
+-define(ID_DESC(Id),    Id++"d").
+-define(ID_TOOL(Id),  Id++"e").
 
 -record(struct, {lst=[]}).
 -record(info_more, {entries, toolbar, category, fid, module, delegate}).

@@ -87,26 +87,20 @@ render_element(#product_entry{entry=#entry{type={features, "jumbotron"}}=E}) ->
 element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId})->
-  PostId = wf:temp_id(),
-  EntryId= wf:temp_id(),
-  TitleId = wf:temp_id(),
+  PostId = E#entry.entry_id,
+  EntryId = ?ID_DESC(PostId),
+  TitleId = ?ID_TITLE(PostId),
   Ms = E#entry.media,
   EntryActionsLine = #list{class=[unstyled, inline], style="display:inline-block;", body=[
-              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, TitleId, EntryId, wf:temp_id()}, source=[TitleId, EntryId]}},
-              #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, ProdId, PostId}}}
+              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]}},
+              #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, ProdId}}}
             ]},
   Entry = #panel{id=PostId, class=["blog-post"], body=[
     #header{class=["blog-header"], body=[
           #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
     ]},
-%    #figure{class=["thumbnail-figure"], body=[
+    [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
 
-      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
-
-%      #figcaption{class=["thumbnail-title"], body=[
-%            #h3{body=#span{body= E#entry.title}}
-%      ]}
-%    ]},
     #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
 
     #footer{class=["blog-footer", "row-fluid"], body=[
@@ -120,16 +114,6 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Cat
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
 
-  Short = re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(E#entry.description,
-    "<img[^>]*>",           "...", [global, {return, list}]),
-      "\\s+$",              "", [global, {return, list}]),
-        "^\\s+",            "", [global, {return, list}]),
-          "\n",            "<br/>", [global, {return, list}]),
-            "<br[\\s+]/>",  "", [global, {return, list}]),
-              "<p></p>",    "", [global, {return, list}]),
-                "<p>",      "", [global, {return, list}]),
-                  "</p>",   "", [global, {return, list}]),
-
   Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
       #h3{class=[blue], body= Category},
@@ -142,8 +126,8 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Cat
 
       #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
       #panel{class=[span5, "article-text"], body=[
-        #h3{id=E#entry.entry_id++"t",class=[title], body= E#entry.title},
-        Short,
+        #h3{body=#span{id=?ID_TITLE(E#entry.entry_id), class=[title], body= E#entry.title}},
+        #p{id = ?ID_DESC(E#entry.entry_id), body=shorten(E#entry.description)},
         #panel{class=[more], body=[
           Controls,
           #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}],
@@ -156,20 +140,17 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Cat
 
 render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
   PostId = E#entry.entry_id,
-  EntryId= PostId++"b",
-  TitleId = PostId++"t",
+  TitleId = ?ID_TITLE(PostId),
+  EntryId= ?ID_DESC(PostId),
   Comments = kvs_comment:read_comments(E#entry.comments_rear),
   CommentId = wf:temp_id(),
   CommentsId = wf:temp_id(),
   Ms = E#entry.media,
   Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
   Entry = #panel{id=PostId, class=["blog-post"], body=[
-    #h3{class=[blue], id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]},
+    #h3{class=[blue], body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
     #figure{class=["thumbnail-figure"], body=[
-      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
-      #figcaption{class=["thumbnail-title"], body=[
-%            #h3{body=#span{body= E#entry.title}}
-      ]}
+      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms]
     ]},
     #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
     #panel{class=[comments, "row-fluid"], body=[
@@ -184,21 +165,20 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
   element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
-%  error_logger:info_msg("Render entry: ~p ~p", [E#entry.id, E#entry.type]),
-  PostId = wf:temp_id(),
-  EntryId= wf:temp_id(),
-  TitleId = wf:temp_id(),
+  PostId = E#entry.entry_id,
+  EntryId = ?ID_DESC(PostId),
+  TitleId = ?ID_TITLE(PostId),
   Ms = E#entry.media,
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
   EntryActionsLine = [
-    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, TitleId, EntryId, wf:temp_id()}, source=[TitleId, EntryId]},
-    #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId, PostId}}
+    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]},
+    #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId}}
   ],
   {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
   Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
   Entry = #panel{id=PostId, class=["blog-post"], body=[
     #header{class=["blog-header"], body=[
-          #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
+      #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
     ]},
     #figure{class=["thumbnail-figure"], body=[
       [#entry_media{media=Me, fid=E#entry.entry_id} || Me <- Ms],
@@ -207,6 +187,7 @@ render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
       ]}
     ]},
     #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
+    #panel{id=?ID_TOOL(PostId)},
 
     #footer{class=["blog-footer", "row-fluid"], body=[
       #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
@@ -291,4 +272,14 @@ timestamp_label({Days, _}, _) when Days < 365 -> io_lib:format("~p " ++ "months 
 timestamp_label({Days, _}, _) when Days > 365 -> io_lib:format("~p " ++ "years ago", [trunc(Days/365)]);
 timestamp_label({Days, _}, _) -> io_lib:format("~p days ago", [Days]).
 
+shorten(Input) ->
+  re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(Input,
+    "<img[^>]*>",           "...",  [global, {return, list}]),
+      "\\s+$",              "",     [global, {return, list}]),
+        "^\\s+",            "",     [global, {return, list}]),
+          "\n",            "<br/>", [global, {return, list}]),
+            "<br[\\s+]/>",  "",     [global, {return, list}]),
+              "<p></p>",    "",     [global, {return, list}]),
+                "<p>",      "",     [global, {return, list}]),
+                  "</p>",   "",     [global, {return, list}]).
 

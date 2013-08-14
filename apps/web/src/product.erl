@@ -83,11 +83,12 @@ feed(ProdId, Fid, features)-> feed(ProdId, kvs_feed:entries({ProdId,Fid}, undefi
 feed(ProdId, Fid, _TabId) -> feed(ProdId, kvs_feed:entries({ProdId, Fid}, undefined, 10)).
 
 feed(ProdId, Entries)-> #panel{class=[feed], body=[
-  [#product_entry{entry=E, prod_id=ProdId} || E <- Entries],
-  #list{class=[pager], body=[
-    #li{class=[previous], body=#link{body=[#i{class=["icon-chevron-left"]}, <<" Older">> ]}},
-    #li{class=[next], body=#link{body=[#i{class=["icon-chevron-right"]}, <<" Newer">> ]}}
-  ]} ]}.
+  [#product_entry{entry=E, prod_id=ProdId} || E <- Entries]
+%  #list{class=[pager], body=[
+%    #li{class=[previous], body=#link{body=[#i{class=["icon-chevron-left"]}, <<" Older">> ]}},
+%    #li{class=[next], body=#link{body=[#i{class=["icon-chevron-right"]}, <<" Newer">> ]}}
+%  ]} 
+]}.
 
 
 aside()-> [
@@ -149,21 +150,19 @@ event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
                       description=Desc,
                       shared=""}, Ttid, EditorId, MediasId, Feed]) || {RoutingType, To, {_, FeedId}} <- Recipients];
 
-event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
-  Tid = wf:temp_id(), Did = wf:temp_id(),
+event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
+  Tid = ?ID_TITLE(E#entry.entry_id), Did = ?ID_DESC(E#entry.entry_id), Toid = ?ID_TOOL(E#entry.entry_id),
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
   Dir = "static/"++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
-  wf:update(Title, #textbox{id=Tid, value=wf:js_escape(wf:q(Title))}),
-  wf:update(Desc, #htmlbox{id=Did, html=wf:js_escape(wf:q(Desc)), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}),
-  wf:insert_bottom(Desc, #panel{class=["btn-toolbar"], body=[
-    #link{postback={save_entry, E, ProdId, Desc, Title, Tid, Did}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
-    #link{postback={cancel_entry, E, Title, Desc}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
-  ]}),
-  wf:insert_bottom(Desc, #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias) });
-
-event({save_entry, #entry{}=E, ProductId, Dbox, Tbox, Tid, Did})->
-  Title = wf:q(Tid),
-  Description = wf:q(Did),
+  wf:replace(Tid, #textbox{id=Tid, value=wf:js_escape(Title)}),
+  wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=wf:js_escape(Desc), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}]}),
+  wf:update(Toid, #panel{class=["btn-toolbar"], body=[
+    #link{postback={save_entry, E, ProdId}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
+    #link{postback={cancel_entry, E}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
+  ]});
+event({save_entry, #entry{}=E, ProductId})->
+  Title = wf:q(?ID_TITLE(E#entry.entry_id)),
+  Description = wf:q(?ID_DESC(E#entry.entry_id)),
   User = wf:user(),
 
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
@@ -174,13 +173,15 @@ event({save_entry, #entry{}=E, ProductId, Dbox, Tbox, Tid, Did})->
 
   error_logger:info_msg("Recipients: ~p", [Recipients]),
 
-  [ msg:notify([kvs_feed, RouteType, To, entry, Fid, edit], [E#entry{title=Title, description=Description}, Tbox, Dbox]) || {RouteType, To, Fid} <- Recipients];
+  [ msg:notify([kvs_feed, RouteType, To, entry, Fid, edit], E#entry{title=Title, description=Description}) || {RouteType, To, Fid} <- Recipients];
 
-event({cancel_entry, E=#entry{}, Title, Desc}) ->
-  wf:update(Title, wf:js_escape(E#entry.title)),
-  wf:update(Desc, wf:js_escape(E#entry.description));
+event({cancel_entry, E=#entry{title=Title, description=Desc}}) ->
+  Tid = ?ID_TITLE(E#entry.entry_id), Did = ?ID_DESC(E#entry.entry_id),
+  wf:replace(Tid, #span{id=Tid, body=wf:js_escape(Title)}),
+  wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
+  wf:update(?ID_TOOL(E#entry.entry_id), []);
 
-event({remove_entry, E=#entry{}, ProductId, Id}) ->
+event({remove_entry, E=#entry{}, ProductId}) ->
   User = wf:user(),
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
     #group_subscription{where=Where} <- kvs_group:participate(ProductId), E#entry.type == reviews],
@@ -189,7 +190,7 @@ event({remove_entry, E=#entry{}, ProductId, Id}) ->
 
   error_logger:info_msg("Recipients: ~p", [Recipients]),
 
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email, Id]) || {RouteType, To, Fid} <- Recipients];
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email]) || {RouteType, To, Fid} <- Recipients];
 
 event({read, entry, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({remove_media, M, Id}) ->
@@ -238,19 +239,18 @@ process_delivery([product, To, entry, _, add],
   wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, prod_id=To}),
   wf:wire("Holder.run();");
 
-process_delivery([product,_,entry,_,edit], [#entry{entry_id=Id, title=Title, description=Desc}, Tbox, Dbox]) ->
-  error_logger:info_msg("PRODUCT: edit entry"),
-  wf:update(Id++"t", wf:js_escape(Title)),
-  wf:update(Id++"b", wf:js_escape(Desc)),
-  wf:update(Tbox, wf:js_escape(Title)),
-  wf:update(Dbox, wf:js_escape(Desc));
+process_delivery([product,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc}) ->
+  Tid = ?ID_TITLE(Id), Did = ?ID_DESC(Id),
+  wf:replace(Tid, #span{id =Tid, body=wf:js_escape(Title)}),
+  wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
+  wf:update(?ID_TOOL(Id), []);
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:insert_bottom(Info#info_more.entries, #product_entry{entry=Entry, mode=line}),
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery([product, _, entry, _, delete], [_,_|Id]) -> wf:remove(Id);
+process_delivery([product, _, entry, _, delete], [E,_]) -> wf:session(medias, []), wf:remove(E#entry.entry_id);
 process_delivery(_R, _M) -> skip.
 
 read_entries(StartFrom, #info_more{fid=Fid}=I)->

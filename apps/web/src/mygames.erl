@@ -146,7 +146,7 @@ event({remove_product, E}) ->
         [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
   error_logger:info_msg("Recipients: ~p", [Recipients]),
 
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email, E#entry.entry_id]) || {RouteType, To, Fid} <- Recipients],
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, User#user.email]) || {RouteType, To, Fid} <- Recipients],
   kvs_products:delete(E#entry.entry_id);
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
