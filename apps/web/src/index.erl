@@ -68,12 +68,13 @@ featured() ->
   end.
 
 popular_items()-> [
-  #panel{class=["popular-item"], body=[
-  #panel{class=["popular-item-inner"], body=[
-    #p{body= <<"Vivamus fermentum rutrum neque pellentesque tristique.">>},
-      #i{ class=["icon-comment"]},#span{body= <<"25">>}
-    ]}
-  ]} ].
+%  #panel{class=["popular-item"], body=[
+%  #panel{class=["popular-item-inner"], body=[
+%    #p{body= <<"Vivamus fermentum rutrum neque pellentesque tristique.">>},
+%      #i{ class=["icon-comment"]},#span{body= <<"25">>}
+%    ]}
+%  ]}
+  ].
 
 box(Discount, Price, ColorClass, IconClass)->
   #panel{class=[span3, box], body=#button{class=[btn, "btn-large", ColorClass], body=[
