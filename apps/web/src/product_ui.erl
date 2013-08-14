@@ -142,7 +142,7 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Cat
 
       #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
       #panel{class=[span5, "article-text"], body=[
-        #h3{class=[title], body= E#entry.title},
+        #h3{id=E#entry.entry_id++"t",class=[title], body= E#entry.title},
         Short,
         #panel{class=[more], body=[
           Controls,
@@ -155,9 +155,9 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Cat
   element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
-  PostId = wf:temp_id(),
-  EntryId= wf:temp_id(),
-  TitleId = wf:temp_id(),
+  PostId = E#entry.entry_id,
+  EntryId= PostId++"b",
+  TitleId = PostId++"t",
   Comments = kvs_comment:read_comments(E#entry.comments_rear),
   CommentId = wf:temp_id(),
   CommentsId = wf:temp_id(),

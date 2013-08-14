@@ -63,5 +63,6 @@ event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
+process_delivery([product,A,entry,B,edit], [E, Tbox, Dbox]) -> product:process_delivery([product,A,entry,B,edit], [E, Tbox, Dbox]);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);
 process_delivery(_R, _M) -> skip.

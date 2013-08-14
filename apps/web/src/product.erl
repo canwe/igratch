@@ -238,7 +238,10 @@ process_delivery([product, To, entry, _, add],
   wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, prod_id=To}),
   wf:wire("Holder.run();");
 
-process_delivery([product,_,entry,_,edit], [#entry{title=Title, description=Desc}, Tbox, Dbox]) ->
+process_delivery([product,_,entry,_,edit], [#entry{entry_id=Id, title=Title, description=Desc}, Tbox, Dbox]) ->
+  error_logger:info_msg("PRODUCT: edit entry"),
+  wf:update(Id++"t", wf:js_escape(Title)),
+  wf:update(Id++"b", wf:js_escape(Desc)),
   wf:update(Tbox, wf:js_escape(Title)),
   wf:update(Dbox, wf:js_escape(Desc));
 

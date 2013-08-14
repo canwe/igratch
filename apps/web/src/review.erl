@@ -84,4 +84,5 @@ process_delivery([_, Eid, comment, Cid, add],
     _ ->  wf:remove(EditorId)
   end,
   wf:wire("Holder.run();");
+process_delivery([product,A,entry,B,edit], [E, Tbox, Dbox]) ->  product:process_delivery([product,A,entry,B,edit], [E, Tbox, Dbox]);
 process_delivery(_R, _M) -> skip.
