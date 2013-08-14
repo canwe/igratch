@@ -134,12 +134,12 @@ event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
 process_delivery([user, _, entry, _, add],
-                 [#entry{} = Entry, Eid, Tid, MsId, TabId])->
+                 [#entry{description=D, title=T} = Entry, Eid, Tid, MsId, TabId])->
   wf:session(medias, []),
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, #product_entry{entry=Entry, mode=line}),
+  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, mode=line}),
   wf:wire("Holder.run();");
 process_delivery([check_more], M) -> product:process_delivery([check_more], M);
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
