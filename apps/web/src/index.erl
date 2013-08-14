@@ -77,7 +77,7 @@ popular_item()->
 
 box(Discount, Price, ColorClass, IconClass)->
   #panel{class=[span3, box], body=#button{class=[btn, "btn-large", ColorClass], body=[
-    #p{body= <<"Lorem: Ipsum dolor sit amet">>},
+    #p{style="margin-left:-10px;margin-right:-10px;", body= <<"Lorem: Ipsum dolor sit amet">>},
     #p{class=[accent], body= list_to_binary(integer_to_list(Discount)++"% OFF")},
     #p{class=["row-fluid"], body=[
       #span{class=[IconClass, "pull-left"]}, #span{class=["pull-right"], body=[#span{class=["icon-usd"]},list_to_binary(io_lib:format("~.2f", [Price]))]} ]} ]}}.
