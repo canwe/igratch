@@ -15,9 +15,8 @@ body() ->
       {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
       Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
       {From, Av} = case kvs:get(user, E#entry.from) of {ok, U} -> {U#user.display_name, U#user.avatar}; {error, _} -> {E#entry.from, <<"holder.js/150x150">>} end,
-      #panel{class=["row-fluid"], body=[
-        #panel{class=[span3], body=[
-          #panel{class=[sidebar], body=[
+      #panel{class=["row-fluid", dashboard], body=[
+        #panel{class=[span2], body=[
             #panel{id="review-meta", class=["row-fluid"], body=[
               #h3{class=["blue capital"], body= <<"action">>},
               #image{class=["img-polaroid"], alt= <<"The author">>, image=Av, width="150"},
@@ -27,14 +26,13 @@ body() ->
                   #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
                   #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}}
               ]},
-              #panel{class=[], body=[
-                  #link{url= <<"#">>, class=[btn, "btn-warning"], body= <<"Buy it!">>}
+              #panel{class=["btn-toolbar", "text-center"], body=[
+                #link{url= <<"#">>, class=[btn, "btn-large", "btn-warning"], body= <<"Buy it!">>}
               ]}
             ]}
-          ]}
         ]},
-        #panel{class=[span9], body=[
-          #product_entry{entry=E, mode=full},
+        #panel{class=[span10], body=[
+          dashboard:section(#product_entry{entry=E, mode=full}, "icon-align-justify"),
           #h3{body= <<"more reviews">>, class=[blue, "text-center"]},
           #panel{class=["row-fluid"], body=reviews:all(Reviews)}
         ]}

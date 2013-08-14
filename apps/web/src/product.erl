@@ -11,7 +11,7 @@ main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
   Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
-  case wf:qs(<<"tab">>) of undefined -> wf:wire("$('a[href=\"#reviews\"]').tab('show');"); Tab -> wf:wire(io_lib:format("$('a[href=\"#~s\"]').tab('show');",[Tab])) end,
+  case wf:qs(<<"tab">>) of undefined -> wf:wire("$(document).ready(function(){ $('a[href=\"#reviews\"]').tab('show'); });"); Tab -> wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])) end,
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, binary_to_list(Id)) of

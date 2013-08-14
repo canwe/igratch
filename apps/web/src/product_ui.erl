@@ -159,9 +159,7 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
   Ms = E#entry.media,
   Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
   Entry = #panel{id=PostId, class=["blog-post"], body=[
-    #header{class=["blog-header"], body=[
-          #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
-    ]},
+    #h3{class=[blue], id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]},
     #figure{class=["thumbnail-figure"], body=[
       [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
       #figcaption{class=["thumbnail-title"], body=[
@@ -170,7 +168,7 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
     ]},
     #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
     #panel{class=[comments, "row-fluid"], body=[
-        #h3{body= <<"5 comments">>},
+        #h3{body= <<"comments">>},
         #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
         #h3{class=["comments-form"], body= <<"Add your comment">>},
         #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
