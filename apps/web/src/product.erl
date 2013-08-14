@@ -239,7 +239,7 @@ process_delivery([product, To, entry, _, add],
   wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, prod_id=To}),
   wf:wire("Holder.run();");
 
-process_delivery([product,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc}) ->
+process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc}) ->
   Tid = ?ID_TITLE(Id), Did = ?ID_DESC(Id),
   wf:replace(Tid, #span{id =Tid, body=wf:js_escape(Title)}),
   wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
@@ -250,7 +250,7 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery([product, _, entry, _, delete], [E,_]) -> wf:session(medias, []), wf:remove(E#entry.entry_id);
+process_delivery([_,_,entry,_,delete], [E,_]) -> wf:session(medias, []), wf:remove(E#entry.entry_id);
 process_delivery(_R, _M) -> skip.
 
 read_entries(StartFrom, #info_more{fid=Fid}=I)->

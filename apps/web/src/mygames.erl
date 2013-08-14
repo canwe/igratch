@@ -161,6 +161,8 @@ process_delivery([user, _, entry, _, add],
       #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, Entry}}
     ]]}),
   wf:wire("Holder.run();");
+process_delivery([user,A,entry,B,edit], E) -> product:process_delivery([user,A,entry,B,edit], E#entry{description=product_ui:shorten(E#entry.description)});
+process_delivery([user,A,entry,B,delete], [E,C]) -> product:process_delivery([user,A,entry,B,delete], [E,C]);
 process_delivery([check_more], M) -> product:process_delivery([check_more], M);
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([_, _, entry, _, delete], [_,_|Id]) ->
