@@ -35,7 +35,7 @@ body() ->
                 [#li{body=#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}}
                 || #group{id=Id, name=Name, description=Desc}<-kvs:all(group)] ]}
             ]},
-            #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, [popular_item() || _ <-lists:seq(1,7)] ]}
+            #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, popular_items() ]}
           ]}
         ]}
       ]}
@@ -67,13 +67,13 @@ featured() ->
       end || P <- Ps]
   end.
 
-popular_item()->
+popular_items()-> [
   #panel{class=["popular-item"], body=[
   #panel{class=["popular-item-inner"], body=[
     #p{body= <<"Vivamus fermentum rutrum neque pellentesque tristique.">>},
       #i{ class=["icon-comment"]},#span{body= <<"25">>}
     ]}
-  ]}.
+  ]} ].
 
 box(Discount, Price, ColorClass, IconClass)->
   #panel{class=[span3, box], body=#button{class=[btn, "btn-large", ColorClass], body=[
