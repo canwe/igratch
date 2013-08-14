@@ -230,12 +230,12 @@ api_event(attach_media, Args, _Tag)->
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery([product, To, entry, _, add],
-                 [#entry{description=D} = Entry, Tid, Eid, MsId, TabId])->
+                 [#entry{description=D, title=T} = Entry, Tid, Eid, MsId, TabId])->
   wf:session(medias, []),
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D)}, prod_id=To}),
+  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, prod_id=To}),
   wf:wire("Holder.run();");
 
 process_delivery([product,_,entry,_,edit], [#entry{title=Title, description=Desc}, Tbox, Dbox]) ->
