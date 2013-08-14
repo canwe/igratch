@@ -158,7 +158,7 @@ event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
   wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=wf:js_escape(Desc), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}]}),
   wf:update(Toid, #panel{class=["btn-toolbar"], body=[
     #link{postback={save_entry, E, ProdId}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
-    #link{postback={cancel_entry, E}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
+    #link{postback={cancel_entry, E#entry{title=wf:js_escape(Title), description=wf:js_escape(Desc)}}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
   ]});
 event({save_entry, #entry{}=E, ProductId})->
   Title = wf:q(?ID_TITLE(E#entry.entry_id)),
@@ -177,8 +177,8 @@ event({save_entry, #entry{}=E, ProductId})->
 
 event({cancel_entry, E=#entry{title=Title, description=Desc}}) ->
   Tid = ?ID_TITLE(E#entry.entry_id), Did = ?ID_DESC(E#entry.entry_id),
-  wf:replace(Tid, #span{id=Tid, body=wf:js_escape(Title)}),
-  wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
+  wf:replace(Tid, #span{id=Tid, body=Title}),
+  wf:replace(Did, #panel{id=Did, body=Desc, data_fields=[{<<"data-html">>, true}]}),
   wf:update(?ID_TOOL(E#entry.entry_id), []);
 
 event({remove_entry, E=#entry{}, ProductId}) ->

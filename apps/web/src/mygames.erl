@@ -68,7 +68,7 @@ games()->
     [#h3{body= <<"My games">>, class=[blue]},
     #panel{id=myproducts, body=[
       #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=[[
-%        #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E#entry.id}},
+%        #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E#entry.entry_id}},
         #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}}
       ]]} || E <- Entries]},
       #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
