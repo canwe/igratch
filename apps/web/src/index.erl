@@ -49,7 +49,7 @@ featured() ->
       Ps = lists:flatten([ case kvs:get(product, Who) of {ok, P}->P; {error,_}-> [] end || #group_subscription{who=Who}<-kvs_group:members(G#group.name)]),
       [begin
         {Cover, Class} = case P#product.cover of
-          undefined -> {<<"holder.js/1170%x380/text:no cover">>, "img-polaroid"};
+          undefined -> {<<"">>, ""};
           C -> 
             Ext = filename:extension(C),
             Name = filename:basename(C, Ext),
@@ -57,7 +57,7 @@ featured() ->
             {filename:join([Dir, "thumbnail", Name++"_1170x380"++Ext]),""}
         end,
         [
-          #panel{class=["slide-one"], body=[
+          #panel{class=["slide"], body=[
             #h1{body=P#product.title},
             #image{class=[Class], image=Cover}
           ]},

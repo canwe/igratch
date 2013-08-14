@@ -2,6 +2,21 @@
   margin-bottom: 0;
   border-bottom:1px solid black;
   @media(max-width:767px){ border-bottom:none;}
+
+
+  .slide{
+    position: relative;
+    @media(min-width:767px){
+      min-height: 380px;
+      height: 358px;
+    }
+    & h1 {
+      position:absolute;
+      top: 10%;
+      left:15%;
+    }
+  }
+
   & .carousel-control {
     border:none;
     .border-radius(0);
@@ -27,20 +42,6 @@
 #slider-box {
   background-color: black;
   margin-bottom:50px;
-}
-
-/******* SLIDES *******/
-.slide-one {
-  position: relative;
-  @media(min-width:767px){
-    min-height: 380px;
-    height: 358px;
-  }
-  & h1 {
-    position:absolute;
-    top: 10%;
-    left:15%;
-  }
 }
 
 .buy {
