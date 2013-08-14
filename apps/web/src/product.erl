@@ -126,8 +126,8 @@ event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
   User = wf:user(),
   Desc = wf:q(EditorId),
   Title = wf:q(Ttid),
-  Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
-    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), Feed==reviews],
+  Subscriptions =  kvs_group:participate(ProductId),
+  Groups = lists:flatten([case kvs:get(group, Where) of {error, _}-> []; {ok, G} -> G end|| #group_subscription{where=Where} <- Subscriptions, Feed==reviews]),
 
   Recipients = [{product, ProductId, {Feed, Fid}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]] 
     ++ if Feed==reviews -> [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}];true-> [] end,
@@ -164,10 +164,13 @@ event({edit_entry, E=#entry{}, ProdId, Title, Desc, MsId}) ->
 event({save_entry, #entry{}=E, ProductId, Dbox, Tbox, Tid, Did})->
   Title = wf:q(Tid),
   Description = wf:q(Did),
+  User = wf:user(),
 
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
-    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), E#entry.type == reviews],
-  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]],
+    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), E#entry.type==reviews],
+
+  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]] 
+    ++ if E#entry.type==reviews -> [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}];true-> [] end,
 
   error_logger:info_msg("Recipients: ~p", [Recipients]),
 
@@ -178,11 +181,13 @@ event({cancel_entry, E=#entry{}, Title, Desc}) ->
   wf:update(Desc, wf:js_escape(E#entry.description));
 
 event({remove_entry, E=#entry{}, ProductId, Id}) ->
+  User = wf:user(),
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
-    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), E#entry.type == reviews],
-  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Gid, lists:keyfind(feed, 1, Feeds)} || #group{id=Gid, feeds=Feeds} <-Groups]],
+    #group_subscription{where=Where} <- kvs_group:participate(ProductId), E#entry.type == reviews],
+  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Gid, lists:keyfind(feed, 1, Feeds)} || #group{id=Gid, feeds=Feeds} <-Groups]]
+  ++ [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}],
 
-  error_logger:info_msg("Recipients: ~", [Recipients]),
+  error_logger:info_msg("Recipients: ~p", [Recipients]),
 
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email, Id]) || {RouteType, To, Fid} <- Recipients];
 
