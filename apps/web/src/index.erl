@@ -29,9 +29,8 @@ body() ->
         #aside{class=[span3], body=[
           #panel{class=[sidebar], body=[
             #panel{class=["row-fluid"], body=[
-              #h3{ class=[blue], body= <<"TAGS">>},
+              #h3{ class=[blue], body= #link{url="#all", body= <<"TAGS">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
               #list{class=[inline, tagcloud], body=[
-                #li{body=#link{url="#all", body= <<"all">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
                 [#li{body=#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}}
                 || #group{id=Id, name=Name, description=Desc}<-kvs:all(group)] ]}
             ]},
