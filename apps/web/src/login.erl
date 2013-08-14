@@ -71,7 +71,7 @@ event(init) -> [];
 event(logout) -> wf:user(undefined), wf:redirect("/login");
 event(login) -> %User = wf:q(user), wf:user(User), 
     error_logger:info_msg("Login Pressed"),
-    wf:redirect("/account");
+    wf:redirect("/profile");
 event(to_login) -> wf:redirect("/login");
 event(chat) -> wf:redirect("chat");
 event(Ev) ->
