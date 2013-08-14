@@ -1,6 +1,7 @@
 .product-carousel{
   margin-bottom: 0;
   border-bottom:1px solid black;
+  @media(max-width:767px){ border-bottom:none;}
   & .carousel-control {
     border:none;
     .border-radius(0);
@@ -11,6 +12,8 @@
   }
   & .carousel-caption{
     background:none;
+    padding:0;
+
     @media (max-width: 767px){
       position:relative;
       background-color:@bodyBackground;

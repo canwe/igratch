@@ -28,7 +28,7 @@ body() ->
                   #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}}
               ]},
               #panel{class=[], body=[
-                  #link{url= <<"#">>, class=[btn, "btn-orange", capital], body= <<"Buy it!">>}
+                  #link{url= <<"#">>, class=[btn, "btn-warning"], body= <<"Buy it!">>}
               ]}
             ]}
           ]}

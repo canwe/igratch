@@ -16,7 +16,7 @@ body() ->
   header() ++ [
   #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=
     #carousel{class=["product-carousel"], items=featured(),
-      caption= #panel{class=["btn-toolbar", "text-center"],body=[
+      caption= #panel{class=["row-fluid"],body=[
         box(50, 12.99, "btn-warning", "icon-windows"), box(50, 12.99, "btn-success", "icon-windows"),
         box(50, 12.99, "btn-violet", "icon-windows"), box(50, 12.99, "btn-info", "icon-windows") ]} 
     }}},
@@ -76,11 +76,11 @@ popular_item()->
   ]}.
 
 box(Discount, Price, ColorClass, IconClass)->
-  #button{class=[btn, "btn-large", ColorClass], body=[
+  #panel{class=[span3, box], body=#button{class=[btn, "btn-large", ColorClass], body=[
     #p{body= <<"Lorem: Ipsum dolor sit amet">>},
     #p{class=[accent], body= list_to_binary(integer_to_list(Discount)++"% OFF")},
     #p{class=["row-fluid"], body=[
-      #span{class=[IconClass, "pull-left"]}, #span{class=["pull-right"], body=[#span{class=["icon-usd"]},list_to_binary(io_lib:format("~.2f", [Price]))]} ]} ]}.
+      #span{class=[IconClass, "pull-left"]}, #span{class=["pull-right"], body=[#span{class=["icon-usd"]},list_to_binary(io_lib:format("~.2f", [Price]))]} ]} ]}}.
 
 header() -> [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[

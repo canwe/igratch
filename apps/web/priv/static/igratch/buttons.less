@@ -1,4 +1,6 @@
 .btn {
+  text-transform:uppercase;
+
   & .accent {
     line-height:2em;
     margin:5px -20px;
@@ -38,8 +40,6 @@
   margin:0 auto;
 }
 
-.capital {text-transform:uppercase;}
-
 .btn-google-plus {
   .buttonBackground(@btnGooglePlusBackground, @btnGooglePlusBackgroundHighlight);
   & .icon-google-plus{margin-right:12px;}
@@ -57,5 +57,23 @@
     background-repeat: no-repeat;
     background-position: left;
     padding-left: 56px;
+  }
+}
+
+.box {
+  padding:10px;
+  @media(max-width:767px){
+    padding:0;
+    & .btn{
+      width:100%;
+      position:relative;
+      & .accent{
+        position:absolute;
+        bottom:0;
+        left:50%;
+        margin-left: -35px;
+        background-color:transparent;
+      }
+    }
   }
 }
