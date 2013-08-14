@@ -68,5 +68,6 @@ event(Event) -> error_logger:info_msg("[store]Page event: ~p", [Event]), ok.
 
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);
+process_delivery([_, _, entry, _, delete], [_,_|Id]) -> wf:remove(Id);
 process_delivery(_,_) -> skip.
 

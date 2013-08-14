@@ -67,7 +67,10 @@ games()->
     NoMore = length(Entries) < ?PAGE_SIZE,
     [#h3{body= <<"My games">>, class=[blue]},
     #panel{id=myproducts, body=[
-      #panel{id=EsId, body=[#product_entry{entry=E, mode=line} || E <- Entries]},
+      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=[[
+%        #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E#entry.id}},
+        #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}}
+      ]]} || E <- Entries]},
       #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
         if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback = {check_more, Last, Info}} end ]} ]} ] end.
 
@@ -118,6 +121,7 @@ event({save, TabId, MediasId}) ->
       [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
                   [#entry{id={P#product.id, Fid},
                           feed_id=Fid,
+                          entry_id=P#product.id,
                           created = now(),
                           to = {RoutingType, To},
                           from=P#product.owner,
@@ -131,6 +135,19 @@ event({save, TabId, MediasId}) ->
     _ -> error
   end;
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
+event({edit_product, Id}) ->
+  error_logger:info_msg("Edit ~p", [Id]);
+event({remove_product, E}) ->
+  User = wf:user(),
+  Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
+    #group_subscription{where=Where, type=member} <- kvs_group:participate(E#entry.entry_id)],
+
+  Recipients = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)} |
+        [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
+  error_logger:info_msg("Recipients: ~p", [Recipients]),
+
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email, E#entry.entry_id]) || {RouteType, To, Fid} <- Recipients],
+  kvs_products:delete(E#entry.entry_id);
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
 process_delivery([user, _, entry, _, add],
@@ -139,9 +156,15 @@ process_delivery([user, _, entry, _, add],
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, mode=line}),
+  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, mode=line, controls=[[
+%      #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, Entry}},
+      #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, Entry}}
+    ]]}),
   wf:wire("Holder.run();");
 process_delivery([check_more], M) -> product:process_delivery([check_more], M);
 process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
+process_delivery([_, _, entry, _, delete], [_,_|Id]) ->
+  error_logger:info_msg("Remove the ~p", [Id]),
+  wf:remove(Id);
 process_delivery([no_more], M) -> product:process_delivery([no_more], M);
 process_delivery(_,_) -> skip.
