@@ -161,4 +161,4 @@ process_delivery([user, _, entry, _, add],
       #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, Entry}}
     ]]}),
   wf:wire("Holder.run();");
-process_delivery(R,M) -> product:process_delivery(R,M);
+process_delivery(R,M) -> product:process_delivery(R,M).
