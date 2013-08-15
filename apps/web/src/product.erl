@@ -152,7 +152,6 @@ event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
 
 event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
   Tid = ?ID_TITLE(E#entry.entry_id), Did = ?ID_DESC(E#entry.entry_id), Toid = ?ID_TOOL(E#entry.entry_id),
-  Medias = case wf:session(medias) of undefined -> []; L -> L end,
   Dir = "static/"++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
   wf:replace(Tid, #textbox{id=Tid, value=wf:js_escape(Title)}),
   wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=wf:js_escape(Desc), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}]}),
@@ -240,6 +239,7 @@ process_delivery([product, To, entry, _, add],
   wf:wire("Holder.run();");
 
 process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc}) ->
+  wf:session(medias, []),
   Tid = ?ID_TITLE(Id), Did = ?ID_DESC(Id),
   wf:replace(Tid, #span{id =Tid, body=wf:js_escape(Title)}),
   wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
