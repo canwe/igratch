@@ -6,6 +6,8 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/membership.hrl").
+-include_lib("kernel/include/file.hrl").
+
 -include("records.hrl").
 
 -define(GRP_CACHE, kvs:all(group)).
@@ -19,42 +21,54 @@ body()->
       #panel{class=[row, dashboard], body=[
         #panel{class=[span3], body=dashboard:sidebar_menu(mygames)},
         #panel{class=[span9], body=[
-          dashboard:section(input(), "icon-user"),
-          dashboard:section(games(), "icon-user")
+          dashboard:section(input(#entry{}), "icon-edit"),
+          dashboard:section(games(), "icon-gamepad")
         ]} ]} } }
   ]++index:footer().
 
-
-input() ->
+input(#entry{}=E) ->
   User = wf:user(),
   Curs = [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}],
   Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
   MsId = wf:temp_id(),
   Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
-
-  case User of undefined ->[]; _-> [
+  error_logger:info_msg("Entry: ~p", [E#entry.entry_id]),
+  Groups = [case kvs:get(group,  Where) of {ok,#group{name=T}}-> Where++"="++T; _-> [] end || #group_subscription{where=Where} <- kvs_group:participate(E#entry.entry_id)],
+  error_logger:info_msg("Groups: ~p", [Groups]),
+  P = case kvs:get(product, E#entry.entry_id) of {ok, #product{}=Pr} -> Pr; _-> #product{} end,
+  error_logger:info_msg("Cover: ~p", [P#product.cover]),
+  case User of undefined ->[]; _ ->
+    #panel{id=input, body=[
     #h3{class=[blue], body= [<<"Add new game">>, #span{class=["pull-right", span3], style="color: #555555;",  body= <<"cover">>}]},
     #panel{class=["row-fluid"], body=[
     #panel{class=[span9], body=[
-      #textboxlist{id=cats, placeholder= <<"Categoried/Tags">>},
-      #textbox{id=title, class=[span12], placeholder="Game title"},
-      #textarea{id=brief, class=[span12], rows="5", placeholder="Brief description"},
+      #textboxlist{id=cats, placeholder= <<"Categoried/Tags">>, values=string:join(Groups,",")},
+      #textbox{id=title, class=[span12], placeholder="Game title", value = E#entry.title},
+      #textarea{id=brief, class=[span12], rows="5", placeholder="Brief description", body = E#entry.description},
 
       #panel{class=["input-append"], body=[
-        #textbox{id = price, class=[span2]},
-        #select{id=currency, class=[selectpicker], body=[#option{label= L, body = V} || {L,V} <- Curs]}
+        #textbox{id = price, class=[span2], value=float_to_list(P#product.price/100, [{decimals, 2}])},
+        #select{id=currency, class=[selectpicker], body=[#option{label= L, body = V, selected=binary_to_list(V)==P#product.currency} || {L,V} <- Curs]}
       ]},
       #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)},
 
       #panel{class=["btn-toolbar"],body=[
-      #link{id=save_prod, class=[btn, "btn-large"], body=[#i{class=["icon-file-alt", "icon-large"]}, <<" Create">>],
-        postback={save, myproducts, MsId}, source=[title, brief, price, currency, cats]}]}
+        case P#product.id of undefined -> 
+          #link{id=save_prod, class=[btn, "btn-large", "btn-info"], body=[#i{class=["icon-file-alt", "icon-large"]}, <<" create">>],
+            postback={save, myproducts, MsId}, source=[title, brief, price, currency, cats]};
+          _ -> [
+            #link{class=[btn, "btn-large", "btn-info"], body=[#i{class=["icon-check", "icon-large"]}, <<" update">>],
+              postback={update, P, myproducts, MsId}, source=[title, brief, currency, cats]},
+            #link{class=[btn, "btn-large", "btn-success"], body=[#i{class=["icon-retweet", "icon-large"]}, <<" cancel">>], postback={edit_product, #entry{}}}
+            ]
+        end
+      ]}
     ]},
     #panel{class=[span3], body=[
-      #upload{preview=true, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}, {1170, 380}]}
+      #upload{preview=true, root=?ROOT, dir=Dir, value=P#product.cover, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}, {1170, 380}]}
     ]}
   ]}
- ] end.
+ ]} end.
 
 games()->
   case wf:user() of undefined -> []; User ->
@@ -68,7 +82,7 @@ games()->
     [#h3{body= <<"My games">>, class=[blue]},
     #panel{id=myproducts, body=[
       #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=[[
-%        #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E#entry.entry_id}},
+        #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
         #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}}
       ]]} || E <- Entries]},
       #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
@@ -78,6 +92,15 @@ control_event("cats", _) ->
   SearchTerm = wf:q(term),
   Data = [ [list_to_binary(Id++"="++Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- ?GRP_CACHE, string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
   element_textboxlist:process_autocomplete("cats", Data, SearchTerm);
+control_event(Cid, {query_file, Root, Dir, File, MimeType})->
+  error_logger:info_msg("query files ... "),
+  Name = binary_to_list(File),
+  Size = case file:read_file_info(filename:join([Root,Dir,Name])) of 
+    {ok, FileInfo} ->
+      wf:wire(wf:f("$('#~s').parent('.file_upload').find('.preview').html(\"<img src='~s'>\");", [Cid, filename:join([Dir, Name])])),
+      FileInfo#file_info.size;
+    {error, _} -> 0 end,
+  {exist, Size};
 control_event(_, _) -> ok.
 
 api_event(attach_media, Tag, Term) -> product:api_event(attach_media, Tag, Term);
@@ -134,9 +157,10 @@ event({save, TabId, MediasId}) ->
       msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
     _ -> error
   end;
+event({update, #product{}=P, TabId, MediasId}) ->
+  error_logger:info_msg("update the product ~p", [P]),
+  ok;
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
-event({edit_product, Id}) ->
-  error_logger:info_msg("Edit ~p", [Id]);
 event({remove_product, E}) ->
   User = wf:user(),
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
@@ -148,6 +172,11 @@ event({remove_product, E}) ->
 
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, User#user.email]) || {RouteType, To, Fid} <- Recipients],
   kvs_products:delete(E#entry.entry_id);
+event({edit_product, #entry{}=E})->
+  error_logger:info_msg("Edit product ~p", [E#entry.entry_id]),
+  wf:replace(input, input(E)),
+  wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
+event({remove_media, M, Id}) -> product:event({remove_media, M, Id});
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
 process_delivery([user, _, entry, _, add],
@@ -157,7 +186,7 @@ process_delivery([user, _, entry, _, add],
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
   wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, mode=line, controls=[[
-%      #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, Entry}},
+      #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, Entry}},
       #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, Entry}}
     ]]}),
   wf:wire("Holder.run();");
