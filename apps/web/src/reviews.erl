@@ -22,7 +22,7 @@ body()->
             #small{body=[
               begin 
                 [<<" / ">>, #link{url="#"++Id, data_fields=[{<<"data-toggle">>, <<"tab">>}], body=[#span{class=["icon-asterisk"]},Name]}]
-              end || #group{id=Id, name=Name} <- kvs:all(group)
+              end || #group{id=Id, name=Name, scope=Scope} <- kvs:all(group), Scope==public
             ]} 
           ]}
       ]},
@@ -40,7 +40,8 @@ all(Reviews) -> [
     fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end, [], lists:flatten(Reviews)) ].
 
 reviews() ->
-  Groups = kvs:all(group),
+  Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
+  error_logger:info_msg("Groups: ~p", [Groups]),
   lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
     {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
     Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),

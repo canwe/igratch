@@ -21,7 +21,7 @@ body()->
           [
             <<" / ">>,
             #link{url="#"++Id, data_fields=[{<<"data-toggle">>, <<"tab">>}], body=[#span{class=["icon-asterisk"]},Name]}
-          ] end || #group{id=Id, name=Name} <- kvs:all(group)]} ]}
+          ] end || #group{id=Id, name=Name, scope=Scope} <- kvs:all(group), Scope==public]} ]}
       ]},
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
@@ -40,7 +40,7 @@ body()->
                   if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end
                 ]}
               ]}
-            end ||#group{id=Id, name=Name, feeds=Feeds} <- kvs:all(group)]]},
+            end ||#group{id=Id, name=Name, feeds=Feeds, scope=Scope} <- kvs:all(group), Scope==public]]},
         #panel{class=[span3], body=[<<"">>]} ]}
     ]}
   ]},

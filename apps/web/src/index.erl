@@ -33,7 +33,7 @@ body() ->
               #h3{ class=[blue], body= #link{url="#all", body= <<"TAGS">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
               #list{class=[inline, tagcloud], body=[
                 [#li{body=#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}}
-                || #group{id=Id, name=Name, description=Desc}<-kvs:all(group)] ]}
+                || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]}
             ]},
             #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, popular_items() ]}
           ]}
@@ -143,8 +143,4 @@ event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({checkout, #product{}=P}) -> wf:redirect("/checkout?product_id="++P#product.id);
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
-%process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
-%process_delivery([no_more], M) -> product:process_delivery([no_more], M);
-%process_delivery([product,A,entry,B,edit], E) -> product:process_delivery([product,A,entry,B,edit], E#entry{description=product_ui:shorten(E#entry.description)});
-%process_delivery([product,A,entry,B,delete], [E,C]) -> product:process_delivery([product,A,entry,B,delete], [E,C]);
 process_delivery(R,M) -> product:process_delivery(R,M).
