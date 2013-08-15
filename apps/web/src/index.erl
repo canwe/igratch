@@ -143,8 +143,8 @@ event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({checkout, #product{}=P}) -> wf:redirect("/checkout?product_id="++P#product.id);
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
-process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
-process_delivery([no_more], M) -> product:process_delivery([no_more], M);
-process_delivery([product,A,entry,B,edit], E) -> product:process_delivery([product,A,entry,B,edit], E#entry{description=product_ui:shorten(E#entry.description)});
-process_delivery([product,A,entry,B,delete], [E,C]) -> product:process_delivery([product,A,entry,B,delete], [E,C]);
-process_delivery(_R, _M) -> skip.
+%process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
+%process_delivery([no_more], M) -> product:process_delivery([no_more], M);
+%process_delivery([product,A,entry,B,edit], E) -> product:process_delivery([product,A,entry,B,edit], E#entry{description=product_ui:shorten(E#entry.description)});
+%process_delivery([product,A,entry,B,delete], [E,C]) -> product:process_delivery([product,A,entry,B,delete], [E,C]);
+process_delivery(R,M) -> product:process_delivery(R,M).

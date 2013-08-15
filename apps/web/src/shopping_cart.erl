@@ -77,7 +77,5 @@ event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
 
-process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
-process_delivery([no_more], M) -> product:process_delivery([no_more], M);
-process_delivery(_,_) -> skip.
+process_delivery(R,M) -> product:process_delivery(R,M).
 

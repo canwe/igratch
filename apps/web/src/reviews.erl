@@ -62,8 +62,4 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
 
-process_delivery([show_entry], M) -> product:process_delivery([show_entry], M);
-process_delivery([product,A,entry,B,edit], E) -> product:process_delivery([product,A,entry,B,edit], E#entry{description=product_ui:shorten(E#entry.description)});
-process_delivery([product,A,entry,B,delete], [E,C]) -> product:process_delivery([product,A,entry,B,delete], [E,C]);
-process_delivery([no_more], M) -> product:process_delivery([no_more], M);
-process_delivery(_R, _M) -> skip.
+process_delivery(R,M) -> product:process_delivery(R,M).
