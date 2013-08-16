@@ -52,7 +52,7 @@ featured() ->
             {filename:join([Dir, "thumbnail", Name++"_1170x380"++Ext]),""}
         end,
         [
-          #panel{class=["slide"], body=[
+          #panel{id=P#product.id, class=["slide"], body=[
             #h1{body=P#product.title},
             #image{class=[Class], image=Cover}
           ]},

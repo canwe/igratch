@@ -28,12 +28,8 @@ input(#entry{}=E) ->
   Curs = [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}],
   Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
   Medias = E#entry.media,
-  error_logger:info_msg("Entry: ~p", [E#entry.entry_id]),
-  error_logger:info_msg("Medias: ~p", [Medias]),
   Groups = [case kvs:get(group,  Where) of {ok,#group{name=T}}-> Where++"="++T; _-> [] end || #group_subscription{where=Where} <- kvs_group:participate(E#entry.entry_id)],
-  error_logger:info_msg("Groups: ~p", [Groups]),
   P = case kvs:get(product, E#entry.entry_id) of {ok, #product{}=Pr} -> Pr; _-> #product{} end,
-  error_logger:info_msg("Cover: ~p", [P#product.cover]),
   case User of undefined ->[]; _ ->
     #panel{id=input, body=[
     #h3{class=[blue], body= [<<"Add new game">>, #span{class=["pull-right", span3], style="color: #555555;",  body= <<"cover">>}]},
@@ -92,7 +88,6 @@ control_event("cats", _) ->
   Data = [ [list_to_binary(Id++"="++Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- ?GRP_CACHE, string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
   element_textboxlist:process_autocomplete("cats", Data, SearchTerm);
 control_event("cover_upload", {query_file, Root, Dir, File, MimeType})->
-  error_logger:info_msg("query files ... "),
   Name = binary_to_list(File),
   Size = case file:read_file_info(filename:join([Root,Dir,Name])) of 
     {ok, FileInfo} ->
@@ -167,7 +162,6 @@ event({update, #product{}=P}) ->
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
 
-  error_logger:info_msg("update with cover ~p", [TitlePic]),
   Product = P#product{
     title = list_to_binary(Title),
     brief = list_to_binary(Descr),
@@ -186,8 +180,6 @@ event({update, #product{}=P}) ->
     description=Product#product.brief,
     shared=""},
 
-  error_logger:info_msg("New product: ~p~n", [Product]),
-  error_logger:info_msg("New entry: ~p~n", [Entry]),
   kvs:put(Product),
 
   Cats = wf:q(cats),
@@ -206,11 +198,11 @@ event({update, #product{}=P}) ->
     Entry#entry{to = {RouteType, To}, feed_id=Fid, id={Product#product.id, Fid}}) || {RouteType, To, {_,Fid}=Eid} <- Rec1],
 
   % leave group and remove entry
-  Rec2 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- OldSubs],
+  Rec2 = [{group,Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- OldSubs],
   error_logger:info_msg("Remove recipients: ~p~n", [Rec2]),
-  [kvs_group:leave(Product#product.id, G) ||{_, G,_} <- Rec2],
+  [msg:notify([kvs_feed, RouteType, To, entry, Eid, delete], [Entry, skip]) || {RouteType, To, Eid} <- Rec2],
   [msg:notify([kvs_group, Product#product.id, leave, G], {}) || {_,G,_} <- Rec2],
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [Entry, (wf:user())#user.email]) || {RouteType, To, Fid} <- Rec2],
+  [kvs_group:leave(Product#product.id, G) || {_,G,_} <- Rec2],
 
   % join group and add entry
   Rec3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- NewSubs],
@@ -226,17 +218,15 @@ event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
 event({remove_product, E}) ->
   User = wf:user(),
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
-    #group_subscription{where=Where, type=member} <- kvs_group:participate(E#entry.entry_id)],
+    #group_subscription{where=Where} <- kvs_group:participate(E#entry.entry_id)],
 
   Recipients = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)} |
         [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
-  error_logger:info_msg("Recipients: ~p", [Recipients]),
+  error_logger:info_msg("Remove pecipients: ~p", [Recipients]),
 
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, User#user.email]) || {RouteType, To, Fid} <- Recipients],
   kvs_products:delete(E#entry.entry_id);
 event({edit_product, #entry{}=E})->
-  error_logger:info_msg("Edit product ~p~n", [E]),
-  error_logger:info_msg("Entry media: ~p", [E#entry.media]),
   wf:session(medias, E#entry.media),
   wf:replace(input, input(E)),
   wf:update(media_block, product_ui:preview_medias(media_block, E#entry.media)),
@@ -257,5 +247,5 @@ process_delivery([user, _, entry, _, add],
 process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->
   wf:update(?ID_TOOL(Id), controls(E)),
   product:process_delivery(R,E);
-process_delivery([group,_,entry,_,delete], [_,_]) -> skip;
+process_delivery([group,_,entry,{_,_},delete], [_,_]) -> skip;
 process_delivery(R,M) -> product:process_delivery(R,M).

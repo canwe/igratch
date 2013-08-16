@@ -239,7 +239,6 @@ render_element(#entry_media{media=Media, fid=Fid}) ->
   element_panel:render_element(M).
 
 preview_medias(Id, Medias)->
-  error_logger:info_msg("Preview ~p", [length(Medias)]),
   L = length(Medias),
   if L > 0 ->
     #carousel{indicators=false, style="border:1px solid #eee;", items=[

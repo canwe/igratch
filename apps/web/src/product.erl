@@ -121,6 +121,10 @@ aside()-> [
     ]}
 ].
 
+controls(#entry{type=Type} =  E) -> [
+  #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
+
+
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({post_entry, Fid, ProductId, EditorId, Ttid, Feed, MediasId}) ->
@@ -194,8 +198,7 @@ event({remove_entry, E=#entry{}, ProductId}) ->
 event({read, entry, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({remove_media, M, Id}) ->
   Ms = case wf:session(medias) of undefined -> []; Mi -> Mi end,
-  New = lists:filter(fun(E)-> error_logger:info_msg("take ~p compare with ~p and = ~p", [E,M, E/=M]),  E/=M end, Ms),
-  error_logger:info_msg("UPdate media: ~p", [New]),
+  New = lists:filter(fun(E)-> E/=M end, Ms),
   wf:session(medias, New),
   wf:update(Id, product_ui:preview_medias(Id, New));
 event({check_more, Start, Info = #info_more{}}) ->
@@ -249,7 +252,7 @@ process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, descriptio
   wf:wire("Holder.run();");
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
-  wf:insert_bottom(Info#info_more.entries, #product_entry{entry=Entry, mode=line}),
+  wf:insert_bottom(Info#info_more.entries, #product_entry{entry=Entry, mode=line, controls=controls(Entry)}),
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;

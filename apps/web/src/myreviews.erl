@@ -57,7 +57,7 @@ reviews()->
     NoMore = length(Entries) < ?PAGE_SIZE,
     [#h3{body= <<"My reviews">>, class=[blue]},
     #panel{id=myreviews, body=[
-      #panel{id=EsId, body=[#product_entry{entry=E, mode=line} || E <- Entries]},
+      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=product:controls(E)} || E <- Entries]},
       #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
         if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback = {check_more, Last, Info}} end ]} ]} ] end.
 
@@ -76,11 +76,9 @@ event({post_entry, EditorId, TitleId, MediasId}) ->
   Prods = wf:q(products),
 
   Products = [case kvs:get(product,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Prods, ",")],
-  error_logger:info_msg("Products : ~p", [Products]),
 
   Groups = lists:flatten([ [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where, type=member} <- kvs_group:participate(ProdId)] 
     || #product{id=ProdId} <- Products]),
-  error_logger:info_msg("Groups : ~p", [Groups]),
 
   Recipients = lists:append([
     [{product, ProdId, lists:keyfind(reviews,1,Feeds)} || #product{id=ProdId, feeds=Feeds} <- Products],
@@ -126,6 +124,6 @@ process_delivery([user,_,entry,_,add],
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
   wf:wire("$('#products').html('');"),
-  wf:insert_top(myreviews, #product_entry{entry=Entry, mode=line}),
+  wf:insert_top(myreviews, #product_entry{entry=Entry, mode=line, controls=product:controls(Entry)}),
   wf:wire("Holder.run();");
 process_delivery(R,M) -> product:process_delivery(R,M).
