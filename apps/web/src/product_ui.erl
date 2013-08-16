@@ -42,8 +42,7 @@ render_element(#product_cart{product=P}) ->
   element_panel:render_element(Entry);
 
 render_element(#product_row{product=P}) ->
-  {{Y, M, D}, _} = calendar:now_to_datetime(P#product.creation_date),
-  Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
+  Date = to_date(P#product.creation_date),
 
   Row = #tr{id=wf:temp_id(), postback={product_feed, P#product.id},cells=[
     #td{body=[
@@ -110,29 +109,25 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId
   element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Category, controls=Controls})->
+%  error_logger:info_msg("View entry ~p Media: ~p", [E#entry.id, E#entry.media]),
+  Id = E#entry.entry_id,
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-  {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
-  Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
 
   Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
       #h3{class=[blue], body= Category},
       #p{class=[username], body= #link{body=From}},
-      #p{class=[datestamp], body=[ #span{body= Date} ]},
+      #p{class=[datestamp], body=[ #span{body= to_date(E#entry.created)} ]},
       #p{class=[statistics], body=[
         #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
         #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
       ]} ]},
 
-      #panel{class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
+      #panel{id=?ID_MEDIA(Id), class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
       #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?ID_TITLE(E#entry.entry_id), class=[title], body= E#entry.title}},
-        #p{id = ?ID_DESC(E#entry.entry_id), body=shorten(E#entry.description)},
-        #panel{class=[more], body=[
-          Controls,
-          #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}],
-            postback={read, Type, E#entry.id}}
-        ]}
+        #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
+        #p{id = ?ID_DESC(Id), body=shorten(E#entry.description)},
+        #panel{id=?ID_TOOL(Id), class=[more], body=Controls}
       ]}
   ]},
 
@@ -157,7 +152,7 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
         #h3{body= <<"comments">>},
         #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
         #h3{class=["comments-form"], body= <<"Add your comment">>},
-        #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=[{270, 124}, {200, 200} , {139, 80}]},
+        #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=?THUMB_SIZE},
         #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
       ]}
   ]},
@@ -174,8 +169,9 @@ render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
     #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]},
     #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId}}
   ],
-  {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
-  Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
+
+  Date = to_date(E#entry.created),
+
   Entry = #panel{id=PostId, class=["blog-post"], body=[
     #header{class=["blog-header"], body=[
       #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
@@ -205,8 +201,8 @@ render_element(#entry_comment{comment=#comment{}=C})->
         undefined-> #image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>};
         Img-> #image{class=["media-object", "img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end};
       {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>}} end,
-  {{Y, M, D}, _} = calendar:now_to_datetime(C#comment.creation_time),
-  Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
+
+  Date = to_date(C#comment.creation_time),
 
   Comment = #panel{class=[media, "media-comment"], body=[
     #link{class=["pull-left"], body=[Avatar]},
@@ -243,6 +239,7 @@ render_element(#entry_media{media=Media, fid=Fid}) ->
   element_panel:render_element(M).
 
 preview_medias(Id, Medias)->
+  error_logger:info_msg("Preview ~p", [length(Medias)]),
   L = length(Medias),
   if L > 0 ->
     #carousel{indicators=false, style="border:1px solid #eee;", items=[
@@ -283,3 +280,13 @@ shorten(Input) ->
                 "<p>",      "",     [global, {return, list}]),
                   "</p>",   "",     [global, {return, list}]).
 
+to_price(Str)->
+  PriceStr2 = case string:to_float(Str) of {error, no_float} -> Str; {F, _} -> float_to_list(F, [{decimals, 2}]) end,
+  {P1, Rest} = case string:to_integer(PriceStr2) of {error, no_integer} -> {0, "0"}; {Pa, [_|Ra]} -> {Pa, Ra}; {Pa, Ra} -> {Pa, Ra} end,
+  P2 = case string:to_integer(Rest) of {error,no_integer}-> 0; {Re,_} -> Re  end,
+  P2+P1*100.
+
+to_date(undefined) -> to_date(now());
+to_date(Date)->
+  {{Y, M, D}, _} = calendar:now_to_datetime(Date),
+  io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]).

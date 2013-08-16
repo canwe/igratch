@@ -71,7 +71,7 @@ entry_form(P, Fid, Feed) ->
     #panel{class=["row-fluid"], body=[
       #panel{class=[span9], body=[
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}]},
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE},
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, Feed, MsId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
         #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
       ]},
@@ -154,7 +154,7 @@ event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
   Tid = ?ID_TITLE(E#entry.entry_id), Did = ?ID_DESC(E#entry.entry_id), Toid = ?ID_TOOL(E#entry.entry_id),
   Dir = "static/"++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
   wf:replace(Tid, #textbox{id=Tid, value=wf:js_escape(Title)}),
-  wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=wf:js_escape(Desc), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}]}]}),
+  wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=wf:js_escape(Desc), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE}]}),
   wf:update(Toid, #panel{class=["btn-toolbar"], body=[
     #link{postback={save_entry, E, ProdId}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
     #link{postback={cancel_entry, E#entry{title=wf:js_escape(Title), description=wf:js_escape(Desc)}}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
@@ -195,6 +195,7 @@ event({read, entry, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({remove_media, M, Id}) ->
   Ms = case wf:session(medias) of undefined -> []; Mi -> Mi end,
   New = lists:filter(fun(E)-> error_logger:info_msg("take ~p compare with ~p and = ~p", [E,M, E/=M]),  E/=M end, Ms),
+  error_logger:info_msg("UPdate media: ~p", [New]),
   wf:session(medias, New),
   wf:update(Id, product_ui:preview_medias(Id, New));
 event({check_more, Start, Info = #info_more{}}) ->
@@ -238,19 +239,21 @@ process_delivery([product, To, entry, _, add],
   wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, prod_id=To}),
   wf:wire("Holder.run();");
 
-process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc}) ->
+process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc, media=Media}) ->
   wf:session(medias, []),
   Tid = ?ID_TITLE(Id), Did = ?ID_DESC(Id),
   wf:replace(Tid, #span{id =Tid, body=wf:js_escape(Title)}),
   wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
-  wf:update(?ID_TOOL(Id), []);
+  wf:update(?ID_MEDIA(Id), #entry_media{media=Media, mode=reviews}),
+%  wf:update(?ID_TOOL(Id), []),
+  wf:wire("Holder.run();");
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:insert_bottom(Info#info_more.entries, #product_entry{entry=Entry, mode=line}),
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery([_,_,entry,_,delete], [E,_]) -> wf:session(medias, []), wf:remove(E#entry.entry_id);
+process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);
 process_delivery(_R, _M) -> skip.
 
 read_entries(StartFrom, #info_more{fid=Fid}=I)->

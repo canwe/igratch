@@ -1,5 +1,5 @@
 -module(mygames).
--compile(export_all).   
+-compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
@@ -14,25 +14,22 @@
 
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
-body()->
-  index:header() ++[
+body()-> index:header() ++[
   #section{id=content, body=
     #panel{class=[container, account], body=
       #panel{class=[row, dashboard], body=[
         #panel{class=[span3], body=dashboard:sidebar_menu(mygames)},
         #panel{class=[span9], body=[
           dashboard:section(input(#entry{}), "icon-edit"),
-          dashboard:section(games(), "icon-gamepad")
-        ]} ]} } }
-  ]++index:footer().
+          dashboard:section(games(), "icon-gamepad")]}]}}}]++index:footer().
 
 input(#entry{}=E) ->
   User = wf:user(),
   Curs = [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}],
   Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
-  MsId = wf:temp_id(),
-  Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
+  Medias = E#entry.media,
   error_logger:info_msg("Entry: ~p", [E#entry.entry_id]),
+  error_logger:info_msg("Medias: ~p", [Medias]),
   Groups = [case kvs:get(group,  Where) of {ok,#group{name=T}}-> Where++"="++T; _-> [] end || #group_subscription{where=Where} <- kvs_group:participate(E#entry.entry_id)],
   error_logger:info_msg("Groups: ~p", [Groups]),
   P = case kvs:get(product, E#entry.entry_id) of {ok, #product{}=Pr} -> Pr; _-> #product{} end,
@@ -50,22 +47,22 @@ input(#entry{}=E) ->
         #textbox{id = price, class=[span2], value=float_to_list(P#product.price/100, [{decimals, 2}])},
         #select{id=currency, class=[selectpicker], body=[#option{label= L, body = V, selected=binary_to_list(V)==P#product.currency} || {L,V} <- Curs]}
       ]},
-      #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)},
+      #panel{id=media_block, body=product_ui:preview_medias(media_block, Medias)},
 
       #panel{class=["btn-toolbar"],body=[
         case P#product.id of undefined -> 
           #link{id=save_prod, class=[btn, "btn-large", "btn-info"], body=[#i{class=["icon-file-alt", "icon-large"]}, <<" create">>],
-            postback={save, myproducts, MsId}, source=[title, brief, price, currency, cats]};
+            postback={save}, source=[title, brief, price, currency, cats]};
           _ -> [
             #link{class=[btn, "btn-large", "btn-info"], body=[#i{class=["icon-check", "icon-large"]}, <<" update">>],
-              postback={update, P, myproducts, MsId}, source=[title, brief, currency, cats]},
+              postback={update, P}, source=[title, brief, price, currency, cats]},
             #link{class=[btn, "btn-large", "btn-success"], body=[#i{class=["icon-retweet", "icon-large"]}, <<" cancel">>], postback={edit_product, #entry{}}}
             ]
         end
       ]}
     ]},
     #panel{class=[span3], body=[
-      #upload{preview=true, root=?ROOT, dir=Dir, value=P#product.cover, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200}, {139, 80}, {1170, 380}]}
+      #upload{id=cover_upload,preview=true, root=?ROOT, dir=Dir, value=P#product.cover, delegate_query=?MODULE, post_write=attach_media, img_tool=gm, post_target=media_block, size=?THUMB_SIZE}
     ]}
   ]}
  ]} end.
@@ -81,23 +78,31 @@ games()->
     NoMore = length(Entries) < ?PAGE_SIZE,
     [#h3{body= <<"My games">>, class=[blue]},
     #panel{id=myproducts, body=[
-      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=[[
-        #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
-        #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}}
-      ]]} || E <- Entries]},
+      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=controls(E)} || E <- Entries]},
       #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
         if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback = {check_more, Last, Info}} end ]} ]} ] end.
+
+controls(#entry{type=Type} =  E) -> [
+  #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
+  #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
+  #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
 
 control_event("cats", _) ->
   SearchTerm = wf:q(term),
   Data = [ [list_to_binary(Id++"="++Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- ?GRP_CACHE, string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
   element_textboxlist:process_autocomplete("cats", Data, SearchTerm);
-control_event(Cid, {query_file, Root, Dir, File, MimeType})->
+control_event("cover_upload", {query_file, Root, Dir, File, MimeType})->
   error_logger:info_msg("query files ... "),
   Name = binary_to_list(File),
   Size = case file:read_file_info(filename:join([Root,Dir,Name])) of 
     {ok, FileInfo} ->
-      wf:wire(wf:f("$('#~s').parent('.file_upload').find('.preview').html(\"<img src='~s'>\");", [Cid, filename:join([Dir, Name])])),
+      Media = #media{
+        id = element_upload:hash(filename:join([Root,Dir,Name])),
+        url = filename:join([Root,Dir,Name]),
+        type = {attachment, MimeType},
+        thumbnail_url = filename:join([Dir,"thumbnail",Name])},
+      wf:session(medias, [Media]),
+      wf:update(media_block, product_ui:preview_medias(media_block, [Media])),
       FileInfo#file_info.size;
     {error, _} -> 0 end,
   {exist, Size};
@@ -108,15 +113,11 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, 
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({save, TabId, MediasId}) ->
+event({save}) ->
   User = wf:user(),
   Title = wf:q(title),
   Descr = wf:q(brief),
   Cats = wf:q(cats),
-  PriceStr = wf:q(price),
-  PriceStr2 = case string:to_float(PriceStr) of {error, no_float} -> PriceStr; {F, _} -> float_to_list(F, [{decimals, 2}]) end,
-  {P1, Rest} = case string:to_integer(PriceStr2) of {error, no_integer} -> {0, "0"}; {Pa, [_|Ra]} -> {Pa, Ra}; {Pa, Ra} -> {Pa, Ra} end,
-  P2 = case string:to_integer(Rest) of {error,no_integer}-> 0; {Re,_} -> Re  end,
   Currency = wf:q(currency),
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Product = #product{
@@ -125,7 +126,7 @@ event({save, TabId, MediasId}) ->
     title = list_to_binary(Title),
     brief = list_to_binary(Descr),
     cover = TitlePic,
-    price = P2+P1*100,
+    price = product_ui:to_price(wf:q(price)),
     currency = Currency,
     feeds = ?PRD_CHUNK
   },
@@ -152,14 +153,75 @@ event({save, TabId, MediasId}) ->
                           media=Medias,
                           title=Title,
                           description=Descr,
-                          shared=""}, title, brief, MediasId, TabId]) || {RoutingType, To, {_, Fid}} <- Recipients],
+                          shared=""}, title, brief, media_block, myproducts]) || {RoutingType, To, {_, Fid}} <- Recipients],
 
       msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
     _ -> error
   end;
-event({update, #product{}=P, TabId, MediasId}) ->
-  error_logger:info_msg("update the product ~p", [P]),
-  ok;
+event({update, #product{}=P}) ->
+  User = wf:user(),
+  Title = wf:q(title),
+  Descr = wf:q(brief),
+  Currency = wf:q(currency),
+
+  TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
+  Medias = case wf:session(medias) of undefined -> []; L -> L end,
+
+  error_logger:info_msg("update with cover ~p", [TitlePic]),
+  Product = P#product{
+    title = list_to_binary(Title),
+    brief = list_to_binary(Descr),
+    cover = TitlePic,
+    price = product_ui:to_price(wf:q(price)),
+    currency = Currency
+  },
+
+  Entry = #entry{
+    created=Product#product.creation_date,
+    entry_id=Product#product.id,
+    from=Product#product.owner,
+    type= product,
+    media=Medias,
+    title=Product#product.title,
+    description=Product#product.brief,
+    shared=""},
+
+  error_logger:info_msg("New product: ~p~n", [Product]),
+  error_logger:info_msg("New entry: ~p~n", [Entry]),
+  kvs:put(Product),
+
+  Cats = wf:q(cats),
+  Groups = ordsets:from_list([case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")]),
+  Participate = ordsets:from_list([ case kvs:get(group, Where) of {ok, G}->G;_->[] end  || #group_subscription{where=Where} <- kvs_group:participate(P#product.id)]),
+  Intersection = ordsets:intersection(Groups, Participate),
+  OldSubs = ordsets:subtract(Participate, Intersection),
+  NewSubs = ordsets:subtract(Groups, Intersection),
+
+  % stay in group and edit entry
+  Rec1 = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
+    [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Intersection]],
+  error_logger:info_msg("Edit recipients: ~p~n", [Rec1]),
+
+  [msg:notify([kvs_feed, RouteType, To, entry, Eid, edit],
+    Entry#entry{to = {RouteType, To}, feed_id=Fid, id={Product#product.id, Fid}}) || {RouteType, To, {_,Fid}=Eid} <- Rec1],
+
+  % leave group and remove entry
+  Rec2 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- OldSubs],
+  error_logger:info_msg("Remove recipients: ~p~n", [Rec2]),
+  [kvs_group:leave(Product#product.id, G) ||{_, G,_} <- Rec2],
+  [msg:notify([kvs_group, Product#product.id, leave, G], {}) || {_,G,_} <- Rec2],
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [Entry, (wf:user())#user.email]) || {RouteType, To, Fid} <- Rec2],
+
+  % join group and add entry
+  Rec3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- NewSubs],
+  [kvs_group:join(Product#product.id, G) ||{_, G,_} <- Rec3],
+  error_logger:info_msg("Add recipients: ~p~n", [Rec3]),
+  [kvs_group:join(Product#product.id, G) || {_,G,_} <- Rec3],
+  [msg:notify([kvs_group, Product#product.id, join, G], {}) || {_,G,_} <- Rec3],
+  [msg:notify([kvs_feed, RoutingType, To, entry, Product#product.id, add],
+  [Entry#entry{id={Product#product.id, Fid},feed_id=Fid,to = {RoutingType, To}},skip,skip,skip, To]) || {RoutingType, To, {_, Fid}} <- Rec3],
+
+  event({edit_product, #entry{}});
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
 event({remove_product, E}) ->
   User = wf:user(),
@@ -173,21 +235,27 @@ event({remove_product, E}) ->
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, User#user.email]) || {RouteType, To, Fid} <- Recipients],
   kvs_products:delete(E#entry.entry_id);
 event({edit_product, #entry{}=E})->
-  error_logger:info_msg("Edit product ~p", [E#entry.entry_id]),
+  error_logger:info_msg("Edit product ~p~n", [E]),
+  error_logger:info_msg("Entry media: ~p", [E#entry.media]),
+  wf:session(medias, E#entry.media),
   wf:replace(input, input(E)),
+  wf:update(media_block, product_ui:preview_medias(media_block, E#entry.media)),
   wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
-event({remove_media, M, Id}) -> product:event({remove_media, M, Id});
+event({remove_media, M, Id}) ->
+  wf:wire("$('#cover_upload').trigger('reset');"),
+  product:event({remove_media, M, Id});
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
 process_delivery([user, _, entry, _, add],
-                 [#entry{description=D, title=T} = Entry, Eid, Tid, MsId, TabId])->
+                 [#entry{description=D, title=T} = Entry, Eid, Tid, media_block, TabId])->
   wf:session(medias, []),
-  wf:update(MsId, []),
+  wf:update(media_block, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
   wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, mode=line, controls=[[
-      #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, Entry}},
-      #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, Entry}}
-    ]]}),
+  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, mode=line, controls= controls(Entry)}),
   wf:wire("Holder.run();");
+process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->
+  wf:update(?ID_TOOL(Id), controls(E)),
+  product:process_delivery(R,E);
+process_delivery([group,_,entry,_,delete], [_,_]) -> skip;
 process_delivery(R,M) -> product:process_delivery(R,M).

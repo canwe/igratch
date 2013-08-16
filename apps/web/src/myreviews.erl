@@ -1,5 +1,5 @@
--module(myreviews). 
--compile(export_all).   
+-module(myreviews).
+-compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
@@ -37,7 +37,7 @@ input()->
       #panel{class=[span9], body=[
         #textboxlist{id=products, placeholder= <<"Games/Tags">>},
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=[{270, 124}, {200, 200} , {139, 80}] },
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE },
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, class=[btn, "btn-large", "btn-success"], body= <<" Post">>,
           postback={post_entry, EditorId, TitleId, MsId}, source=[TitleId, EditorId, products] }]},
         #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}

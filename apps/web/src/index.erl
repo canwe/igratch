@@ -15,12 +15,7 @@ body() ->
   });"),
   {Tabs, Reviews} = reviews:reviews(),
   header() ++ [
-  #section{id="slider-box", class=["row-fluid"], body=#panel{class=[container], body=
-    #carousel{class=["product-carousel"], items=featured(),
-      caption= #panel{class=["row-fluid"],body=[
-        box(50, 12.99, "btn-warning", "icon-windows"), box(50, 12.99, "btn-success", "icon-windows"),
-        box(50, 12.99, "btn-violet", "icon-windows"), box(50, 12.99, "btn-info", "icon-windows") ]} 
-    }}},
+  #section{id="slider-box", class=["row-fluid"], body=#panel{id=carousel, class=[container], body=featured()}},
 
   #section{class=["row-fluid"], body=[
     #panel{class=[container], body=[
@@ -43,7 +38,7 @@ body() ->
   ]} ] ++ footer().
 
 featured() ->
-  case kvs:get(group, "featured") of
+  #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
     {error, not_found} -> [];
     {ok, G} ->
       Ps = lists:flatten([ case kvs:get(product, Who) of {ok, P}->P; {error,_}-> [] end || #group_subscription{who=Who}<-kvs_group:members(G#group.name)]),
@@ -65,7 +60,9 @@ featured() ->
             body= [<<"Buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P}}
         ]
       end || P <- Ps]
-  end.
+  end, caption= #panel{class=["row-fluid"],body=[
+        box(50, 12.99, "btn-warning", "icon-windows"), box(50, 12.99, "btn-success", "icon-windows"),
+        box(50, 12.99, "btn-violet", "icon-windows"), box(50, 12.99, "btn-info", "icon-windows") ]}} .
 
 popular_items()-> [
 %  #panel{class=["popular-item"], body=[
@@ -143,4 +140,6 @@ event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({checkout, #product{}=P}) -> wf:redirect("/checkout?product_id="++P#product.id);
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
+process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
+process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery(R,M) -> product:process_delivery(R,M).
