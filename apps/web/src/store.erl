@@ -35,7 +35,7 @@ body()->
               Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, category=Name},
               NoMore = length(Entries) < ?PAGE_SIZE,
               #panel{id=Id, class=["tab-pane"], body=[
-                #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name, controls=product:controls(E)} || E <- Entries]},
+                #panel{id=EsId, body=[#product_entry{entry=E, mode=line, category=Name, controls=controls(E)} || E <- Entries]},
                 #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
                   if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end
                 ]}
@@ -53,8 +53,14 @@ body()->
   ]}}
   ] ++ index:footer().
 
+controls(#entry{type=Type} = E)-> [
+  #link{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
+    body= [<<"buy">>], postback={checkout, E#entry.entry_id}},
+  #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}
+  ].
+
 all() -> [
-  #product_entry{entry=E, mode=line, controls=product:controls(E)} || E <-  lists:foldl(
+  #product_entry{entry=E, mode=line, controls=controls(E)} || E <-  lists:foldl(
     fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end,
     [],
     lists:flatten([ [E || E <- kvs_feed:entries(Feed, undefined, ?PAGE_SIZE)]
@@ -64,6 +70,7 @@ event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
 event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
+event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event(Event) -> error_logger:info_msg("[store]Page event: ~p", [Event]), ok.
 
 process_delivery(R,M) -> product:process_delivery(R,M).

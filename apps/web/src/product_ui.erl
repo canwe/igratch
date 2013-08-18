@@ -66,7 +66,7 @@ render_element(#product_hero{product=P}) ->
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
         #panel{class=["btn-toolbar", "text-center"], body=[
           #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
-            body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P}},
+            body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P#product.id}},
           #button{class=[btn, "btn-large", "btn-warning"], body= [#span{class=["icon-shopping-cart"]}, <<" add to cart ">>], postback={add_cart, P}}
         ]}
       ]}
@@ -109,14 +109,13 @@ render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId
   element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Category, controls=Controls})->
-%  error_logger:info_msg("View entry ~p Media: ~p", [E#entry.id, E#entry.media]),
   Id = E#entry.entry_id,
   From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
 
   Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
       #h3{class=[blue], body= Category},
-      #p{class=[username], body= #link{body=From}},
+      #p{class=[username], body= #link{body=From, url= "/profile?id="++E#entry.from}},
       #p{class=[datestamp], body=[ #span{body= to_date(E#entry.created)} ]},
       #p{class=[statistics], body=[
         #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
