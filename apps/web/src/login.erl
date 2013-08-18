@@ -48,11 +48,6 @@ body() ->
                 #password{id=pass, data_fields=[{<<"data-original-title">>, <<"">>}]}
               ]}
             ]}
-          ]},
-          #panel{class=["control-group"], body=[
-            #panel{class=[controls], body=[
-              #checkbox{id=remember, class=["checkbox"], checked=checked, body="Remember me"}
-            ]}
           ]}
 
         ]},
@@ -69,20 +64,14 @@ body() ->
 
 event(init) -> [];
 event(logout) -> wf:user(undefined), wf:redirect("/login");
-event(login) -> %User = wf:q(user), wf:user(User), 
-    error_logger:info_msg("Login Pressed"),
-    wf:redirect("/profile");
-event(to_login) -> wf:redirect("/login");
-event(chat) -> wf:redirect("chat");
-event(Ev) ->
-    error_logger:info_msg("Event ~p",[Ev]),
-    ok.
+event(login) -> login(email, [{<<"email">>, list_to_binary(wf:q(user))}, {<<"password">>, wf:q(pass)}]);
+event(Ev) -> error_logger:info_msg("Event ~p",[Ev]), ok.
 
-api_event(plusLogin, Args, _)-> JSArgs = n2o_json:decode(Args), login(googleplus_id, JSArgs#struct.lst);
+api_event(plusLogin, Args, _)-> error_logger:info_msg("api ~p", [Args]),JSArgs = n2o_json:decode(Args), login(googleplus_id, JSArgs#struct.lst);
 api_event(fbLogin, Args, _Term)-> error_logger:info_msg("Args: ~p",  [Args]),JSArgs = n2o_json:decode(Args), login(facebook_id, JSArgs#struct.lst);
 api_event(Name,Tag,_Term) -> error_logger:info_msg("Login Name ~p~n, Tag ~p~n",[Name,Tag]).
 
-login_user(User) -> wf:user(User), wf:redirect("/account").
+login_user(User) -> error_logger:info_msg("Loin: ~p ", [User]),wf:user(User), wf:redirect("/account").
 login(Key, Args)-> case Args of [{error, E}|_Rest] -> error_logger:info_msg("oauth error: ~p", [E]);
     _ -> case kvs:get(user,email_prop(Args,Key)) of
               {ok,Existed} -> RegData = registration_data(Args, Key, Existed), login_user(RegData);
@@ -127,6 +116,7 @@ registration_data(Props, facebook_id, Ori)->
     status = ok
   };
 registration_data(Props, googleplus_id, Ori)->
+  error_logger:info_msg("~p", [Props]),
   Id = proplists:get_value(<<"id">>, Props),
   Name = proplists:get_value(<<"name">>, Props),
   GivenName = proplists:get_value(<<"givenName">>, Name#struct.lst),
@@ -154,6 +144,15 @@ registration_data(Props, twitter_id, Ori)->
     twitter_id = Id,
     register_date = erlang:now(),
     status = ok
+  };
+registration_data(Props, email, Ori)->
+  Email = binary_to_list(proplists:get_value(<<"email">>, Props)),
+  Ori#user{
+    display_name = Email,
+    email = Email,
+    register_date = now(),
+    status = ok,
+    password = proplists:get_value(<<"password">>,Props)
   }.
 
 email_prop(Props, twitter_id) -> binary_to_list(proplists:get_value(<<"screen_name">>, Props)) ++ "@twitter.com";
