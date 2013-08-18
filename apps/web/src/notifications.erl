@@ -2,6 +2,7 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
+-include_lib("kvs/include/users.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]}.
 
@@ -10,7 +11,7 @@ body()->
   #section{id=content, body=
     #panel{class=[container], body=
       #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidebar_menu(notifications, [#li{class=[divider]}, subnav() ])},
+        #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(),wf:user(), notifications, [#li{class=[divider]}, subnav() ])},
         #panel{class=[span9], body=[
           dashboard:section(notifications(), "icon-user")
         ]} ]} } }

@@ -15,10 +15,10 @@ body()->
   #section{id=content, body=
     #panel{class=[container, account], body=
       #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidebar_menu(myreviews)},
+        #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), myreviews, [])},
         #panel{class=[span9], body=[
           dashboard:section(input(), "icon-user"),
-          dashboard:section(reviews(), "icon-list")
+          dashboard:section([#h3{class=[blue], body= <<"My reviews">>}, reviews(wf:user())], "icon-list")
         ]} ]} } }
   ]++index:footer().
 
@@ -46,8 +46,8 @@ input()->
   ]} ] end.
 
 
-reviews()->
-  case wf:user() of undefined -> []; User ->
+reviews(undefined)->[];
+reviews(User)->
     {_, Fid} = Feed = lists:keyfind(feed,1,User#user.feeds),
     Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
     Last = case Entries of []-> []; E-> lists:last(E) end,
@@ -55,11 +55,11 @@ reviews()->
     BtnId = wf:temp_id(),
     Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId},
     NoMore = length(Entries) < ?PAGE_SIZE,
-    [#h3{body= <<"My reviews">>, class=[blue]},
-    #panel{id=myreviews, body=[
+%    [#h3{body= <<"My reviews">>, class=[blue]},
+    [#panel{id=myreviews, body=[
       #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=product:controls(E)} || E <- Entries]},
       #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-        if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback = {check_more, Last, Info}} end ]} ]} ] end.
+        if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback = {check_more, Last, Info}} end ]} ]} ].
 
 control_event("products", _) ->
   SearchTerm = wf:q(term),

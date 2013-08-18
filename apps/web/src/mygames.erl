@@ -18,7 +18,7 @@ body()-> index:header() ++[
   #section{id=content, body=
     #panel{class=[container, account], body=
       #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidebar_menu(mygames)},
+        #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), mygames, [])},
         #panel{class=[span9], body=[
           dashboard:section(input(#entry{}), "icon-edit"),
           dashboard:section(games(), "icon-gamepad")]}]}}}]++index:footer().

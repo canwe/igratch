@@ -3,28 +3,35 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/acls.hrl").
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 
-body() -> index:header() ++ [
+body() ->
+  {AclEn, Acl} = acls(),
+  index:header() ++ [
   #section{id=content, body=
     #panel{class=[container], body=
       #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidebar_menu(admin, [#li{class=[divider]}, subnav() ])},
+        #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), admin, [#li{class=[divider]}, subnav() ])},
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
           #panel{class=["tab-content"], body=[
             #panel{id=categories, class=["tab-pane", active], body=[
               dashboard:section(input(), "icon-user"),
               dashboard:section(categories(), "icon-list")
             ]},
+            #panel{id=acl, class=["tab-pane"], body=[
+              dashboard:section(acl(Acl), "icon-male"),
+              dashboard:section(acl_entry(AclEn), "icon-list")
+            ]},
             #panel{id=users, class=["tab-pane"], body=[
               dashboard:section(users(), "icon-user")
             ]},
             #panel{id=products, class=["tab-pane"], body=[
-              dashboard:section(products(), "icon-user")
+              dashboard:section(products(), "icon-gamepad")
             ]}
           ]}
         ]} ]} } }
@@ -32,6 +39,7 @@ body() -> index:header() ++ [
 
 subnav() -> [
     #li{class=[active], body=[#link{url= <<"#categories">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"categories">>}]},
+    #li{body=[#link{url= <<"#acl">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"acl">>}]},
     #li{body=[#link{url= <<"#users">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"users">>}]},
     #li{body=[#link{url= <<"#products">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"products">>}]}
   ].
@@ -51,14 +59,61 @@ input()-> [
 
 categories()->[
   #h3{body= <<"Categories">>},
-  #table{id=cats, class=[table, "table-hover"], body=[[#tr{class=[case Scope of private -> "info"; _-> "" end],
-    cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group)]]}
+  #table{id=cats, class=[table, "table-hover"],
+    header=[#tr{cells=[#th{body= <<"id">>}, #th{body= <<"name">>}, #th{body= <<"description">>}, #th{body= <<"scope">>}]}],
+    body=[[#tr{class=[case Scope of private -> "info"; _-> "" end],
+      cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group)]]}
 ].
 
+resources()->[
+  #h3{class=[blue], body= <<"Resources">>},
+  #table{class=[table, "table-hover"], body=[[
+      #tr{cells=[#td{body= <<"category">>}]},
+      #tr{cells=[#td{body= <<"user">>}]},
+      #tr{cells=[#td{body= <<"product">>}]},
+      #tr{cells=[#td{body= <<"feed">>}]}
+      #tr{cells=[#td{body= <<"feature">>}]}
+    ]]}
+  ].
+
+acl(Rows)->[
+  #h3{class=[blue], body= <<"ACL">>},
+  #table{class=[table, "table-hover"], header=[#tr{cells=[#th{body= <<"id">>}, #th{body= <<"resourse">>}]}], body=[Rows]}].
+
+acl_entry(Panes)-> [#panel{class=["tab-content"], body=Panes}].
+
+acls()->
+  lists:mapfoldl(fun(#acl{id={R,N}=Aid, resource=Ar}, Ain) ->
+    Id = io_lib:format("~p", [Aid]),
+    B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
+      #h3{class=[blue], body=[Id, " entries"]},
+      #table{class=[table, "table-hover"], header=[#tr{cells=[#th{body= <<"id">>}, #th{body= <<"accessor">>}, #th{body= <<"action">>}]}], body=[[
+        #tr{cells=[#td{body=io_lib:format("~p", [Ai])}, #td{body= Accessor}, #td{body= atom_to_list(Action)}]} || #acl_entry{id=Ai, accessor={user, Accessor}, action=Action} <- kvs_acl:entries(Aid)
+      ]]}
+    ]},
+    Ao = [#tr{cells=[#td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=Id, data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, #td{body=io_lib:format("~p", [Ar])}]}|Ain],
+   {B , Ao}
+  end, [], kvs:all(acl)).
+
 users()->[
-  #h3{body= <<"Users">>} ].
+  #h3{body= <<"Users">>},
+  #table{class=[table, "table-hover"],
+    header=[#tr{cells=[#th{body= <<"email">>}]}],
+    body=[[
+      begin
+        #tr{cells=[#td{body=U#user.email} ]}
+      end|| U <- kvs:all(user)
+    ]]}].
+
 products()->[
-  #h3{body= <<"Products">>} ].
+  #h3{body= <<"Products">>},
+  #table{class=[table, "table-hover"],
+    header=[#tr{cells=[#th{body= <<"title">>}]}],
+    body=[[
+      begin
+        #tr{cells=[#td{body=U#product.title} ]}
+      end|| U <- kvs:all(product)
+    ]]}].
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
