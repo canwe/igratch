@@ -57,7 +57,7 @@ featured() ->
             #image{class=[Class], image=Cover}
           ]},
           #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win, buy],
-            body= [<<"Buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P}}
+            body= [<<"Buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P#product.id}}
         ]
       end || P <- Ps]
   end, caption= #panel{class=["row-fluid"],body=[
@@ -98,7 +98,8 @@ header() -> [
               User -> [
                 #li{body=[
                   #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
-                    body=case User#user.avatar of undefined-> ""; Img-> #image{class=["img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end},
+                    body=#image{class=["img-circle", "img-polaroid"], image = case User#user.avatar of undefined -> "/holder.js/50x50";
+                      Img -> iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]) end, width= <<"50px">>, height= <<"50px">>}},
                   #list{class=["dropdown-menu"], body=[
                     #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
                   ]}]},
@@ -137,7 +138,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Na
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
-event({checkout, #product{}=P}) -> wf:redirect("/checkout?product_id="++P#product.id);
+event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
