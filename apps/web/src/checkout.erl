@@ -5,6 +5,7 @@
 -include_lib("kvs/include/payments.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"buy mobile">>},{body, body()}]}.

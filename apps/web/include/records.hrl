@@ -1,8 +1,4 @@
 -define(ROOT, code:priv_dir(web)).
--define(MAIN_CH, games_ch).
--define(USR_CHUNK, [feed, direct, products, starred, pinned]).
--define(GRP_CHUNK, [feed, products]).
--define(PRD_CHUNK, [features, specs, gallery, videos, reviews, news, bundles]).
 -define(PAGE_SIZE, 4).
 -define(ID_TITLE(Id),   Id++"t").
 -define(ID_DESC(Id),    Id++"d").

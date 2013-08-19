@@ -2,6 +2,7 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
 -define(HTTP_ADDRESS, case application:get_env(web, http_address) of {ok, A} -> A; _ -> "" end).

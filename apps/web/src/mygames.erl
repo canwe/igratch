@@ -7,6 +7,7 @@
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/membership.hrl").
 -include_lib("kernel/include/file.hrl").
+-include_lib("feed_server/include/records.hrl").
 
 -include("records.hrl").
 

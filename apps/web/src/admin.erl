@@ -6,6 +6,7 @@
 -include_lib("kvs/include/acls.hrl").
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
+-include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.

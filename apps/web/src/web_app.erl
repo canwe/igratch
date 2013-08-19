@@ -25,6 +25,7 @@ start(_StartType, _StartArgs) ->
     application:start(xmerl),
     application:start(oauth),
     application:start(gproc),
+    application:start(feed_server),
 
     web_sup:start_link().
 

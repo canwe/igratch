@@ -6,6 +6,7 @@
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/acls.hrl").
 -include_lib("kvs/include/feeds.hrl").
+-include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
 main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Account">>},{body,body()}]}].

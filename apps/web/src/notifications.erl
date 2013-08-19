@@ -4,6 +4,7 @@
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/feeds.hrl").
+-include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
 main()-> case wf:user() of undefined -> wf:redirect("/"); _-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]} end.
