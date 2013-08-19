@@ -6,32 +6,39 @@
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
-main()-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]}.
+main()-> case wf:user() of undefined -> wf:redirect("/"); _-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]} end.
 
 body()->
-  index:header() ++[
+  index:header() ++ [
   #section{id=content, body=
     #panel{class=[container], body=
       #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(),wf:user(), notifications, [#li{class=[divider]}, subnav() ])},
+        #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), notifications, [subnav()])},
         #panel{class=[span9], body=[
-%          dashboard:section(notifications(), "icon-user")
           dashboard:section(feed(), "icon-user")
         ]} ]} } }
 
   ]++index:footer().
 
 feed()->
-  User = wf:user(),[
+  User = wf:user(),
+  {Feed,Fid} = lists:keyfind(direct,1,User#user.feeds),
+  Entries = kvs_feed:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
+%  error_logger:info_msg("Entries: ~p", [Entries]),
+  Last = case Entries of []-> []; E-> lists:last(E) end,
+  BtnId = wf:temp_id(),
+  Info = #info_more{fid=Fid, entries=direct, toolbar=BtnId},
+  NoMore = length(Entries) < ?PAGE_SIZE,
+
+  [
   #h3{class=[blue], body= <<"Notifications">>},
-  #panel{id=direct, body=
-    [#feature_req{entry=E} || E <- kvs_feed:entries(lists:keyfind(direct, 1, User#user.feeds), undefined, ?PAGE_SIZE )]}
+  #panel{id=direct, body=[#feature_req{entry=E} || E <- Entries]},
+  #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
+      if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]}
   ].
 
-notifications()-> [
-  #h3{class=[blue], body= <<"Notifications">>},
-  notification_bar(),
-
+notifications()->[
+  #h3{class=[blue], body=[ <<"Notifications">>]},
   #accordion{nav_stacked = false, items= [
     message(true),
     message(false),
@@ -44,8 +51,10 @@ notifications()-> [
   ].
 
 subnav()-> [
-  #li{body=#link{body=[<<"messages   ">>, #span{class=[label, "label-info"], body= <<"3">>}]}},
-  #li{body=#link{body=[<<"comments   ">>, #span{class=[label, "label-info"], body= <<"0">>}]}} ].
+%  #li{class=[divider]},
+%  #li{body=#link{body=[<<"messages   ">>, #span{class=[label, "label-info"], body= <<"3">>}]}},
+%  #li{body=#link{body=[<<"comments   ">>, #span{class=[label, "label-info"], body= <<"0">>}]}} 
+  ].
 
 message(Text) -> {
   #panel{body=[
@@ -57,19 +66,60 @@ message(Text) -> {
     ]}
   ]}}.
 
-notification_bar() ->
-  #panel{class=["row-fluid"], body=[
-    #panel{class=[span2], body=[
-      #checkbox{id=selectall, class=[checkbox], checked=true, body= "select all"}
-    ]},
-    #panel{class=[span2, "pull-right", "notif-meta"], body=[#p{body= <<"Page 1 of 1">>} ]}
-  ]}.
-
-
 event(init) -> wf:reg(?MAIN_CH), [];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({allow, To, Feature}) ->
   error_logger:info_msg("Allow ~p : ~p", [To, Feature]),
   kvs_acl:define_access({user, To}, Feature, allow),
   ok;
-event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
+event({cancel, From, Eid, {feature, Feature}=Type}) ->
+  error_logger:info_msg("Cancel ~p: ~p", [From, Eid]),
+  User = wf:user(),
 
+  % delete message from feed
+  Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
+  error_logger:info_msg("Recipients: ~p", [Recipients]),
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{entry_id=Eid}, User#user.email]) || {RouteType, To, Fid} <- Recipients],
+
+  % send message to user 
+  case kvs:get(user, From) of {error, not_found} -> skip;
+    {ok, U} ->
+      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, User#user.feeds)}],
+      EntryId = kvs:uuid(),
+      From = User#user.email,
+      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
+                  [#entry{id={EntryId, FeedId},
+                          entry_id=EntryId,
+                          feed_id=FeedId,
+                          created = now(),
+                          to = {RoutingType, To},
+                          from=From,
+                          type=reply,
+                          media=[],
+                          title= <<"Re: Feature request">>,
+                          description= "You request for "++ io_lib:format("~p", [Feature])++" has been rejected!",
+                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end;
+
+event(Event) -> error_logger:info_msg("Notif Page event: ~p", [Event]), ok.
+
+process_delivery([user,To,entry,_,add],
+                 [#entry{type=T}=E,Tid, Eid, MsId, TabId])->
+%  error_logger:info_msg("[notification]: Entry ADD ~p", [E]),
+  What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
+  User = wf:user(),
+  error_logger:info_msg("[notification]: ~p receive Entry ADD from ~p", [User#user.email, What#user.email]),
+  if What == User ->
+    wf:insert_top(direct, #feature_req{entry=E}),
+    wf:update(side_menu, dashboard:sidebar_menu(User, What , notifications, [subnav()]));
+  true -> [] end;
+
+process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
+  wf:insert_bottom(Info#info_more.entries, #feature_req{entry=Entry}),
+  wf:wire("Holder.run();"),
+  wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
+process_delivery([_,_,entry,_,delete], [E,From]) -> 
+  error_logger:info_msg("Entry removed~p", [E#entry.entry_id]),
+  What = case kvs:get(user, From) of {error, not_found} -> #user{}; {ok, U} -> U end,
+  wf:remove(E#entry.entry_id),
+  wf:update(side_menu, dashboard:sidebar_menu(wf:user(), wf:user(), notifications, [subnav()]) );
+process_delivery(R,M) -> product:process_delivery(R,M).

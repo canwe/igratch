@@ -98,10 +98,10 @@ acls()->
 users()->[
   #h3{body= <<"Users">>},
   #table{class=[table, "table-hover"],
-    header=[#tr{cells=[#th{body= <<"email">>}]}],
+    header=[#tr{cells=[#th{body= <<"email">>}, #th{body= <<"roles">>}]}],
     body=[[
       begin
-        #tr{cells=[#td{body=U#user.email} ]}
+        #tr{id=wf:temp_id(), postback={view, U#user.email},cells=[#td{body=U#user.email}, #td{body=[profile:features(wf:user(), U)]} ]}
       end|| U <- kvs:all(user)
     ]]}].
 
@@ -135,6 +135,7 @@ event(save_cat) ->
       wf:wire("$('#cat_name').val('');$('#cat_desc').val('')");
     {error, _} -> skip
   end;
+event({view, Id}) -> error_logger:info_msg("redirect"), wf:redirect("/profile?id="++Id);
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("[admin]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).

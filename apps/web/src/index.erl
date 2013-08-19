@@ -131,7 +131,8 @@ footer() -> [
         #li{body=#link{body=#image{image= <<"/static/img/social6.png">>}}} ]} ]} ]}}].
 
 error(Msg)->
-  #panel{class=[alert, "alert-danger","alert-block"], body=[#button{class=[close], data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>}, #strong{body= Msg} ]}.
+  #panel{class=[alert, "alert-danger","alert-block", fade, in], body=[
+    #link{class=[close], url="#", data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>}, #strong{body= Msg} ]}.
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 

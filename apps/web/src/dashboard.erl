@@ -2,12 +2,21 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/feeds.hrl").
 
 sidebar_menu(Who, What, Page, Sublist) ->
+  error_logger:info_msg("Who ~p What ~p Page ~p", [Who, What, Page]),
   List = [
     begin
       {Class,Sub} = if Page ==I -> {active, Sublist} ; true -> {"", []} end,
-      [#li{class=Class, body=#link{url="/"++atom_to_list(I), body=T}}, Sub]
+      {_, Fid}= lists:keyfind(direct,1,What#user.feeds),
+      Label = if I == notifications -> #span{class=[label, "label-info"], body=[
+        case kvs:get(feed, Fid) of
+          {ok, Feed} -> integer_to_list(Feed#feed.entries_count);
+          {error, not_found} -> <<"0">>
+        end
+      ]}; true-> [] end,
+      [#li{class=Class, body=#link{url="/"++atom_to_list(I), body= [T, Label]}}, Sub]
     end 
     || {I, T} <- lists:filter(fun({E,_}) ->
         if Who==What ->
