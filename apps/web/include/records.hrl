@@ -20,4 +20,4 @@
 -record(product_entry, {?ELEMENT_BASE(product_ui), entry, mode=brief, prod_id, category, controls=[]}).
 -record(entry_media,   {?ELEMENT_BASE(product_ui), media, fid, cid, mode}).
 -record(entry_comment, {?ELEMENT_BASE(product_ui), comment}).
-
+-record(feature_req,   {?ELEMENT_BASE(product_ui), entry}).
