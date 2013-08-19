@@ -3,6 +3,8 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/feeds.hrl").
+-include("records.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]}.
 
@@ -13,10 +15,18 @@ body()->
       #panel{class=[row, dashboard], body=[
         #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(),wf:user(), notifications, [#li{class=[divider]}, subnav() ])},
         #panel{class=[span9], body=[
-          dashboard:section(notifications(), "icon-user")
+%          dashboard:section(notifications(), "icon-user")
+          dashboard:section(feed(), "icon-user")
         ]} ]} } }
 
   ]++index:footer().
+
+feed()->
+  User = wf:user(),[
+  #h3{class=[blue], body= <<"Notifications">>},
+  #panel{id=direct, body=
+    [#feature_req{entry=E} || E <- kvs_feed:entries(lists:keyfind(direct, 1, User#user.feeds), undefined, ?PAGE_SIZE )]}
+  ].
 
 notifications()-> [
   #h3{class=[blue], body= <<"Notifications">>},
@@ -56,6 +66,10 @@ notification_bar() ->
   ]}.
 
 
-event(init) -> [];
+event(init) -> wf:reg(?MAIN_CH), [];
+event({allow, To, Feature}) ->
+  error_logger:info_msg("Allow ~p : ~p", [To, Feature]),
+  kvs_acl:define_access({user, To}, Feature, allow),
+  ok;
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
 

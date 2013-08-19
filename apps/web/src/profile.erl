@@ -4,14 +4,13 @@
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/payments.hrl").
 -include_lib("kvs/include/products.hrl").
+-include_lib("kvs/include/acls.hrl").
+-include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
 main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Account">>},{body,body()}]}].
 
 body() ->
-  Usr = case wf:qs(<<"id">>) of undefined -> {undefined, wf:user()};
-    Id -> case kvs:get(user, binary_to_list(Id)) of {error, not_found} -> {binary_to_list(Id), not_found}; {ok,U} -> {Id, U} end end,
-
   Who = wf:user(),
   What = case wf:qs(<<"id">>) of undefined -> Who;
     Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end
@@ -21,50 +20,69 @@ body() ->
   #section{id=content, body=
     #panel{class=[container], body=
       #panel{class=[row, dashboard], body=[
-        case Usr of {I, not_found}-> index:error("There is no user "++I++"!");
-        {I,_} -> [
+        if What#user.email == undefined -> index:error("There is no user "++binary_to_list(wf:qs(<<"id">>))++"!");
+          true -> [
           #panel{class=[span3], body=dashboard:sidebar_menu(Who, What, profile, [])},
           #panel{class=[span9], body=[
-            dashboard:section(profile_info(Usr), "icon-user"),
-            dashboard:section(payments(Usr), case Usr of {_,not_found} -> ""; _-> "icon-list" end)
+            dashboard:section(profile_info(Who, What), "icon-user"),
+            dashboard:section(payments(Who, What), "icon-list")
           ]}] end
       ]}}}
   ] ++ index:footer().
 
-profile_info({undefined, undefined})-> [];
-profile_info({Id, U}) ->
-      RegDate = product_ui:to_date(U#user.register_date),
-      Mailto = if U#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", U#user.email]) end,
+profile_info(Who, What) ->
+      RegDate = product_ui:to_date(What#user.register_date),
+      Mailto = if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
       [
       #h3{class=[blue], body= <<"Profile">>},
       #panel{class=["row-fluid"], body=[
         #panel{class=[span4, "dashboard-img-wrapper"], body=
         #panel{class=["dashboard-img"], body=
           #image{class=[], alt="",
-            image = case U#user.avatar of undefined ->  "/holder.js/180x180";
+            image = case What#user.avatar of undefined ->  "/holder.js/180x180";
               Av -> 
               re:replace(Av, <<"_normal">>, <<"">>, [{return, list}]) 
                 ++"?sz=180&width=180&height=180&s=180" end, width= <<"180px">>, height= <<"180px">>}} },
         #panel{class=[span8, "profile-info-wrapper"], body=
         #panel{class=["form-inline", "profile-info"], body=[
-          #panel{body=[#label{body= <<"Name:">>}, #b{body= U#user.display_name}]},
-          #panel{show_if=U#user.email=/=undefined, body=[#label{body= <<"Mail:">>}, #link{url= Mailto, body=#strong{body= U#user.email}}]},
+          #panel{body=[#label{body= <<"Name:">>}, #b{body= What#user.display_name}]},
+          #panel{show_if=What#user.email=/=undefined, body=[#label{body= <<"Mail:">>}, #link{url= Mailto, body=#strong{body= What#user.email}}]},
           #panel{body=[#label{body= <<"Member since ">>}, #strong{body= RegDate}]},
-          #b{class=["text-success"], body= <<"Active">>},
-          if Id == undefined -> [
-            #p{body=[
-              #span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-stack-base", "icon-circle"]},#i{class=["icon-user icon-light"]}]},
-              #span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-list-alt icon-light"]}]},
-              #span{class=["icon-stack", "icon-2x", blue], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-wrench icon-light"]}]}
-            ]},
-            #panel{class=["btn-toolbar", "control-buttons"], body=[
-              #link{url= <<"#">>, class=[btn, "btn-warning", "btn-large", disabled], body=[#i{class=["icon-share"]}, <<" Upgrade">>]}
-            ]} ]; true-> [] end
+          #b{class=["text-success"], body= if What#user.status==ok -> <<"Active">>; true-> atom_to_list(What#user.status) end},
+          features(Who, What)
         ]}}]} ].
 
-payments({undefined, undefined}) -> [];
-payments({Uid, User}) -> [
-  if Uid == undefined ->[
+features(Who, What) ->
+  Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
+  Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
+  Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
+  [#p{body=[
+  #link{class=["text-warning"],
+    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"user">>,
+    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-stack-base", "icon-circle"]},#i{class=["icon-user"]}]}},
+  if Writer -> #link{class=["text-success"],
+    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"reviewer">>,
+    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-pencil icon-light"]}]}}; true-> [] end,
+  if Dev -> #link{class=["text-info"],
+    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"developer">>,
+    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-barcode icon-light"]}]}}; true-> [] end,
+  if Admin ->
+  #link{
+    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"administrator">>,
+    body=#span{class=["icon-stack", "icon-2x", blue], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-wrench icon-light"]}]}}; true->[] end
+  ]},
+  if Who == What -> [
+    if Writer =/=true ->
+      #link{body="requert reviewer", postback={request, reviewer}};
+      true -> [] end,
+    if Dev =/= true ->
+      #link{body = "request developer", postback={request, developer}};
+      true -> [] end];
+    true->[] end
+  ].
+
+payments(Who, What) -> [
+  if Who == What ->[
     #h3{class=[blue], body= <<"Payments">>},
     #table{class=[table, "table-hover", payments],
       header=[#tr{cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>}, #th{body= <<"Price">>}, #th{body= <<"Game">>}]}],
@@ -76,14 +94,39 @@ payments({Uid, User}) -> [
           #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],body= [atom_to_list(Py#payment.state)]},
           #td{body=[case Cur of "USD"-> #span{class=["icon-usd"]}; _ -> #span{class=["icon-money"]} end, float_to_list(Price/100, [{decimals, 2}])]},
           #td{body=#link{url="/product?id="++Id,body= Title}} ]} 
-      end || #payment{product=#product{id=Id, title=Title, price=Price, currency=Cur}} = Py <-kvs_payment:payments(User#user.email) ]]}];
+      end || #payment{product=#product{id=Id, title=Title, price=Price, currency=Cur}} = Py <-kvs_payment:payments(What#user.email) ]]}];
   true -> [
     #h3{class=[blue], body= <<"Recent activity">>},
-      myreviews:reviews(User)
+      myreviews:reviews(What)
   ] end ].
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("dashboard Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 event(init) -> wf:reg(?MAIN_CH), [];
+event({request, Feature}) -> 
+  error_logger:info_msg("request feature ~p", [Feature]),
+  case kvs:get(acl, {feature, admin}) of {error, not_found} -> [];
+    {ok,#acl{id=Id}} ->
+      Recipients = lists:flatten([
+        case kvs:get(user, Accessor) of {error, not_found} -> []; {ok, U} -> {Type, Accessor, lists:keyfind(direct, 1, U#user.feeds)} end
+      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs_acl:entries(Id), Action =:= allow]),
+
+      EntryId = kvs:uuid(),
+      From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
+      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
+                  [#entry{id={EntryId, FeedId},
+                          entry_id=EntryId,
+                          feed_id=FeedId,
+                          created = now(),
+                          to = {RoutingType, To},
+                          from=From,
+                          type={feature, Feature},
+                          media=[],
+                          title= <<"Feature request">>,
+                          description= <<"Please allow.">>,
+                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- Recipients],
+
+      error_logger:info_msg("Recipients ~p", [Recipients]) end,
+  ok;
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
