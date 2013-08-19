@@ -233,7 +233,7 @@ api_event(attach_media, Args, _Tag)->
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery([product, To, entry, _, add],
-                 [#entry{description=D, title=T} = Entry, Tid, Eid, MsId, TabId])->
+                 [#entry{description=D, title=T} = Entry, Tid, Eid, MsId, TabId]) when TabId /= myreviews->
   wf:session(medias, []),
   wf:update(MsId, []),
   wf:wire(wf:f("$('#~s').val('');", [Tid])),
