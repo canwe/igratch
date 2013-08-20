@@ -5,7 +5,7 @@
 -include_lib("kvs/include/feeds.hrl").
 
 sidebar_menu(Who, What, Page, Sublist) ->
-  error_logger:info_msg("Who ~p What ~p Page ~p", [Who, What, Page]),
+%  error_logger:info_msg("Who ~p What ~p Page ~p", [Who, What, Page]),
   List = [
     begin
       {Class,Sub} = if Page ==I -> {active, Sublist} ; true -> {"", []} end,

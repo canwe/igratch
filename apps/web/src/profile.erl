@@ -143,8 +143,7 @@ process_delivery([user,To,entry,_,add],
   User = wf:user(),
   What = case kvs:get(user,To) of {error, not_found}-> #user{}; {ok, U} -> U end,
   error_logger:info_msg("[profile]~p receive ADD entry from ~p", [User#user.email, What#user.email]),
-  if What#user.email == User#user.email ->
     error_logger:info_msg("update ui "),
-    wf:update(alerts, index:error(io_lib:format("~p", [T]) ++" requested")),
-    wf:update(side_menu, dashboard:sidebar_menu(User, What , profile, [])); true -> ok end;
+  wf:update(alerts, index:error(io_lib:format("~p", [T]) ++" requested")),
+  wf:update(side_menu, dashboard:sidebar_menu(User, User, profile, []));
 process_delivery(_R, _M) -> skip.

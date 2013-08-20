@@ -69,50 +69,68 @@ message(Text) -> {
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({allow, To, Feature}) ->
-  error_logger:info_msg("Allow ~p : ~p", [To, Feature]),
-  kvs_acl:define_access({user, To}, Feature, allow),
-  ok;
-event({cancel, From, Eid, {feature, Feature}=Type}) ->
-  error_logger:info_msg("Cancel ~p: ~p", [From, Eid]),
+event({allow, Whom, Eid, Feature}) ->
+  error_logger:info_msg("Allow ~p : ~p", [Whom, Feature]),
+  kvs_acl:define_access({user, Whom}, Feature, allow),
   User = wf:user(),
 
-  % delete message from feed
-  Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
-  error_logger:info_msg("Recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{entry_id=Eid}, User#user.email]) || {RouteType, To, Fid} <- Recipients],
-
-  % send message to user 
-  case kvs:get(user, From) of {error, not_found} -> skip;
+  case kvs:get(user, Whom) of {error, not_found} -> skip;
     {ok, U} ->
-      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, User#user.feeds)}],
+      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, U#user.feeds)}],
+      error_logger:info_msg("Reply recipients ~p", [ReplyRecipients]),
       EntryId = kvs:uuid(),
-      From = User#user.email,
       [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
                   [#entry{id={EntryId, FeedId},
                           entry_id=EntryId,
                           feed_id=FeedId,
                           created = now(),
                           to = {RoutingType, To},
-                          from=From,
+                          from=User#user.email,
+                          type=reply,
+                          media=[],
+                          title= <<"Re: Feature request">>,
+                          description= "You have been granted "++ io_lib:format("~p", [Feature])++"!",
+                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
+
+  Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
+  error_logger:info_msg("Remove recipients: ~p", [Recipients]),
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{entry_id=Eid}, User#user.email]) || {RouteType, To, Fid} <- Recipients];
+
+event({cancel, From, Eid, {feature, Feature}=Type}) ->
+  User = wf:user(),
+  % send message to user
+  case kvs:get(user, From) of {error, not_found} -> skip;
+    {ok, U} ->
+      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, U#user.feeds)}],
+      error_logger:info_msg("Reply recipients ~p", [ReplyRecipients]),
+      EntryId = kvs:uuid(),
+      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
+                  [#entry{id={EntryId, FeedId},
+                          entry_id=EntryId,
+                          feed_id=FeedId,
+                          created = now(),
+                          to = {RoutingType, To},
+                          from=User#user.email,
                           type=reply,
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You request for "++ io_lib:format("~p", [Feature])++" has been rejected!",
-                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end;
+                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
+
+  % delete message from feed
+  Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
+  error_logger:info_msg("Remove recipients: ~p", [Recipients]),
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{entry_id=Eid}, User#user.email]) || {RouteType, To, Fid} <- Recipients];
 
 event(Event) -> error_logger:info_msg("Notif Page event: ~p", [Event]), ok.
 
 process_delivery([user,To,entry,_,add],
-                 [#entry{type=T}=E,Tid, Eid, MsId, TabId])->
-%  error_logger:info_msg("[notification]: Entry ADD ~p", [E]),
+                 [#entry{type=T, feed_id=Fid}=E,Tid, Eid, MsId, TabId])->
   What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
   User = wf:user(),
-  error_logger:info_msg("[notification]: ~p receive Entry ADD from ~p", [User#user.email, What#user.email]),
-  if What == User ->
-    wf:insert_top(direct, #feature_req{entry=E}),
-    wf:update(side_menu, dashboard:sidebar_menu(User, What , notifications, [subnav()]));
-  true -> [] end;
+  {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
+  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E}); true -> ok end,
+  wf:update(side_menu, dashboard:sidebar_menu(User, User, notifications, [subnav()]));
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:insert_bottom(Info#info_more.entries, #feature_req{entry=Entry}),

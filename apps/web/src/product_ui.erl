@@ -253,7 +253,7 @@ render_element(#feature_req{entry=E})->
     case E#entry.type of 
       {feature, F} when Admin ->
         #panel{class=["btn-toolbar"], body=[
-          #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.type}},
+          #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type}},
           #link{class=[btn, "btn-info"], body= <<"reject">>, postback={cancel, E#entry.from, E#entry.entry_id, E#entry.type}}
         ]};
       _ -> [] end
