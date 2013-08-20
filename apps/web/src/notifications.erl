@@ -136,9 +136,11 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:insert_bottom(Info#info_more.entries, #feature_req{entry=Entry}),
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
-process_delivery([_,_,entry,_,delete], [E,From]) -> 
-  error_logger:info_msg("Entry removed~p", [E#entry.entry_id]),
-  What = case kvs:get(user, From) of {error, not_found} -> #user{}; {ok, U} -> U end,
-  wf:remove(E#entry.entry_id),
-  wf:update(side_menu, dashboard:sidebar_menu(wf:user(), wf:user(), notifications, [subnav()]) );
+process_delivery([_,_,entry,Fid,delete], [E,From]) -> 
+  User = wf:user(),
+  Direct = lists:keyfind(direct, 1, User#user.feeds),
+  if Direct == Fid ->
+    wf:remove(E#entry.entry_id),
+    wf:update(side_menu, dashboard:sidebar_menu(wf:user(), wf:user(), notifications, [subnav()]) );
+  true -> ok end;
 process_delivery(R,M) -> product:process_delivery(R,M).

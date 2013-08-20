@@ -134,6 +134,7 @@ event({request, Feature}) ->
                           shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- Recipients],
 
       error_logger:info_msg("Recipients ~p", [Recipients]) end,
+  wf:update(alerts, index:error(io_lib:format("~p", [Feature]) ++" requested")),
   ok;
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
@@ -141,9 +142,5 @@ event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 process_delivery([user,To,entry,_,add],
                  [#entry{type=T},Tid, Eid, MsId, TabId])->
   User = wf:user(),
-  What = case kvs:get(user,To) of {error, not_found}-> #user{}; {ok, U} -> U end,
-  error_logger:info_msg("[profile]~p receive ADD entry from ~p", [User#user.email, What#user.email]),
-    error_logger:info_msg("update ui "),
-  wf:update(alerts, index:error(io_lib:format("~p", [T]) ++" requested")),
   wf:update(side_menu, dashboard:sidebar_menu(User, User, profile, []));
 process_delivery(_R, _M) -> skip.
