@@ -16,10 +16,34 @@ body()->
       #panel{class=[row, dashboard], body=[
         #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), notifications, [subnav()])},
         #panel{class=[span9], body=[
+          dashboard:section(input(), "icon-edit"),
           dashboard:section(feed(), "icon-user")
         ]} ]} } }
 
   ]++index:footer().
+
+input()->
+  User = wf:user(),
+  Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
+  MsId = wf:temp_id(),
+  TitleId = wf:temp_id(),
+  EditorId = wf:temp_id(),
+  SaveId = wf:temp_id(),
+
+  Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
+  case User of undefined -> []; _->[
+    #h3{class=[blue], body= <<"Write message">>},
+    #panel{class=["row-fluid"], body=[
+      #panel{class=[span9], body=[
+        #textboxlist{id=users, placeholder= <<"User">>},
+        #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
+        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE },
+        #panel{class=["btn-toolbar"], body=[#link{id=SaveId, class=[btn, "btn-large", "btn-success"], body= <<" Post">>,
+          postback={post_entry, EditorId, TitleId, MsId}, source=[TitleId, EditorId, users] }]},
+        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
+      ]},
+      #panel{class=[span2], body=[]}
+  ]} ] end.
 
 feed()->
   User = wf:user(),
@@ -66,6 +90,14 @@ message(Text) -> {
       #p{body= <<"Donec libero velit, rutrum ac mollis a, porttitor id libero. Mauris congue cursus scelerisque. Sed eu commodo metus. Vestibulum vel lobortis risus. Proin a quam felis. Vestibulum et nulla eu dolor egestas elementum vestibulum vel ipsum. Nam dui erat, varius non placerat et, cursus eget libero. Pellentesque sed ornare nunc. Vivamus volutpat nunc in felis tempor consectetur.">>}
     ]}
   ]}}.
+
+control_event("users", _) ->
+  SearchTerm = wf:q(term),
+  Data = [ [list_to_binary(Id++"="++wf:to_list(Name)), Name] || #user{email=Id, display_name=Name} <- kvs:all(user), string:str(string:to_lower(wf:to_list(Name)), string:to_lower(SearchTerm)) > 0],
+
+  element_textboxlist:process_autocomplete("users", Data, SearchTerm);
+control_event(_, _) -> ok.
+
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
@@ -122,6 +154,36 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{entry_id=Eid}, User#user.email]) || {RouteType, To, Fid} <- Recipients];
 
+event({post_entry, EditorId, TitleId, MediasId}) ->
+  User = wf:user(),
+  Desc = wf:q(EditorId),
+  Title = wf:q(TitleId),
+  Usrs = wf:q(users),
+
+  Users = [case kvs:get(user,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Usrs, ",")],
+
+  Recipients = lists:append([
+    [{user, Id, lists:keyfind(direct,1,Feeds)} || #user{email=Id, feeds=Feeds} <- Users],
+    [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}] 
+  ]),
+  error_logger:info_msg("Recipients: ~p", [Recipients]),
+
+  Medias = case wf:session(medias) of undefined -> []; L -> L end,
+  From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
+  EntryId = kvs:uuid(),
+  [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
+              [#entry{id={EntryId, FeedId},
+                      entry_id=EntryId,
+                      feed_id=FeedId,
+                      created = now(),
+                      to = {RoutingType, To},
+                      from=From,
+                      type=reviews,
+                      media=Medias,
+                      title=Title,
+                      description=Desc,
+                      shared=""}, TitleId, EditorId, MediasId, direct]) || {RoutingType, To, {_, FeedId}} <- Recipients];
+
 event(Event) -> error_logger:info_msg("Notif Page event: ~p", [Event]), ok.
 
 process_delivery([user,To,entry,_,add],
@@ -143,4 +205,14 @@ process_delivery([_,_,entry,Fid,delete], [E,From]) ->
     wf:remove(E#entry.entry_id),
     wf:update(side_menu, dashboard:sidebar_menu(wf:user(), wf:user(), notifications, [subnav()]) );
   true -> ok end;
+process_delivery([user,_,entry,_,add],
+                 [#entry{} = Entry, Tid, Eid, MsId, direct])->
+  wf:session(medias, []),
+  wf:update(MsId, []),
+  wf:wire(wf:f("$('#~s').val('');", [Tid])),
+  wf:wire(wf:f("$('#~s').html('');", [Eid])),
+  wf:wire("$('#products').html('');"),
+  wf:insert_top(direct, #product_entry{entry=Entry, mode=line, controls=product:controls(Entry)}),
+  wf:wire("Holder.run();");
+
 process_delivery(R,M) -> product:process_delivery(R,M).

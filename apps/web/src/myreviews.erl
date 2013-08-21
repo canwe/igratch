@@ -18,7 +18,7 @@ body()->
       #panel{class=[row, dashboard], body=[
         #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), myreviews, [])},
         #panel{class=[span9], body=[
-          dashboard:section(input(), "icon-user"),
+          dashboard:section(input(), "icon-edit"),
           dashboard:section([#h3{class=[blue], body= <<"My reviews">>}, reviews(wf:user())], "icon-list")
         ]} ]} } }
   ]++index:footer().
