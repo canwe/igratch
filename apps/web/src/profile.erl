@@ -25,7 +25,7 @@ body() ->
           true -> [
           #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(Who, What, profile, [])},
           #panel{class=[span9], body=[
-            dashboard:section(profile_info(Who, What), "icon-user"),
+            dashboard:section(profile, profile_info(Who, What), "icon-user"),
             dashboard:section(payments(Who, What), "icon-list")
           ]}] end
       ]}}}
@@ -50,40 +50,54 @@ profile_info(Who, What) ->
           #panel{show_if=What#user.email=/=undefined, body=[#label{body= <<"Mail:">>}, #link{url= Mailto, body=#strong{body= What#user.email}}]},
           #panel{body=[#label{body= <<"Member since ">>}, #strong{body= RegDate}]},
           #b{class=["text-success"], body= if What#user.status==ok -> <<"Active">>; true-> atom_to_list(What#user.status) end},
-          features(Who, What),
+          features(Who, What, "icon-2x"),
           #p{id=alerts}
         ]}}]} ].
 
-features(Who, What) ->
+features(Who, What, Size) ->
   Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
   Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
   Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
+  AmIAdmin= kvs_acl:check_access(Who#user.email,  {feature, admin}) =:= allow,
+  error_logger:info_msg("Am I admin ~p", [AmIAdmin]),
   [#p{body=[
-  #link{class=["text-warning"],
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"user">>,
-    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-stack-base", "icon-circle"]},#i{class=["icon-user"]}]}},
-  if Writer -> #link{class=["text-success"],
+  if AmIAdmin -> #link{class=["text-warning"], 
+      data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"disable user">>,
+      postback={disable, What},
+      body = #span{class=["icon-stack", Size], body=[#i{class=["icon-stack-base", "icon-circle"]},#i{class=["icon-user"]}, #i{class=["icon-ban-circle", "text-error"]} ]} };
+  true ->  #link{class=["text-warning"],
+      data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"user">>,
+      body=#span{class=["icon-stack", Size], body=[#i{class=["icon-stack-base", "icon-circle"]},#i{class=["icon-user"]}]}} end,
+  if AmIAdmin andalso Writer -> #link{class=["text-success"],
+    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"revoke reviewer">>,
+    postback={revoke, reviewer, What#user.email},
+    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-pencil", "icon-light"]}, #i{class=["icon-ban-circle", "text-error"]} ]}};
+  Writer -> #link{class=["text-success"],
     data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"reviewer">>,
-    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-pencil icon-light"]}]}}; 
+    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-pencil", "icon-light"]}]}}; 
   Who==What -> #link{
     data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"request reviewer role">>,
-    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-circle", "icon-stack-base", "icon-muted"]},#i{class=["icon-pencil"]}, #i{class=["icon-large", "icon-question", "text-error"]}]},
+    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base", "icon-muted"]},#i{class=["icon-pencil"]}, #i{class=["icon-large", "icon-question", "text-error"]}]},
     postback={request, reviewer}};
   true -> []
   end,
-  if Dev -> #link{class=[""],
+  if AmIAdmin andalso Dev -> #link{class=[],
+    postback={revoke, developer, What#user.email},
+    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"revoke developer">>,
+    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base", "icon-2x"]},#i{class=["icon-barcode", "icon-light"]}, #i{class=["icon-ban-circle", "text-error"]}  ]}};
+  Dev -> #link{class=[""],
     data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"developer">>,
-    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-barcode", "icon-light"]}]}}; 
+    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-barcode", "icon-light"]}]}}; 
   Who == What -> #link{
     data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"request developer role">>,
-    body=#span{class=["icon-stack", "icon-2x"], body=[#i{class=["icon-circle", "icon-stack-base", "icon-muted"]},#i{class=["icon-barcode"]}, #i{class=["icon-large","icon-question", "text-error"]}]},
+    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base", "icon-muted"]},#i{class=["icon-barcode"]}, #i{class=["icon-large","icon-question", "text-error"]}]},
     postback={request, developer}};
   true -> []
   end,
   if Admin ->
   #link{
     data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"administrator">>,
-    body=#span{class=["icon-stack", "icon-2x", blue], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-wrench icon-light"]}]}}; true->[] end
+    body=#span{class=["icon-stack", Size, blue], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-wrench icon-light"]}]}}; true->[] end
   ]}].
 
 payments(Who, What) -> [
@@ -133,14 +147,15 @@ event({request, Feature}) ->
                           description= <<"">>,
                           shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- Recipients],
 
-      error_logger:info_msg("Recipients ~p", [Recipients]) end,
-  wf:update(alerts, index:error(io_lib:format("~p", [Feature]) ++" requested")),
-  ok;
+      error_logger:info_msg("Recipients ~p", [Recipients]),
+      wf:update(alerts, index:error(io_lib:format("~p", [Feature]) ++" requested"))
+  end;
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 process_delivery([user,To,entry,_,add],
                  [#entry{type=T},Tid, Eid, MsId, TabId])->
   User = wf:user(),
-  wf:update(side_menu, dashboard:sidebar_menu(User, User, profile, []));
+  wf:update(side_menu, dashboard:sidebar_menu(User, User, profile, [])),
+  wf:update(profile, profile_info(User, User));
 process_delivery(_R, _M) -> skip.

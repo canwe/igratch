@@ -15,6 +15,7 @@ main() ->
   [#dtl{file = "prod", ext="dtl", bindings=[{title,<<"Login">>},{body, body()}]} ].
 
 body() ->
+  wf:session(name, kvs:uuname()),
   index:header() ++ [
   #panel{id="content", role="main", class=["theme-pattern-lightmesh", alt], body=[
   #section{class=[section], id=promo, body=[
@@ -49,7 +50,8 @@ body() ->
                 #password{id=pass, data_fields=[{<<"data-original-title">>, <<"">>}]}
               ]}
             ]}
-          ]}
+          ]},
+          #panel{id=wf:session(name)}
 
         ]},
         #panel{class=["modal-footer"], body=[
@@ -61,9 +63,8 @@ body() ->
       gplus_sdk()
     ].
 
-
-
-event(init) -> [];
+event(init) -> wf:reg(?MAIN_CH), [];
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(logout) -> wf:user(undefined), wf:redirect("/login");
 event(login) -> login(email, [{<<"email">>, list_to_binary(wf:q(user))}, {<<"password">>, wf:q(pass)}]);
 event(Ev) -> error_logger:info_msg("Event ~p",[Ev]), ok.
@@ -72,14 +73,25 @@ api_event(plusLogin, Args, _)-> JSArgs = n2o_json:decode(Args), login(googleplus
 api_event(fbLogin, Args, _Term)-> JSArgs = n2o_json:decode(Args), login(facebook_id, JSArgs#struct.lst);
 api_event(Name,Tag,_Term) -> error_logger:info_msg("Login Name ~p~n, Tag ~p~n",[Name,Tag]).
 
-login_user(User) -> error_logger:info_msg("Loin: ~p ", [User]),wf:user(User), wf:redirect("/account").
+login_user(User) ->
+  error_logger:info_msg("Loin: ~p ", [User]),
+  wf:user(User),
+  msg:notify([kvs_user, login, user, User#user.email, update_status], {}),
+  wf:redirect("/account").
 login(Key, Args)-> case Args of [{error, E}|_Rest] -> error_logger:info_msg("oauth error: ~p", [E]);
     _ -> case kvs:get(user,email_prop(Args,Key)) of
               {ok,Existed} -> RegData = registration_data(Args, Key, Existed), login_user(RegData);
-              {error,_} -> RegData = registration_data(Args, Key, #user{feeds=?USR_CHUNK}),
-                  case kvs_user:register(RegData) of
-                      {ok, U} -> msg:notify([kvs_user, user, init], [U#user.email, U#user.feeds]), login_user(U);
-                      {error, E} -> error_logger:info_msg("error: ~p", [E]) end end end.
+              {error,_} -> RegData = registration_data(Args, Key, #user{feeds=?USR_CHUNK, username=wf:session(name)}),
+                  msg:notify([kvs_user, user, register], [RegData]) end end.
+%                  case kvs_user:register(RegData) of
+%                      {ok, U} -> msg:notify([kvs_user, user, init], [U#user.email, U#user.feeds]), login_user(U);
+%                      {error, E} -> error_logger:info_msg("error: ~p", [E]) end end end.
+
+process_delivery([user, registered], {ok,_,U}) -> login_user(U);
+process_delivery([user, registered], {error, Id, E}) ->
+  Name = wf:session(name),
+  if Id == Name -> wf:update(wf:session(name), index:error(atom_to_list(E))); true-> ok end;
+process_delivery(_,_) -> skip.
 
 twitter_callback()->
   Token = wf:q(<<"oauth_token">>),

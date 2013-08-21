@@ -17,7 +17,7 @@ body() ->
   #section{id=content, body=
     #panel{class=[container], body=
       #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), admin, [#li{class=[divider]}, subnav() ])},
+        #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), admin, [#li{class=[divider]}, subnav() ])},
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
           #panel{class=["tab-content"], body=[
             #panel{id=categories, class=["tab-pane", active], body=[
@@ -81,7 +81,7 @@ acl(Rows)->[
   #h3{class=[blue], body= <<"ACL">>},
   #table{class=[table, "table-hover"], header=[#tr{cells=[#th{body= <<"id">>}, #th{body= <<"resourse">>}]}], body=[Rows]}].
 
-acl_entry(Panes)-> [#panel{class=["tab-content"], body=Panes}].
+acl_entry(Panes)-> [#panel{class=["tab-content"], body=[Panes]}].
 
 acls()->
   lists:mapfoldl(fun(#acl{id={R,N}=Aid, resource=Ar}, Ain) ->
@@ -96,14 +96,20 @@ acls()->
    {B , Ao}
   end, [], kvs:all(acl)).
 
-users()->[
+users()->
+  {ok, F} = kvs:get(feed, ?USR_FEED),
+  [
   #h3{body= <<"Users">>},
   #table{class=[table, "table-hover"],
-    header=[#tr{cells=[#th{body= <<"email">>}, #th{body= <<"roles">>}]}],
+    header=[#tr{cells=[#th{body= <<"email">>}, #th{body= <<"roles">>}, #th{body= <<"last login">>}]}],
     body=[[
       begin
-        #tr{id=wf:temp_id(), postback={view, U#user.email},cells=[#td{body=U#user.email}, #td{body=[profile:features(wf:user(), U)]} ]}
-      end|| U <- kvs:all(user)
+        #tr{cells=[
+          #td{body=#link{body=U#user.email, postback={view, U#user.email}}},
+          #td{body=[profile:features(wf:user(), U, "icon-2x")]},
+          #td{body=case kvs:get(user_status, U#user.email) of {ok,Status} -> product_ui:to_date(Status#user_status.last_login); {error, not_found}-> "" end}
+        ]}
+      end|| #iterator{object=U} <- kvs:traversal(iterator, #iterator.prev, F#feed.top, undefined)
     ]]}].
 
 products()->[
@@ -137,6 +143,30 @@ event(save_cat) ->
     {error, _} -> skip
   end;
 event({view, Id}) -> error_logger:info_msg("redirect"), wf:redirect("/profile?id="++Id);
+event({disable, What})-> error_logger:info_msg("ban user ~p", [What]);
+event({revoke, Feature, Whom})->
+  error_logger:info_msg("Disable ~p : ~p", [Whom, Feature]),
+  User = wf:user(),
+  case kvs:get(user, Whom) of {error, not_found} -> skip;
+    {ok, U} ->
+      kvs_acl:define_access({user, U#user.email}, {feature, Feature}, disable),
+
+      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, U#user.feeds)}],
+      error_logger:info_msg("Reply recipients ~p", [ReplyRecipients]),
+      EntryId = kvs:uuid(),
+      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
+                  [#entry{id={EntryId, FeedId},
+                          entry_id=EntryId,
+                          feed_id=FeedId,
+                          created = now(),
+                          to = {RoutingType, To},
+                          from=User#user.email,
+                          type=reply,
+                          media=[],
+                          title= <<"Feature disabled">>,
+                          description= "You role "++ io_lib:format("~p", [Feature])++" has been disabled!",
+                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end;
+
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("[admin]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
@@ -145,4 +175,13 @@ process_delivery([create],
                  [{Creator, Id, Name, Desc, Publicity}]) ->
   error_logger:info_msg("responce to create group"),
   ok;
+process_delivery([user,To,entry,_,add],
+                 [#entry{type=T, feed_id=Fid}=E,Tid, Eid, MsId, TabId])->
+  error_logger:info_msg("ENTRY RECEIVED IN ~p", [To]),
+  What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
+  User = wf:user(),
+  {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
+  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E}); true -> ok end,
+  wf:update(side_menu, dashboard:sidebar_menu(User, User, admin, [subnav()]));
+
 process_delivery(_R, _M) -> skip.
