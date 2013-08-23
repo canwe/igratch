@@ -48,7 +48,7 @@ input()->
 feed()->
   User = wf:user(),
   {Feed,Fid} = lists:keyfind(direct,1,User#user.feeds),
-  Entries = kvs_feed:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
+  Entries = kvs:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
 %  error_logger:info_msg("Entries: ~p", [Entries]),
   Last = case Entries of []-> []; E-> lists:last(E) end,
   BtnId = wf:temp_id(),
@@ -133,7 +133,7 @@ event({allow, Whom, Eid, Feature}) ->
 
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{entry_id=Eid}, User#user.email]) || {RouteType, To, Fid} <- Recipients];
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid},entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
 event({cancel, From, Eid, {feature, Feature}=Type}) ->
   User = wf:user(),
@@ -159,7 +159,7 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
   % delete message from feed
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{entry_id=Eid}, User#user.email]) || {RouteType, To, Fid} <- Recipients];
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid}, entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
 event({post_entry, EditorId, TitleId, MediasId}) ->
   User = wf:user(),

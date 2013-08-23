@@ -171,7 +171,7 @@ registration_data(Props, email, Ori)->
     email = Email,
     register_date = now(),
     status = ok,
-    password = kvs:sha(binary_to_list(proplists:get_value(<<"password">>,Props)))
+    password = kvs:sha(proplists:get_value(<<"password">>,Props))
   }.
 
 email_prop(Props, twitter_id) -> binary_to_list(proplists:get_value(<<"screen_name">>, Props)) ++ "@twitter.com";

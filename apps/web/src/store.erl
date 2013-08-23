@@ -29,7 +29,7 @@ body()->
           #panel{id=all, class=["tab-pane", active], body= all()},
           [ begin
               {Feed,Fid} = lists:keyfind(products,1,Feeds),
-              Entries = kvs_feed:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
+              Entries = kvs:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
               Last = case Entries of []-> []; E-> lists:last(E) end,
               EsId = wf:temp_id(),
               BtnId = wf:temp_id(),
@@ -64,7 +64,7 @@ all() -> [
   #product_entry{entry=E, mode=line, controls=controls(E)} || E <-  lists:foldl(
     fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end,
     [],
-    lists:flatten([ [E || E <- kvs_feed:entries(Feed, undefined, ?PAGE_SIZE)]
+    lists:flatten([ [E || E <- kvs:entries(Feed, undefined, ?PAGE_SIZE)]
       || Feed <- [case lists:keyfind(products, 1, F) of false-> []; Fd -> Fd end || #group{feeds=F}<- kvs:all(group)] ]))].
 
 event(init) -> wf:reg(?MAIN_CH),[];

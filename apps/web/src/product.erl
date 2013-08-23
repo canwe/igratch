@@ -80,8 +80,8 @@ entry_form(P, Fid, Feed) ->
     ]}
   ] end.
 
-feed(ProdId, Fid, features)-> feed(ProdId, kvs_feed:entries({ProdId,Fid}, undefined, 10));
-feed(ProdId, Fid, _TabId) -> feed(ProdId, kvs_feed:entries({ProdId, Fid}, undefined, 10)).
+feed(ProdId, Fid, features)-> feed(ProdId, kvs:entries({ProdId,Fid}, undefined, 10));
+feed(ProdId, Fid, _TabId) -> feed(ProdId, kvs:entries({ProdId, Fid}, undefined, 10)).
 
 feed(ProdId, Entries)-> #panel{class=[feed], body=[
   [#product_entry{entry=E, prod_id=ProdId} || E <- Entries]

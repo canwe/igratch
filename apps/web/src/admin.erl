@@ -63,7 +63,8 @@ categories()->[
   #table{id=cats, class=[table, "table-hover"],
     header=[#tr{cells=[#th{body= <<"id">>}, #th{body= <<"name">>}, #th{body= <<"description">>}, #th{body= <<"scope">>}]}],
     body=[[#tr{class=[case Scope of private -> "info"; _-> "" end],
-      cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group)]]}
+      cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} || #group{id=Id, name=Name, description=Desc, scope=Scope}<-
+        kvs:entries(kvs:get(feed, ?GRP_FEED), group)]]}
 ].
 
 resources()->[
@@ -96,9 +97,7 @@ acls()->
    {B , Ao}
   end, [], kvs:all(acl)).
 
-users()->
-  {ok, F} = kvs:get(feed, ?USR_FEED),
-  [
+users()-> [
   #h3{body= <<"Users">>},
   #table{class=[table, "table-hover"],
     header=[#tr{cells=[#th{body= <<"email">>}, #th{body= <<"roles">>}, #th{body= <<"last login">>}]}],
@@ -109,7 +108,7 @@ users()->
           #td{body=[profile:features(wf:user(), U, "icon-2x")]},
           #td{body=case kvs:get(user_status, U#user.email) of {ok,Status} -> product_ui:to_date(Status#user_status.last_login); {error, not_found}-> "" end}
         ]}
-      end|| #user{} = U <- kvs:traversal(user, #user.prev, F#feed.top, undefined)
+      end|| #user{} = U <- kvs:entries(kvs:get(feed, ?USR_FEED), user)
     ]]}].
 
 products()->[
@@ -119,7 +118,7 @@ products()->[
     body=[[
       begin
         #tr{cells=[#td{body=U#product.title} ]}
-      end|| U <- kvs:all(product)
+      end|| U <- kvs:entries(kvs:get(feed, ?PRD_FEED), product)
     ]]}].
 
 event(init) -> wf:reg(?MAIN_CH), [];

@@ -50,7 +50,7 @@ input()->
 reviews(undefined)->[];
 reviews(User)->
     {_, Fid} = Feed = lists:keyfind(feed,1,User#user.feeds),
-    Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
+    Entries = kvs:entries(Feed, undefined, ?PAGE_SIZE),
     Last = case Entries of []-> []; E-> lists:last(E) end,
     EsId = wf:temp_id(),
     BtnId = wf:temp_id(),

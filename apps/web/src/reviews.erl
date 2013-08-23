@@ -44,7 +44,7 @@ reviews() ->
   Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
   lists:mapfoldl(fun(#group{id=Id, name=Name, feeds=Feeds}, Acc)->
     {_, Fid}= Feed = lists:keyfind(feed, 1, Feeds),
-    Entries = kvs_feed:entries(Feed, undefined, ?PAGE_SIZE),
+    Entries = kvs:entries(Feed, undefined, ?PAGE_SIZE),
     Last = case Entries of []-> []; E-> lists:last(E) end,
     EsId = wf:temp_id(),
     BtnId = wf:temp_id(),

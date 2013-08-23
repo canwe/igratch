@@ -64,7 +64,7 @@ body()->
 
 whishlist()->[
   #h3{body= <<"Whish list">>},
-  [[#product_entry{entry=E, mode=line, category=Name, controls=product:controls(E)} || E <- kvs_feed:entries(lists:keyfind(products,1,Feeds), undefined, ?PAGE_SIZE)]
+  [[#product_entry{entry=E, mode=line, category=Name, controls=product:controls(E)} || E <- kvs:entries(lists:keyfind(products,1,Feeds), undefined, ?PAGE_SIZE)]
   || #group{feeds=Feeds, name=Name} <- kvs:all(group)]
 ].
 cart(Products)->[
