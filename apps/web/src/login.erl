@@ -82,13 +82,13 @@ login(Key, Args)-> case Args of [{error, E}|_Rest] -> error_logger:info_msg("oau
     _ -> case kvs:get(user,email_prop(Args,Key)) of
               {ok,Existed} -> RegData = registration_data(Args, Key, Existed), login_user(RegData);
               {error,_} -> RegData = registration_data(Args, Key, #user{feeds=?USR_CHUNK, username=wf:session(name)}),
-                  msg:notify([kvs_user, user, register], [RegData]) end end.
+                  msg:notify([kvs_user, user, register], [RegData, {ok}]) end end.
 %                  case kvs_user:register(RegData) of
 %                      {ok, U} -> msg:notify([kvs_user, user, init], [U#user.email, U#user.feeds]), login_user(U);
 %                      {error, E} -> error_logger:info_msg("error: ~p", [E]) end end end.
 
-process_delivery([user, registered], {ok,_,U}) -> login_user(U);
-process_delivery([user, registered], {error, Id, E}) ->
+process_delivery([user, registered], {{ok,U},_}) -> login_user(U);
+process_delivery([user, registered], {{Id,E},_}) ->
   Name = wf:session(name),
   if Id == Name -> wf:update(wf:session(name), index:error(atom_to_list(E))); true-> ok end;
 process_delivery(_,_) -> skip.
@@ -117,10 +117,12 @@ registration_data(Props, facebook_id, Ori)->
     undefined -> {1, 1, 1970};
     BD -> list_to_tuple([list_to_integer(X) || X <- string:tokens(binary_to_list(BD), "/")])
   end,
+  Email = email_prop(Props, facebook_id),
   Ori#user{
+    id = Email,
     display_name = UserName,
     avatar = "https://graph.facebook.com/" ++ UserName ++ "/picture",
-    email = email_prop(Props, facebook_id),
+    email = Email,
     name = proplists:get_value(<<"first_name">>, Props),
     surname = proplists:get_value(<<"last_name">>, Props),
     facebook_id = Id,
@@ -134,10 +136,12 @@ registration_data(Props, googleplus_id, Ori)->
   GivenName = proplists:get_value(<<"givenName">>, Name#struct.lst),
   FamilyName = proplists:get_value(<<"familyName">>, Name#struct.lst),
   Image = proplists:get_value(<<"image">>, Props),
+    Email = email_prop(Props,googleplus_id),
   Ori#user{
+    id = Email,
     display_name = proplists:get_value(<<"displayName">>, Props),
     avatar = lists:nth(1,string:tokens(binary_to_list(proplists:get_value(<<"url">>, Image#struct.lst)), "?")),
-    email = email_prop(Props,googleplus_id),
+    email = Email,
     name = GivenName,
     surname = FamilyName,
     googleplus_id = Id,
@@ -147,11 +151,13 @@ registration_data(Props, googleplus_id, Ori)->
   };
 registration_data(Props, twitter_id, Ori)->
   Id = proplists:get_value(<<"id_str">>, Props),
+    Email = email_prop(Props,twitter_id),
   Ori#user{
+    id = Email,
     display_name = proplists:get_value(<<"screen_name">>, Props),
     avatar = proplists:get_value(<<"profile_image_url">>, Props),
     name = proplists:get_value(<<"name">>, Props),
-    email = email_prop(Props,twitter_id),
+    email = Email,
     surname = [],
     twitter_id = Id,
     register_date = erlang:now(),
@@ -160,11 +166,12 @@ registration_data(Props, twitter_id, Ori)->
 registration_data(Props, email, Ori)->
   Email = binary_to_list(proplists:get_value(<<"email">>, Props)),
   Ori#user{
+    id = Email,
     display_name = Email,
     email = Email,
     register_date = now(),
     status = ok,
-    password = proplists:get_value(<<"password">>,Props)
+    password = kvs:sha(binary_to_list(proplists:get_value(<<"password">>,Props)))
   }.
 
 email_prop(Props, twitter_id) -> binary_to_list(proplists:get_value(<<"screen_name">>, Props)) ++ "@twitter.com";

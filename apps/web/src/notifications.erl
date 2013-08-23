@@ -35,7 +35,7 @@ input()->
     #h3{class=[blue], body= <<"Write message">>},
     #panel{class=["row-fluid"], body=[
       #panel{class=[span9], body=[
-        #textboxlist{id=users, placeholder= <<"User">>},
+        #textboxlist{id=users, placeholder= <<"e-mail/User">>},
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
         #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE },
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, class=[btn, "btn-large", "btn-success"], body= <<" Post">>,
@@ -93,11 +93,18 @@ message(Text) -> {
 
 control_event("users", _) ->
   SearchTerm = wf:q(term),
-  Data = [ [list_to_binary(Id++"="++wf:to_list(Name)), Name] || #user{email=Id, display_name=Name} <- kvs:all(user), string:str(string:to_lower(wf:to_list(Name)), string:to_lower(SearchTerm)) > 0],
+  Data = [begin
+    error_logger:info_msg("found-> ~p | ~p", [Name, Id]),
+    error_logger:info_msg(":~p", [[list_to_binary(Id++"="++wf:to_list(Name)), Name]]),
+    [list_to_binary(Id++"="++wf:to_list(Name)), list_to_binary(wf:to_list(Name))]
+    end ||
+    #user{email=Id, display_name=Name} <- kvs:all(user), string:str(string:to_lower(wf:to_list(Id)), string:to_lower(SearchTerm)) > 0],
 
   element_textboxlist:process_autocomplete("users", Data, SearchTerm);
 control_event(_, _) -> ok.
 
+api_event(attach_media, Tag, Term) -> product:api_event(attach_media, Tag, Term);
+api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
@@ -178,21 +185,33 @@ event({post_entry, EditorId, TitleId, MediasId}) ->
                       created = now(),
                       to = {RoutingType, To},
                       from=From,
-                      type=reviews,
+                      type=direct,
                       media=Medias,
                       title=Title,
                       description=Desc,
                       shared=""}, TitleId, EditorId, MediasId, direct]) || {RoutingType, To, {_, FeedId}} <- Recipients];
 
+event({remove_media, M, Id}) ->
+  Ms = case wf:session(medias) of undefined -> []; Mi -> Mi end,
+  New = lists:filter(fun(E)-> error_logger:info_msg("take ~p compare with ~p and = ~p", [E,M, E/=M]),  E/=M end, Ms),
+  wf:session(medias, New),
+  wf:update(Id, product_ui:preview_medias(Id, New));
+
 event(Event) -> error_logger:info_msg("Notif Page event: ~p", [Event]), ok.
 
 process_delivery([user,To,entry,_,add],
-                 [#entry{type=T, feed_id=Fid}=E,Tid, Eid, MsId, TabId])->
+                 [#entry{type=Type, feed_id=Fid, description=D, title=T}=E,Tid, Eid, MsId, direct])->
   What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
   User = wf:user(),
   {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
-  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E}); true -> ok end,
-  wf:update(side_menu, dashboard:sidebar_menu(User, User, notifications, [subnav()]));
+  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E#entry{title=wf:js_escape(T), description=wf:js_escape(D)}}); true -> ok end,
+  wf:update(side_menu, dashboard:sidebar_menu(User, User, notifications, [subnav()])),
+  wf:wire(wf:f("$('#~s').val('');", [Tid])),
+  wf:wire(wf:f("$('#~s').html('');", [Eid])),
+  wf:wire("$('#users').html('');"),
+  wf:session(medias, []),
+  wf:update(MsId, []),
+  wf:wire("Holder.run();");
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:insert_bottom(Info#info_more.entries, #feature_req{entry=Entry}),
@@ -205,14 +224,5 @@ process_delivery([_,_,entry,Fid,delete], [E,From]) ->
     wf:remove(E#entry.entry_id),
     wf:update(side_menu, dashboard:sidebar_menu(wf:user(), wf:user(), notifications, [subnav()]) );
   true -> ok end;
-process_delivery([user,_,entry,_,add],
-                 [#entry{} = Entry, Tid, Eid, MsId, direct])->
-  wf:session(medias, []),
-  wf:update(MsId, []),
-  wf:wire(wf:f("$('#~s').val('');", [Tid])),
-  wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:wire("$('#products').html('');"),
-  wf:insert_top(direct, #product_entry{entry=Entry, mode=line, controls=product:controls(Entry)}),
-  wf:wire("Holder.run();");
 
 process_delivery(R,M) -> product:process_delivery(R,M).

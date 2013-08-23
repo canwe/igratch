@@ -84,7 +84,7 @@ acl(Rows)->[
 acl_entry(Panes)-> [#panel{class=["tab-content"], body=[Panes]}].
 
 acls()->
-  lists:mapfoldl(fun(#acl{id={R,N}=Aid, resource=Ar}, Ain) ->
+  lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
     Id = io_lib:format("~p", [Aid]),
     B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
       #h3{class=[blue], body=[Id, " entries"]},
@@ -92,7 +92,7 @@ acls()->
         #tr{cells=[#td{body=io_lib:format("~p", [Ai])}, #td{body= Accessor}, #td{body= atom_to_list(Action)}]} || #acl_entry{id=Ai, accessor={user, Accessor}, action=Action} <- kvs_acl:entries(Aid)
       ]]}
     ]},
-    Ao = [#tr{cells=[#td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=Id, data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, #td{body=io_lib:format("~p", [Ar])}]}|Ain],
+    Ao = [#tr{cells=[#td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=Id, data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, #td{body=io_lib:format("~p", [Aid])}]}|Ain],
    {B , Ao}
   end, [], kvs:all(acl)).
 
@@ -109,7 +109,7 @@ users()->
           #td{body=[profile:features(wf:user(), U, "icon-2x")]},
           #td{body=case kvs:get(user_status, U#user.email) of {ok,Status} -> product_ui:to_date(Status#user_status.last_login); {error, not_found}-> "" end}
         ]}
-      end|| #iterator{object=U} <- kvs:traversal(iterator, #iterator.prev, F#feed.top, undefined)
+      end|| #user{} = U <- kvs:traversal(user, #user.prev, F#feed.top, undefined)
     ]]}].
 
 products()->[
@@ -129,10 +129,10 @@ event(save_cat) ->
   Desc = wf:q(cat_desc),
   Publicity = case wf:q(cat_scope) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
   Creator = (wf:user())#user.email,
-  Id = case Publicity of private -> Name; _ -> undefined end,
-  RegData = #group{id=Id, name = Name, description = Desc, scope = Publicity, creator = Creator, owner = Creator, feeds = ?GRP_CHUNK},
+  Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
+  RegData = #group{id=Id, name = Name, description = Desc, scope = Publicity, creator = Creator, owner = Creator, feeds = ?GRP_CHUNK, created = now()},
 
-  case kvs_group:register(RegData) of
+  case kvs:add(RegData) of
     {ok, G} ->
       msg:notify([kvs_group, group, init], [G#group.id, G#group.feeds]),
 

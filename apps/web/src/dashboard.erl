@@ -38,9 +38,11 @@ sidebar_menu(Who, What, Page, Sublist) ->
     data_fields=[{<<"data-spy">>, <<"affix">>}],
     body=List}}.
 
+alt_section(Body,Icon)-> section(wf:temp_id(), Body, Icon, "alt").
 section(Body, Icon)-> section(wf:temp_id(),Body, Icon).
-section(Id, Body, Icon) ->
+section(Id, Body, Icon) -> section(Id, Body,Icon, "").
+section(Id, Body, Icon, Section) ->
   #section{class=["row-fluid", "dashboard-section"], body=[
     #panel{class=[span1], body=#i{class=[Icon, "icon-2x", blue]}},
-    #panel{id=Id, class=[span11, "dashboard-unit"], body=Body}
+    #panel{id=Id, class=[span11, "dashboard-unit", Section], body=Body}
   ]}.

@@ -117,6 +117,7 @@ event({save}) ->
   Currency = wf:q(currency),
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Product = #product{
+    id = kvs:uuid(),
     creator = User#user.email,
     owner = User#user.email,
     title = list_to_binary(Title),
@@ -124,36 +125,45 @@ event({save}) ->
     cover = TitlePic,
     price = product_ui:to_price(wf:q(price)),
     currency = Currency,
-    feeds = ?PRD_CHUNK
+    feeds = ?PRD_CHUNK,
+    creation_date = now()
   },
-  case kvs_products:register(Product) of
-    {ok, P} ->
-      Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
 
-      Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
+    Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
+
+    Recipients = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)} |
         [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
 
-      error_logger:info_msg("Message recipients: ~p", [Recipients]),
-      Medias = case wf:session(medias) of undefined -> []; M -> M end,
+  msg:notify([kvs_product, product, register], [Product, {Recipients, Groups}]);
 
-      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
+%  case kvs:add(Product) of
+%    {ok, P} ->
+%      Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
 
-      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
-                  [#entry{id={P#product.id, Fid},
-                          feed_id=Fid,
-                          entry_id=P#product.id,
-                          created = now(),
-                          to = {RoutingType, To},
-                          from=P#product.owner,
-                          type= product,
-                          media=Medias,
-                          title=Title,
-                          description=Descr,
-                          shared=""}, title, brief, media_block, myproducts]) || {RoutingType, To, {_, Fid}} <- Recipients],
+%      Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
+%        [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
 
-      msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
-    _ -> error
-  end;
+%      error_logger:info_msg("Message recipients: ~p", [Recipients]),
+%      Medias = case wf:session(medias) of undefined -> []; M -> M end,
+
+%      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
+
+%      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
+%                  [#entry{id={P#product.id, Fid},
+%                          feed_id=Fid,
+%                          entry_id=P#product.id,
+%                          created = now(),
+%                          to = {RoutingType, To},
+%                          from=P#product.owner,
+%                          type= product,
+%                          media=Medias,
+%                          title=Title,
+%                          description=Descr,
+%                          shared=""}, title, brief, media_block, myproducts]) || {RoutingType, To, {_, Fid}} <- Recipients],
+%
+%      msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
+%    _ -> error
+%  end;
 event({update, #product{}=P}) ->
   User = wf:user(),
   Title = wf:q(title),
@@ -249,4 +259,34 @@ process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->
   wf:update(?ID_TOOL(Id), controls(E)),
   product:process_delivery(R,E);
 process_delivery([group,_,entry,{_,_},delete], [_,_]) -> skip;
+
+process_delivery([product, registered], {{ok, P}, {Recipients, Groups}}) ->
+    error_logger:info_msg("Product ~p added, notify recipients", [P#product.id]),
+%      Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
+%      Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
+%        [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
+      error_logger:info_msg("Message recipients: ~p", [Recipients]),
+      Medias = case wf:session(medias) of undefined -> []; M -> M end,
+
+      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
+
+      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
+                  [#entry{id={P#product.id, Fid},
+                          feed_id=Fid,
+                          entry_id=P#product.id,
+                          created = now(),
+                          to = {RoutingType, To},
+                          from=P#product.owner,
+                          type= product,
+                          media=Medias,
+                          title=P#product.title,
+                          description=P#product.brief,
+                          shared=""}, title, brief, media_block, myproducts]) || {RoutingType, To, {_, Fid}} <- Recipients];
+
+%      msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
+
+process_delivery([product, registered], {Id, E}) ->
+%  Name = wf:session(name),
+%  if Id == Name -> wf:update(wf:session(name), index:error(atom_to_list(E))); true-> ok end;
+    error_logger:info_msg("Error adding product: ~p", [E]);
 process_delivery(R,M) -> product:process_delivery(R,M).

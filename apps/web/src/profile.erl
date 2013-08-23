@@ -26,12 +26,14 @@ body() ->
           #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(Who, What, profile, [])},
           #panel{class=[span9], body=[
             dashboard:section(profile, profile_info(Who, What), "icon-user"),
+            dashboard:section(direct(), "icon-edit"),
             dashboard:section(payments(Who, What), "icon-list")
           ]}] end
       ]}}}
   ] ++ index:footer().
 
 profile_info(Who, What) ->
+    error_logger:info_msg("What ~p", [What]),
       RegDate = product_ui:to_date(What#user.register_date),
       Mailto = if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
       [
@@ -53,6 +55,10 @@ profile_info(Who, What) ->
           features(Who, What, "icon-2x"),
           #p{id=alerts}
         ]}}]} ].
+
+direct()->[
+  #h3{class=[blue], body= <<"write message">>}
+  ].
 
 features(Who, What, Size) ->
   Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
