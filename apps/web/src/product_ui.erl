@@ -136,7 +136,8 @@ render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
   PostId = E#entry.entry_id,
   TitleId = ?ID_TITLE(PostId),
   EntryId= ?ID_DESC(PostId),
-  Comments = kvs_comment:read_comments(E#entry.comments_rear),
+  {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
+  Comments = kvs:entries(kvs:get(feed, Fid), comment),
   CommentId = wf:temp_id(),
   CommentsId = wf:temp_id(),
   Ms = E#entry.media,
@@ -202,6 +203,9 @@ render_element(#entry_comment{comment=#comment{}=C})->
       {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>}} end,
 
   Date = to_date(C#comment.creation_time),
+  Entries = case lists:keyfind(comments, 1, C#comment.feeds) of
+    {_, CFid} -> kvs:entries(kvs:get(feed, CFid), comment);
+    _-> [] end,
 
   Comment = #panel{class=[media, "media-comment"], body=[
     #link{class=["pull-left"], body=[Avatar]},
@@ -212,10 +216,7 @@ render_element(#entry_comment{comment=#comment{}=C})->
         #p{class=["media-heading"], body=[
           #link{class=["comment-reply"], body=[ <<"reply ">>, #i{class=["icon-reply", "icon-large"]}], postback={comment_reply, C#comment.id}}
         ]},
-        #panel{body=
-        case C#comment.comments_rear of undefined -> []; Crs ->
-            [#entry_comment{comment=C} || C <- kvs_comment:read_comments(Crs)]
-        end}
+        #panel{body=[#entry_comment{comment=C} || C <- Entries ]}
     ]}
   ]},
   element_panel:render_element(Comment);
