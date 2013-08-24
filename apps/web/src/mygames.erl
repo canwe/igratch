@@ -126,7 +126,7 @@ event({save}) ->
     price = product_ui:to_price(wf:q(price)),
     currency = Currency,
     feeds = ?PRD_CHUNK,
-    creation_date = now()
+    created = now()
   },
 
     Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
@@ -182,7 +182,7 @@ event({update, #product{}=P}) ->
   },
 
   Entry = #entry{
-    created=Product#product.creation_date,
+    created=Product#product.created,
     entry_id=Product#product.id,
     from=Product#product.owner,
     type= product,

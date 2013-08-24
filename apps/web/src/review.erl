@@ -77,8 +77,8 @@ process_delivery([_, Eid, comment, Cid, add],
       content=wf:js_escape(Content),
       media=Medias,
       parent=Parent,
-      author_id=From,
-      creation_time=erlang:now()}},
+      from=From,
+      created=erlang:now()}},
   wf:insert_bottom(Csid, Entry),
   case EditorId of
     "" -> wf:wire(wf:f("$('#~s').parent().find('.mce-content-body').html('');", [Csid]));

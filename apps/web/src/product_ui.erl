@@ -42,7 +42,7 @@ render_element(#product_cart{product=P}) ->
   element_panel:render_element(Entry);
 
 render_element(#product_row{product=P}) ->
-  Date = to_date(P#product.creation_date),
+  Date = to_date(P#product.created),
 
   Row = #tr{id=wf:temp_id(), postback={product_feed, P#product.id},cells=[
     #td{body=[
@@ -196,13 +196,13 @@ render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
 
 render_element(#entry_comment{comment=#comment{}=C})->
   {Cid, {Eid, Fid}} = C#comment.id,
-  {Author, Avatar} = case kvs:get(user, C#comment.author_id) of 
+  {Author, Avatar} = case kvs:get(user, C#comment.from) of 
       {ok, User} -> {User#user.display_name, case User#user.avatar of
         undefined-> #image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>};
         Img-> #image{class=["media-object", "img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end};
       {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>}} end,
 
-  Date = to_date(C#comment.creation_time),
+  Date = to_date(C#comment.created),
   Entries = case lists:keyfind(comments, 1, C#comment.feeds) of
     {_, CFid} -> kvs:entries(kvs:get(feed, CFid), comment);
     _-> [] end,
