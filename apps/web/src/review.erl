@@ -2,6 +2,7 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/feeds.hrl").
+-include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
@@ -10,27 +11,38 @@ main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
   {_Tabs, Reviews} = reviews:reviews(),
+  Entries = lists:filter(fun(#entry{to=To})-> case To of {product, _}-> true; _-> false end end, kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end)),
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
-    case kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end) of [E|_] ->
-      {{Y, M, D}, _} = calendar:now_to_datetime(E#entry.created),
-      Date = io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
-      {From, Av} = case kvs:get(user, E#entry.from) of {ok, U} -> {U#user.display_name, U#user.avatar}; {error, _} -> {E#entry.from, <<"holder.js/150x150">>} end,
+    case Entries of [E=#entry{id=Eid, to={product, Prid}}|_] ->
+        Product = case kvs:get(product, Prid) of {error,_}-> #product{}; {ok, P}-> P end,
+        error_logger:info_msg("Product review: ~p", [Product]),
       #panel{class=["row-fluid", dashboard], body=[
         #panel{class=[span2], body=[
-            #panel{id="review-meta", class=["row-fluid"], body=[
-              #h3{class=["blue capital"], body= <<"action">>},
-              #image{class=["img-polaroid"], alt= <<"The author">>, image=Av, width="150"},
-              #p{class=[username], body= #link{body=From}},
-              #p{class=[datestamp], body=[Date]},
-              #p{class=[statistics], body=[
-                  #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
-                  #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}}
-              ]},
-              #panel{class=["btn-toolbar", "text-center"], body=[
-                #link{url= <<"#">>, class=[btn, "btn-large", "btn-warning"], body= <<"Buy it!">>}
-              ]}
-            ]}
+            dashboard:section(profile:profile_info(wf:user(), E#entry.from, ""), "icon-user"),
+            dashboard:section([
+                #h3{class=[blue], body= <<"&nbsp;&nbsp;&nbsp;&nbsp;Article">>},
+                #p{class=[datestamp], body=[product_ui:to_date(E#entry.created)]},
+                #p{class=[statistics], body=[
+                  #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"?">>} ],
+                    postback={read, entry, E#entry.id}},
+                  #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, 
+                    #span{id=comments, class=[badge, "badge-info"], body= list_to_binary(integer_to_list(kvs_feed:comments_count(entry, Eid)))} 
+                   ], postback={read, entry, E#entry.id}}
+                ]}
+            ], "icon-eye-open"),
+            dashboard:section([
+                #h3{class=[blue], body= <<"&nbsp;&nbsp;&nbsp;&nbsp;Game">>},
+                #p{body=[Product#product.title]},
+                #p{body=[Product#product.brief]},
+
+                #panel{class=["btn-toolbar", "text-center"], body=[
+                  #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy"],
+                    body= [<<"buy for ">>, #span{body= "$"++ float_to_list(Product#product.price/100, [{decimals, 2}]) }], postback={checkout, Product#product.id}},
+                  #button{class=[btn, "btn-large", "btn-warning"], body= [#span{class=["icon-shopping-cart"]}, <<" add to cart ">>], postback={add_cart, Product}}
+                ]}
+
+            ], "icon-gamepad")
         ]},
         #panel{class=[span10], body=[
           dashboard:section(#product_entry{entry=E, mode=full}, "icon-align-justify"),
@@ -84,5 +96,6 @@ process_delivery([_, Eid, comment, Cid, add],
     "" -> wf:wire(wf:f("$('#~s').parent().find('.mce-content-body').html('');", [Csid]));
     _ ->  wf:remove(EditorId)
   end,
+  wf:update(comments, list_to_binary(integer_to_list(kvs_feed:comments_count(entry, Eid)))),
   wf:wire("Holder.run();");
 process_delivery(R,M) -> product:process_delivery(R,M).

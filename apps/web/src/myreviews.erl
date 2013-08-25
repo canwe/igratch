@@ -41,7 +41,7 @@ input()->
         #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE },
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, class=[btn, "btn-large", "btn-success"], body= <<" Post">>,
           postback={post_entry, EditorId, TitleId, MsId}, source=[TitleId, EditorId, products] }]},
-        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
+        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias, myreviews)}
       ]},
       #panel{class=[span2], body=[]}
   ]} ] end.

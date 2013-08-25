@@ -261,13 +261,13 @@ render_element(#feature_req{entry=E})->
   ]},
   element_panel:render_element(R).
 
-preview_medias(Id, Medias)->
+preview_medias(Id, Medias, Delegate)->
   L = length(Medias),
   if L > 0 ->
     #carousel{indicators=false, style="border:1px solid #eee;", items=[
       #panel{class=["row-fluid"], body=[
         #panel{class=[span3], style="position:relative;", body=[
-          #link{class=[close], style="position:absolute; right:10px;top:5px; color:red;",  body= <<"&times;">>, postback={remove_media, M, Id}},
+          #link{class=[close], style="position:absolute; right:10px;top:5px; color:red;",  body= <<"&times;">>, postback={remove_media, M, Id}, delegate=Delegate},
           #link{class=[thumbnail], body=[
             #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x80">>;
               Th ->

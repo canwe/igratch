@@ -25,36 +25,37 @@ body() ->
           true -> [
           #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(Who, What, profile, [])},
           #panel{class=[span9], body=[
-            dashboard:section(profile, profile_info(Who, What), "icon-user"),
+            dashboard:section(profile, profile_info(Who, What, "icon-2x"), "icon-user"),
             dashboard:section(direct(), "icon-edit"),
             dashboard:section(payments(Who, What), "icon-list")
           ]}] end
       ]}}}
   ] ++ index:footer().
 
-profile_info(Who, What) ->
-    error_logger:info_msg("What ~p", [What]),
-      RegDate = product_ui:to_date(What#user.register_date),
-      Mailto = if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
-      [
-      #h3{class=[blue], body= <<"Profile">>},
-      #panel{class=["row-fluid"], body=[
-        #panel{class=[span4, "dashboard-img-wrapper"], body=
+profile_info(#user{} = Who, #user{} = What, Size) ->
+    error_logger:info_msg("What: ~p", [What]),
+    RegDate = product_ui:to_date(What#user.register_date),
+    Mailto = if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
+    Large = Size == "icon-2x",
+    [#h3{class=[blue], body= if Large -> <<"Profile">>; true -> <<"&nbsp;&nbsp;&nbsp;Author">> end},
+    #panel{class=["row-fluid"], body=[
+
+        #panel{class=[if Large -> span4; true -> span12 end, "dashboard-img-wrapper"], body=
         #panel{class=["dashboard-img"], body=
           #image{class=[], alt="",
-            image = case What#user.avatar of undefined ->  "/holder.js/180x180";
-              Av -> 
-              re:replace(Av, <<"_normal">>, <<"">>, [{return, list}]) 
-                ++"?sz=180&width=180&height=180&s=180" end, width= <<"180px">>, height= <<"180px">>}} },
-        #panel{class=[span8, "profile-info-wrapper"], body=
+            image = case What#user.avatar of undefined ->  "/holder.js/" ++ if Large -> "180x180"; true -> "135x135" end;
+            Av -> re:replace(Av, <<"_normal">>, <<"">>, [{return, list}]) ++"?sz=180&width=180&height=180&s=180" end, width= <<"180px">>, height= <<"180px">>}}},
+
+        #panel{class=if Large -> [span8, "profile-info-wrapper"]; true -> [span12] end, body=
         #panel{class=["form-inline", "profile-info"], body=[
-          #panel{body=[#label{body= <<"Name:">>}, #b{body= What#user.display_name}]},
-          #panel{show_if=What#user.email=/=undefined, body=[#label{body= <<"Mail:">>}, #link{url= Mailto, body=#strong{body= What#user.email}}]},
-          #panel{body=[#label{body= <<"Member since ">>}, #strong{body= RegDate}]},
+          #panel{body=[if Large -> #label{body= <<"Name:">>};true -> [] end, #b{body= What#user.display_name}]},
+          if Large -> #panel{body=[if Large -> #label{body= <<"Mail:">>}; true -> [] end, #link{url= Mailto, body=#strong{body= What#user.email}}]}; true -> [] end,
+          #panel{body=[if Large -> #label{body= <<"Member since ">>}; true -> [] end, #strong{body= RegDate}]},
           #b{class=["text-success"], body= if What#user.status==ok -> <<"Active">>; true-> atom_to_list(What#user.status) end},
-          features(Who, What, "icon-2x"),
+          features(Who, What, Size),
           #p{id=alerts}
-        ]}}]} ].
+        ]}}]} ];
+profile_info(#user{}=Who, What, Size) -> case kvs:get(user, What) of {ok, U}-> profile_info(Who,U,Size); _-> [] end.
 
 direct()->[
   #h3{class=[blue], body= <<"write message">>}
@@ -163,5 +164,5 @@ process_delivery([user,To,entry,_,add],
                  [#entry{type=T},Tid, Eid, MsId, TabId])->
   User = wf:user(),
   wf:update(side_menu, dashboard:sidebar_menu(User, User, profile, [])),
-  wf:update(profile, profile_info(User, User));
+  wf:update(profile, profile_info(User, User, "icon-2x"));
 process_delivery(_R, _M) -> skip.

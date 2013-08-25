@@ -229,7 +229,7 @@ api_event(attach_media, Args, _Tag)->
   Medias = case wf:session(medias) of undefined -> []; M -> M end,
   NewMedias = [Media | Medias],
   wf:session(medias, NewMedias),
-  wf:update(Target, product_ui:preview_medias(Target, NewMedias));
+  wf:update(Target, product_ui:preview_medias(Target, NewMedias, product));
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 process_delivery([product, To, entry, _, add],
