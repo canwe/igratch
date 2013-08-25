@@ -136,7 +136,7 @@ event({request, Feature}) ->
     {ok,#acl{id=Id}} ->
       Recipients = [{user, User#user.email, lists:keyfind(direct, 1, User#user.feeds)} | lists:flatten([
         case kvs:get(user, Accessor) of {error, not_found} -> []; {ok, U} -> {Type, Accessor, lists:keyfind(direct, 1, U#user.feeds)} end
-      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs_acl:entries(Id), Action =:= allow])],
+      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(acl, Id, acl_entry, undefined), Action =:= allow])],
 
       EntryId = kvs:uuid(),
       From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
