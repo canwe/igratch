@@ -17,7 +17,8 @@ body() ->
   #section{id=content, body=
     #panel{class=[container], body=
       #panel{class=[row, dashboard], body=[
-        #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), admin, [#li{class=[divider]}, subnav() ])},
+        #panel{id=side_menu, class=[span3], body=dashboard:sidenav(wf:user(), wf:user(), admin, subnav())},
+
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
           #panel{class=["tab-content"], body=[
             #panel{id=categories, class=["tab-pane", active], body=[
@@ -39,10 +40,10 @@ body() ->
   ] ++ index:footer().
 
 subnav() -> [
-    #li{class=[active], body=[#link{url= <<"#categories">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"categories">>}]},
-    #li{body=[#link{url= <<"#acl">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"acl">>}]},
-    #li{body=[#link{url= <<"#users">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"users">>}]},
-    #li{body=[#link{url= <<"#products">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"products">>}]}
+    {categories, "categories", true},
+    {acl, "acl", false},
+    {users, "users", false},
+    {products, "products", false}
   ].
 
 input()-> [

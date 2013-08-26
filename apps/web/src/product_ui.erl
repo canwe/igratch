@@ -247,7 +247,7 @@ render_element(#feature_req{entry=E})->
       #small{body=["[", to_date(E#entry.created), "] "]},
       #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
       <<" ">>,
-      wf:to_list(E#entry.title),
+      wf:js_escape(wf:to_list(E#entry.title)),
       case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end
     ]},
     #p{body= E#entry.description},

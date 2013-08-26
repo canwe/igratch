@@ -19,7 +19,7 @@ body()-> index:header() ++[
   #section{id=content, body=
     #panel{class=[container, account], body=
       #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidebar_menu(wf:user(), wf:user(), mygames, [])},
+        #panel{class=[span3], body=dashboard:sidenav(wf:user(), wf:user(), mygames, [])},
         #panel{class=[span9], body=[
           dashboard:section(input(#entry{}), "icon-edit"),
           dashboard:section(games(), "icon-gamepad")]}]}}}]++index:footer().
@@ -44,7 +44,7 @@ input(#entry{}=E) ->
         #textbox{id = price, class=[span2], value=float_to_list(P#product.price/100, [{decimals, 2}])},
         #select{id=currency, class=[selectpicker], body=[#option{label= L, body = V, selected=binary_to_list(V)==P#product.currency} || {L,V} <- Curs]}
       ]},
-      #panel{id=media_block, body=product_ui:preview_medias(media_block, Medias)},
+      #panel{id=media_block, body=product_ui:preview_medias(media_block, Medias, mygames)},
 
       #panel{class=["btn-toolbar"],body=[
         case P#product.id of undefined -> 

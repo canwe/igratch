@@ -19,6 +19,7 @@
 -record(feature_req,    {?ELEMENT_BASE(product_ui), entry}).
 
 -record(input,          {?ELEMENT_BASE(controls), icon="icon-edit",
+    recipients="",
     placeholder_rcp="",
     placeholder_ttl="",
     placeholder_box=""}).

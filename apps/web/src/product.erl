@@ -74,7 +74,7 @@ entry_form(P, Fid, Feed) ->
         #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
         #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE},
         #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, Feed, MsId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
-        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias)}
+        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias, product)}
       ]},
       #panel{class=[span3], body=[]}
     ]}

@@ -16,17 +16,17 @@ body() ->
   What = case wf:qs(<<"id">>) of undefined -> Who;
     Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end
   end,
-
   index:header() ++ [
   #section{id=content, body=
     #panel{class=[container], body=
       #panel{class=[row, dashboard], body=[
         if What#user.email == undefined -> index:error("There is no user "++binary_to_list(wf:qs(<<"id">>))++"!");
           true -> [
-          #panel{id=side_menu, class=[span3], body=dashboard:sidebar_menu(Who, What, profile, [])},
+          #panel{id=side_menu, class=[span3], body=dashboard:sidenav(Who, What, profile, [])},
           #panel{class=[span9], body=[
             dashboard:section(profile, profile_info(Who, What, "icon-2x"), "icon-user"),
-            dashboard:section(direct(), "icon-edit"),
+            #input{title= <<"Write message">>, placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>,
+                recipients=wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
             dashboard:section(payments(Who, What), "icon-list")
           ]}] end
       ]}}}
@@ -56,10 +56,6 @@ profile_info(#user{} = Who, #user{} = What, Size) ->
           #p{id=alerts}
         ]}}]} ];
 profile_info(#user{}=Who, What, Size) -> case kvs:get(user, What) of {ok, U}-> profile_info(Who,U,Size); _-> [] end.
-
-direct()->[
-  #h3{class=[blue], body= <<"write message">>}
-  ].
 
 features(Who, What, Size) ->
   Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,

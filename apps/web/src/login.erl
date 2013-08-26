@@ -77,7 +77,7 @@ login_user(User) ->
   error_logger:info_msg("Loin: ~p ", [User]),
   wf:user(User),
   msg:notify([kvs_user, login, user, User#user.email, update_status], {}),
-  wf:redirect("/account").
+  wf:redirect("/profile").
 login(Key, Args)-> case Args of [{error, E}|_Rest] -> error_logger:info_msg("oauth error: ~p", [E]);
     _ -> case kvs:get(user,email_prop(Args,Key)) of
               {ok,Existed} -> RegData = registration_data(Args, Key, Existed), login_user(RegData);

@@ -14,15 +14,25 @@ render_element(#input{title=Title}=I) ->
     SaveId = wf:temp_id(),
     Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
     RecipientsId = wf:temp_id(),
+    FormId = wf:temp_id(),
+    ToolbarId = wf:temp_id(),
     wf:render(dashboard:section([
     #h3{class=[blue], body= Title},
-    #panel{class=["row-fluid"], body=[
+    #panel{id=ToolbarId, class=["row-fluid"], body=[
+        #panel{class=["btn-toolbar"], body=[
+            #link{class=[btn, "btn-large", "btn-info"], body= <<"Write">>, postback={show_input, FormId, ToolbarId}, delegate=controls}
+        ]}
+    ]},
+    #panel{id=FormId, class=["row-fluid"], style="display:none;", body=[
       #panel{class=[span9], body=[
-        #textboxlist{id=RecipientsId, placeholder=I#input.placeholder_rcp, delegate=controls},
+        #textboxlist{id=RecipientsId, placeholder=I#input.placeholder_rcp, delegate=controls, values=I#input.recipients},
         #textbox{id=TitleId, class=[span12], placeholder= I#input.placeholder_ttl},
         #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, delegate_api=controls, img_tool=gm, post_target=MsId, size=?THUMB_SIZE},
-        #panel{class=["btn-toolbar"], body=[#link{id=SaveId, class=[btn, "btn-large", "btn-success"], body= <<" Post">>,
-          delegate=controls, postback={post_entry, RecipientsId, EditorId, TitleId, MsId}, source=[TitleId, EditorId, RecipientsId] }]},
+        #panel{class=["btn-toolbar"], body=[
+            #link{id=SaveId, class=[btn, "btn-large", "btn-info"], body= <<"Post">>,
+                delegate=controls, postback={post_entry, RecipientsId, EditorId, TitleId, MsId}, source=[TitleId, EditorId, RecipientsId] },
+            #link{class=[btn, "btn-large"], body= <<"Close">>, postback={hide_input, FormId, ToolbarId}, delegate=controls}
+        ]},
         #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias, controls)}
       ]},
       #panel{class=[span3], body=[]}]}], I#input.icon)).
@@ -65,7 +75,10 @@ event({post_entry, RecipientsId, EditorId, TitleId, MediasId}) ->
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),
   wf:session(medias, New),
-  wf:update(Id, product_ui:preview_medias(Id, New, controls)).
+  wf:update(Id, product_ui:preview_medias(Id, New, controls));
+
+event({show_input, Form, Tools})-> wf:wire(#jq{target=Tools, method=[hide]}), wf:wire(#jq{target=Form,  method=[fadeIn]});
+event({hide_input, Form, Tools})-> wf:wire(#jq{target=Form,  method=[hide]}), wf:wire(#jq{target=Tools, method=[fadeIn]}).
 
 api_event(attach_media, Args, _Tag)->
   Props = n2o_json:decode(Args),
