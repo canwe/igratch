@@ -14,20 +14,13 @@ main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 body() ->
     wf:wire(#api{name=tabshow}),
     wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){tabshow($(e.target).attr('href'));});"),
+    Tab = case wf:qs(<<"tab">>) of undefined -> <<"categories">>; T ->  T end,
+    wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])),
+
     Nav = {wf:user(), admin, subnav()},
     index:header() ++ dashboard:page(Nav, [
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
-          #panel{class=["tab-content"], body=[
-            #panel{id=categories, class=["tab-pane", active], body=[
-                tab(categories)
-            ]},
-            #panel{id=acl, class=["tab-pane"], body=[]},
-            #panel{id=users, class=["tab-pane"], body=[ ]},
-            #panel{id=products, class=["tab-pane"], body=[ ]}
-          ]}
-        ]}
-
-    ]) ++ index:footer().
+            #panel{id=Id, class=["tab-pane"]} || Id <-[categories, acl, users, products] ]} ]) ++ index:footer().
 
 tab(categories)-> [
     dashboard:section(input(), "icon-user"),
@@ -59,10 +52,10 @@ tab(Title, Feed, Icon)->
 
 
 subnav() -> [
-    {categories, "categories", true},
-    {acl, "acl", false},
-    {users, "users", false},
-    {products, "products", false}
+    {categories, "categories"},
+    {acl, "acl"},
+    {users, "users"},
+    {products, "products"}
   ].
 
 input()-> [
@@ -204,6 +197,6 @@ process_delivery([user,To,entry,_,add],
   User = wf:user(),
   {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
   if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E}); true -> ok end,
-  wf:update(side_menu, dashboard:sidebar_menu(User, User, admin, [subnav()]));
+  wf:update(sidenav, dashboard:sidenav(User, admin, subnav()));
 
 process_delivery(_R, _M) -> skip.

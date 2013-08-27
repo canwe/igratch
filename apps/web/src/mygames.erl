@@ -18,7 +18,7 @@ main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 body()-> Nav = {wf:user(), mygames, []},
     index:header() ++ dashboard:page(Nav, [
         dashboard:section(input(#entry{}), "icon-edit"),
-        dashboard:section(games(), "icon-gamepad") ]) ++index:footer().
+        #feed_view{owner=wf:user(), feed=products, title= <<"My games">>, mode=review, icon="icon-gamepad"} ]) ++index:footer().
 
 input(#entry{}=E) ->
   User = wf:user(),
@@ -59,21 +59,6 @@ input(#entry{}=E) ->
     ]}
   ]}
  ]} end.
-
-games()->
-  case wf:user() of undefined -> []; User ->
-    {_, Fid} = Feed = lists:keyfind(products,1,User#user.feeds),
-    Entries = kvs:entries(Feed, undefined, ?PAGE_SIZE),
-    Last = case Entries of []-> []; E-> lists:last(E) end,
-    EsId = wf:temp_id(),
-    BtnId = wf:temp_id(),
-    Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId},
-    NoMore = length(Entries) < ?PAGE_SIZE,
-    [#h3{body= <<"My games">>, class=[blue]},
-    #panel{id=myproducts, body=[
-      #panel{id=EsId, body=[#product_entry{entry=E, mode=line, controls=controls(E)} || E <- Entries]},
-      #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-        if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback = {check_more, Last, Info}} end ]} ]} ] end.
 
 controls(#entry{type=Type} =  E) -> [
   #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
@@ -243,21 +228,13 @@ event({remove_media, M, Id}) ->
   product:event({remove_media, M, Id});
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
-process_delivery([user, _, entry, _, add],
-                 [#entry{description=D, title=T} = Entry, Eid, Tid, media_block, TabId])->
-  wf:session(medias, []),
-  wf:update(media_block, []),
-  wf:wire(wf:f("$('#~s').val('');", [Tid])),
-  wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, mode=line, controls= controls(Entry)}),
-  wf:wire("Holder.run();");
 process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->
   wf:update(?ID_TOOL(Id), controls(E)),
   product:process_delivery(R,E);
 process_delivery([group,_,entry,{_,_},delete], [_,_]) -> skip;
 
 process_delivery([product, registered], {{ok, P}, {Recipients, Groups}}) ->
-    error_logger:info_msg("Product ~p added, notify recipients", [P#product.id]),
+    error_logger:info_msg("=>Product ~p added, notify recipients~n", [P#product.id]),
 %      Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
 %      Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
 %        [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
@@ -277,7 +254,7 @@ process_delivery([product, registered], {{ok, P}, {Recipients, Groups}}) ->
                           media=Medias,
                           title=P#product.title,
                           description=P#product.brief,
-                          shared=""}, title, brief, media_block, myproducts]) || {RoutingType, To, {_, Fid}} <- Recipients];
+                          shared=""}, cats, title, brief, media_block, R]) || {RoutingType, To, {_, Fid}}=R <- Recipients];
 
 %      msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
 
@@ -285,4 +262,4 @@ process_delivery([product, registered], {Id, E}) ->
 %  Name = wf:session(name),
 %  if Id == Name -> wf:update(wf:session(name), index:error(atom_to_list(E))); true-> ok end;
     error_logger:info_msg("Error adding product: ~p", [E]);
-process_delivery(R,M) -> product:process_delivery(R,M).
+process_delivery(R,M) -> feed:process_delivery(R,M).

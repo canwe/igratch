@@ -8,7 +8,7 @@
 -define(THUMB_SIZE, [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
 
 -record(struct,         {lst=[]}).
--record(info_more,      {entries, toolbar, category, fid, module, delegate}).
+-record(info_more,      {entries, toolbar, category, fid, module, delegate, mode}).
 -record(product_figure, {?ELEMENT_BASE(product_ui), product}).
 -record(product_row,    {?ELEMENT_BASE(product_ui), product}).
 -record(product_cart,   {?ELEMENT_BASE(product_ui), product}).
@@ -25,4 +25,5 @@
     placeholder_ttl="Title",
     placeholder_box=""}).
 
--record(feed_view,           {?ELEMENT_BASE(feed), icon="icon-list", feed, owner}).
+-record(feed_view,      {?ELEMENT_BASE(feed), icon="icon-list", feed, owner, mode}).
+-record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[]}).

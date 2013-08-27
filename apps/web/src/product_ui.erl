@@ -85,52 +85,52 @@ render_element(#product_entry{entry=#entry{type={features, "jumbotron"}}=E}) ->
   ]},
 element_panel:render_element(Entry);
 
-render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId})->
-  PostId = E#entry.entry_id,
-  EntryId = ?ID_DESC(PostId),
-  TitleId = ?ID_TITLE(PostId),
-  Ms = E#entry.media,
-  EntryActionsLine = #list{class=[unstyled, inline], style="display:inline-block;", body=[
-              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]}},
-              #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, ProdId}}}
-            ]},
-  Entry = #panel{id=PostId, class=["blog-post"], body=[
-    #header{class=["blog-header"], body=[
-          #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
-    ]},
-    [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
+%render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId})->
+%  PostId = E#entry.entry_id,
+%  EntryId = ?ID_DESC(PostId),
+%  TitleId = ?ID_TITLE(PostId),
+%  Ms = E#entry.media,
+%  EntryActionsLine = #list{class=[unstyled, inline], style="display:inline-block;", body=[
+%              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]}},
+%              #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, ProdId}}}
+%            ]},
+%  Entry = #panel{id=PostId, class=["blog-post"], body=[
+%    #header{class=["blog-header"], body=[
+%          #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
+%    ]},
+%    [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
+%
+%    #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
 
-    #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
+%    #footer{class=["blog-footer", "row-fluid"], body=[
+%      EntryActionsLine
+%    ]}
+%  ]},
+%  element_panel:render_element(Entry);
 
-    #footer{class=["blog-footer", "row-fluid"], body=[
-      EntryActionsLine
-    ]}
-  ]},
-  element_panel:render_element(Entry);
+%render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Category, controls=Controls})->
+%  Id = E#entry.entry_id,
+%  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
 
-render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Category, controls=Controls})->
-  Id = E#entry.entry_id,
-  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+%  Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
+%    #panel{class=[span3, "article-meta"], body=[
+%      #h3{class=[blue], body= Category},
+%      #p{class=[username], body= #link{body=From, url= "/profile?id="++E#entry.from}},
+%      #p{class=[datestamp], body=[ #span{body= to_date(E#entry.created)} ]},
+%      #p{class=[statistics], body=[
+%        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
+%        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
+%      ]} ]},%
 
-  Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
-    #panel{class=[span3, "article-meta"], body=[
-      #h3{class=[blue], body= Category},
-      #p{class=[username], body= #link{body=From, url= "/profile?id="++E#entry.from}},
-      #p{class=[datestamp], body=[ #span{body= to_date(E#entry.created)} ]},
-      #p{class=[statistics], body=[
-        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
-        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
-      ]} ]},
-
-      #panel{id=?ID_MEDIA(Id), class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
-      #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
-        #p{id = ?ID_DESC(Id), body=shorten(E#entry.description)},
-        #panel{id=?ID_TOOL(Id), class=[more], body=Controls}
-      ]}
-  ]},
-
-  element_panel:render_element(Entry);
+%      #panel{id=?ID_MEDIA(Id), class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
+%      #panel{class=[span5, "article-text"], body=[
+ %       #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
+%        #p{id = ?ID_DESC(Id), body=shorten(E#entry.description)},
+%        #panel{id=?ID_TOOL(Id), class=[more], body=Controls}
+%      ]}
+%  ]},
+%
+%  element_panel:render_element(Entry);
 
 render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
   PostId = E#entry.entry_id,

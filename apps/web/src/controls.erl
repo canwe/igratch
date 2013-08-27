@@ -76,7 +76,8 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId}) ->
 
     error_logger:info_msg("Route2: ~p", [R2]),
 
-    UsrFeed = case EntryType of review -> feed; _-> EntryType  end,
+    UsrFeed = case EntryType of review -> feed; direct -> sent; reviews-> feed; _-> EntryType  end,
+    error_logger:info_msg("In user -> ~p", [UsrFeed]),
     R3 = [{user, User#user.email, lists:keyfind(UsrFeed, 1, User#user.feeds)}],
 
     Recipients = lists:flatten([R1,R2,R3]),

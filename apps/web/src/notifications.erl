@@ -12,41 +12,29 @@ main()-> case wf:user() of undefined -> wf:redirect("/"); _-> #dtl{file="prod", 
 body()->
     wf:wire(#api{name=tabshow}),
     wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){ console.log(e.target); tabshow($(e.target).attr('href'));});"),
-    Nav = {wf:user(), notifications, [{sent, "sent", false}, {archive, "archive", false}]},
+    Tab = case wf:qs(<<"tab">>) of undefined -> <<"notifications">>; T ->  T end,
+    wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])),
+
+    Nav = {wf:user(), notifications, subnav()},
     index:header() ++ dashboard:page(Nav,
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
-            #panel{id=notifications, class=["tab-pane", active], body=[
-                #input{title= <<"Write message">>, placeholder_rcp= <<"e-mail/User">>, placeholder_ttl= <<"Title">>, feed=direct},
-                feed(notification)
-            ]},
-            #panel{id=sent, class=["tab-pane"], body=[ ]},
-            #panel{id=archive, class=["tab-pane"], body=[ ]} ]}) ++ index:footer().
+            #panel{id=Id, class=["tab-pane"], body=[]} || Id <- [notifications,sent,archive]] }) ++ index:footer().
 
-subnav()-> [{sent, "sent", false}, {archive, "archive", false}].
+subnav()-> [{sent, "sent"}, {archive, "archive"}].
 
-feed(notification)-> tab(<<"Notifications">>, direct, "icon-envelope-alt");
-feed(sent)-> tab(<<"Sent Messages">>, sent, "icon-signout");
-feed(archive)-> tab(<<"Archive">>, archive, "icon-archive");
+feed(notifications)-> [
+    #input{title= <<"Write message">>, placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, type=direct},
+    #feed_view{owner=wf:user(), feed=direct, title= <<"Notifications">>, icon="icon-envelope-alt", mode=direct}];
+feed(sent)->
+    #feed_view{owner=wf:user(), feed=sent, title= <<"Sent Messages">>, icon="icon-signout", mode=direct};
+feed(archive)->
+    #feed_view{owner=wf:user(), feed=archive, title= <<"Archive">>, icon="icon-archive", mode=direct};
 feed(_) -> [index:error("404")].
-
-tab(Title, Feed, Icon)->
-  User = wf:user(),
-  {Feed,Fid} = lists:keyfind(Feed,1,User#user.feeds),
-  Entries = kvs:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
-  Last = case Entries of []-> []; E-> lists:last(E) end,
-  BtnId = wf:temp_id(),
-  Info = #info_more{fid=Fid, entries=Feed, toolbar=BtnId},
-  NoMore = length(Entries) < ?PAGE_SIZE,
-
-  dashboard:section([
-        #h3{class=[blue], body=Title },
-        #panel{id=Feed, body=[#feature_req{entry=E} || E <- Entries]},
-        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-            if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]}], Icon).
 
 control_event(_, _) -> ok.
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
+    error_logger:info_msg("Show feed Args: ~p Id:~p", [Args, Id]),
     wf:update(list_to_atom(Id), feed(list_to_atom(Id)));
 api_event(_,_,_) -> ok.
 
@@ -98,7 +86,7 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You request for "++ io_lib:format("~p", [Feature])++" has been rejected!",
-                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
+                          shared=""}, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
 
   % delete message from feed
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
@@ -107,30 +95,12 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
 
 event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
 
-process_delivery([user,To,entry,_,add],
-                 [#entry{type=Type, feed_id=Fid, description=D, title=T}=E,Tid, Eid, MsId, direct])->
-  What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
-  User = wf:user(),
-  {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
-  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E#entry{title=wf:js_escape(T), description=wf:js_escape(D)}}); true -> ok end,
-  wf:update(side_menu, dashboard:sidebar_menu(User, User, notifications, subnav())),
-  wf:wire(wf:f("$('#~s').val('');", [Tid])),
-  wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:wire("$('#users').html('');"),
-  wf:session(medias, []),
-  wf:update(MsId, []),
-  wf:wire("Holder.run();");
-
-process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
-  wf:insert_bottom(Info#info_more.entries, #feature_req{entry=Entry}),
-  wf:wire("Holder.run();"),
-  wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Entry, Info}});
 process_delivery([_,_,entry,Fid,delete], [E,From]) -> 
   User = wf:user(),
   Direct = lists:keyfind(direct, 1, User#user.feeds),
   if Direct == Fid ->
     wf:remove(E#entry.entry_id),
-    wf:update(side_menu, dashboard:sidebar_menu(wf:user(), wf:user(), notifications, subnav()) );
+    wf:update(sidenav, dashboard:sidenav(wf:user(), notifications, subnav()));
   true -> ok end;
 
-process_delivery(R,M) -> product:process_delivery(R,M).
+process_delivery(R,M) -> feed:process_delivery(R,M).

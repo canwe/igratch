@@ -1,11 +1,7 @@
 -module(fakepp).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
--include_lib("kvs/include/products.hrl").
--include_lib("kvs/include/users.hrl").
--include_lib("kvs/include/groups.hrl").
 -include_lib("feed_server/include/records.hrl").
--include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"fake">>},{body, body()}]}.

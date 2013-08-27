@@ -153,6 +153,6 @@ event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 process_delivery([user,To,entry,_,add],
                  [#entry{type=T},Tid, Eid, MsId, TabId])->
   User = wf:user(),
-  wf:update(side_menu, dashboard:sidebar_menu(User, User, profile, [])),
+  wf:update(sidenav, dashboard:sidenav(User, profile, [])),
   wf:update(profile, profile_info(User, User, "icon-2x"));
-process_delivery(_R, _M) -> skip.
+process_delivery(_,_) -> skip.
