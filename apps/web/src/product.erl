@@ -13,10 +13,16 @@ main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 body() ->
   Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
   case wf:qs(<<"tab">>) of undefined -> wf:wire("$(document).ready(function(){ $('a[href=\"#reviews\"]').tab('show'); });"); Tab -> wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])) end,
+
+  wf:wire(#api{name=tabshow}),
+  wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){ console.log(e.target); tabshow($(e.target).attr('href'));});"),
+
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, binary_to_list(Id)) of
-      {ok, P} -> [
+      {ok, P} ->
+        wf:session(product, P),
+        [
         #panel{class=["row-fluid", "page-header"], body=[
           #h4{class=[span9], style="line-height:30px;", body= [#link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, #small{body=[[
             begin
@@ -34,7 +40,8 @@ body() ->
           essential(P)
         ]}},
         #section{class=[section], body=#panel{class=[container], body=#panel{class=["row-fluid"], body=[
-          #panel{class=[span9], body=details(P)},
+          #panel{class=[span9], body= #panel{class=["tab-content", dashboard], body=[
+            #panel{id=Feed, class=["tab-pane"], body=[]} || {Feed, _} <- P#product.feeds]}},
           #panel{class=[span3], body=aside()}
         ]}}} ];
       {error, E} -> #panel{class=[alert, "alert-danger","alert-block"], body=[
@@ -55,42 +62,57 @@ essential(P)->[
     #li{body=[#link{url= <<"#news">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"News">>}]},
     #li{body=[#link{url= <<"#bundles">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Bundles">>}]}
   ]} ].
-details(P) -> #panel{class=["tab-content"], body=[
-  #panel{id=Feed, class=["tab-pane", if Feed==features -> "active;"; true -> "" end], body=[ feed(P#product.id, Fid, Feed), entry_form(P, Fid, Feed)]} || {Feed, Fid} <- P#product.feeds]}.
 
+%entry_form(P, Fid, Feed) ->
+%  TitleId = wf:temp_id(),
+%  EditorId = wf:temp_id(),
+%  SaveId = wf:temp_id(),
+%  User = wf:user(),
+%  Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
+%  MsId = wf:temp_id(),
+%  Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
+%  case User of undefined->[]; _-> [
+%    #h3{body="post "++ atom_to_list(Feed)},
+%    #panel{class=["row-fluid"], body=[
+%      #panel{class=[span9], body=[
+%        #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
+%        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE},
+%        #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback=
+%          {post_entry, Fid, P#product.id, EditorId, TitleId, Feed, MsId},
 
-entry_form(P, Fid, Feed) ->
-  TitleId = wf:temp_id(),
-  EditorId = wf:temp_id(),
-  SaveId = wf:temp_id(),
-  User = wf:user(),
-  Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
-  MsId = wf:temp_id(),
-  Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
-  case User of undefined->[]; _-> [
-    #h3{body="post "++ atom_to_list(Feed)},
-    #panel{class=["row-fluid"], body=[
-      #panel{class=[span9], body=[
-        #textbox{id=TitleId, class=[span12], placeholder= <<"Title">>},
-        #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE},
-        #panel{class=["btn-toolbar"], body=[#link{id=SaveId, postback={post_entry, Fid, P#product.id, EditorId, TitleId, Feed, MsId}, source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
-        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias, product)}
-      ]},
-      #panel{class=[span3], body=[]}
-    ]}
-  ] end.
+%          {post_entry, RecipientsId, EditorId, TitleId, MsId}
 
-feed(ProdId, Fid, features)-> feed(ProdId, kvs:entries({ProdId,Fid}, undefined, 10));
-feed(ProdId, Fid, _TabId) -> feed(ProdId, kvs:entries({ProdId, Fid}, undefined, 10)).
+%        source=[TitleId, EditorId], class=[btn, "btn-large", "btn-success"], body= <<"Post">>}]},
+%        #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias, product)}
+%      ]},
+%      #panel{class=[span3], body=[]}
+%    ]}
+%  ] end.
 
-feed(ProdId, Entries)-> #panel{class=[feed], body=[
-  [#product_entry{entry=E, prod_id=ProdId} || E <- Entries]
-%  #list{class=[pager], body=[
-%    #li{class=[previous], body=#link{body=[#i{class=["icon-chevron-left"]}, <<" Older">> ]}},
-%    #li{class=[next], body=#link{body=[#i{class=["icon-chevron-right"]}, <<" Newer">> ]}}
-%  ]} 
-]}.
+feed(Tab)->
+    User = wf:user(),
+    P = wf:session(product),
+    {Tab,Fid} = lists:keyfind(Tab,1,P#product.feeds),
+    Entries = kvs:entries({Tab,Fid}, undefined, ?PAGE_SIZE),
+    Last = case Entries of []-> []; E-> lists:last(E) end,
+    BtnId = wf:temp_id(),
+    Info = #info_more{fid=Fid, entries=Tab, toolbar=BtnId},
+    NoMore = length(Entries) < ?PAGE_SIZE,
 
+    Subscriptions =  kvs_group:participate(P#product.id),
+    Groups = lists:flatten([case kvs:get(group, Where) of {error, _}-> []; {ok, G} -> "group"++G#group.id++"="++G#group.name end || #group_subscription{where=Where} <- Subscriptions]),
+    Recipients = string:join([Groups, 
+        "product"++wf:to_list(P#product.id)++"="++wf:to_list(P#product.title), 
+        "user"++User#user.email++"="++wf:to_list(User#user.display_name)], ","),
+    error_logger:info_msg("Recipients: ~p", [Recipients]),
+    [
+%    entry_form(P, Fid, Tab),
+    #input{title= "Write "++atom_to_list(Tab), placeholder_rcp= <<"">>, placeholder_ttl= <<"Title">>, collapsed=true, feed=Tab, recipients=[Recipients]},
+    dashboard:section([
+        #h3{class=[blue], body= wf:to_list(Tab) },
+        #panel{id=Tab, class=[feed], body=[#product_entry{entry=E, prod_id=P#product.id} || E <- Entries]},
+        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
+            if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]}], "icon-circle")].
 
 aside()-> [
     #aside{class=[sidebar], body=[
@@ -215,6 +237,10 @@ event({add_cart, #product{}=P}) ->
   wf:redirect("/shopping_cart");
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
+api_event(tabshow,Args,_) ->
+    [Id|_] = string:tokens(Args,"\"#"),
+    error_logger:info_msg("Show tab ~p", [Id]),
+    wf:update(list_to_atom(Id), feed(list_to_atom(Id)));
 api_event(attach_media, Args, _Tag)->
   Props = n2o_json:decode(Args),
   Target = binary_to_list(proplists:get_value(<<"preview">>, Props#struct.lst)),
@@ -234,11 +260,12 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p
 
 process_delivery([product, To, entry, _, add],
                  [#entry{description=D, title=T} = Entry, Tid, Eid, MsId, TabId]) when TabId /= myreviews->
-  wf:session(medias, []),
-  wf:update(MsId, []),
-  wf:wire(wf:f("$('#~s').val('');", [Tid])),
-  wf:wire(wf:f("$('#~s').html('');", [Eid])),
-  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, prod_id=To}),
+    error_logger:info_msg("[product] product, entry, add"),
+%  wf:session(medias, []),
+%  wf:update(MsId, []),
+%  wf:wire(wf:f("$('#~s').val('');", [Tid])),
+%  wf:wire(wf:f("$('#~s').html('');", [Eid])),
+%  wf:insert_top(TabId, #product_entry{entry=Entry#entry{description=wf:js_escape(D), title=wf:js_escape(T)}, prod_id=To}),
   wf:wire("Holder.run();");
 
 process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc, media=Media}) ->

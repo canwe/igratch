@@ -182,7 +182,7 @@ render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
 %            #h3{body=#span{body= E#entry.title}}
       ]}
     ]},
-    #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
+    #panel{id=EntryId, body=wf:js_escape(E#entry.description), data_fields=[{<<"data-html">>, true}]},
     #panel{id=?ID_TOOL(PostId)},
 
     #footer{class=["blog-footer", "row-fluid"], body=[

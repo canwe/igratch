@@ -12,25 +12,19 @@
 main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Account">>},{body,body()}]}].
 
 body() ->
-  Who = case wf:user() of undefined -> #user{}; U -> U end,
-  What = case wf:qs(<<"id">>) of undefined -> Who;
-    Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end
-  end,
-  index:header() ++ [
-  #section{id=content, body=
-    #panel{class=[container], body=
-      #panel{class=[row, dashboard], body=[
+    Who = case wf:user() of undefined -> #user{}; U -> U end,
+    What = case wf:qs(<<"id">>) of undefined -> Who;
+        Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end end,
+    Nav = {What, profile, []},
+    index:header() ++ dashboard:page(Nav, [
         if What#user.email == undefined -> index:error("There is no user "++binary_to_list(wf:qs(<<"id">>))++"!");
-          true -> [
-          #panel{id=side_menu, class=[span3], body=dashboard:sidenav(Who, What, profile, [])},
-          #panel{class=[span9], body=[
+        true -> [
             dashboard:section(profile, profile_info(Who, What, "icon-2x"), "icon-user"),
-            #input{title= <<"Write message">>, placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>,
-                recipients=wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
+            #input{title= <<"Write message">>, placeholder_rcp= <<"E-mail/User">>, role=user, type=direct,
+                placeholder_ttl= <<"Subject">>,
+                recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name), collapsed=true},
             dashboard:section(payments(Who, What), "icon-list")
-          ]}] end
-      ]}}}
-  ] ++ index:footer().
+        ] end ])  ++ index:footer().
 
 profile_info(#user{} = Who, #user{} = What, Size) ->
     error_logger:info_msg("What: ~p", [What]),

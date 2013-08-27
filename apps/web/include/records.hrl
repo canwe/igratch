@@ -4,6 +4,7 @@
 -define(ID_DESC(Id),    Id++"d").
 -define(ID_TOOL(Id),    Id++"e").
 -define(ID_MEDIA(Id),   Id++"m").
+-define(ID_FEED(Id),    integer_to_list(Id)++"es").
 -define(THUMB_SIZE, [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
 
 -record(struct,         {lst=[]}).
@@ -18,8 +19,10 @@
 -record(entry_comment,  {?ELEMENT_BASE(product_ui), comment}).
 -record(feature_req,    {?ELEMENT_BASE(product_ui), entry}).
 
--record(input,          {?ELEMENT_BASE(controls), icon="icon-edit",
+-record(input,          {?ELEMENT_BASE(controls), icon="icon-edit", collapsed=false, feed, type,
     recipients="",
     placeholder_rcp="",
-    placeholder_ttl="",
+    placeholder_ttl="Title",
     placeholder_box=""}).
+
+-record(feed_view,           {?ELEMENT_BASE(feed), icon="icon-list", feed, owner}).

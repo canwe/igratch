@@ -12,32 +12,51 @@
 main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 
 body() ->
-  {AclEn, Acl} = acls(),
-  index:header() ++ [
-  #section{id=content, body=
-    #panel{class=[container], body=
-      #panel{class=[row, dashboard], body=[
-        #panel{id=side_menu, class=[span3], body=dashboard:sidenav(wf:user(), wf:user(), admin, subnav())},
-
+    wf:wire(#api{name=tabshow}),
+    wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){tabshow($(e.target).attr('href'));});"),
+    Nav = {wf:user(), admin, subnav()},
+    index:header() ++ dashboard:page(Nav, [
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
           #panel{class=["tab-content"], body=[
             #panel{id=categories, class=["tab-pane", active], body=[
-              dashboard:section(input(), "icon-user"),
-              dashboard:section(categories(), "icon-list")
+                tab(categories)
             ]},
-            #panel{id=acl, class=["tab-pane"], body=[
-              dashboard:section(acl(Acl), "icon-male"),
-              dashboard:section(acl_entry(AclEn), "icon-list")
-            ]},
-            #panel{id=users, class=["tab-pane"], body=[
-              dashboard:section(users(), "icon-user")
-            ]},
-            #panel{id=products, class=["tab-pane"], body=[
-              dashboard:section(products(), "icon-gamepad")
-            ]}
+            #panel{id=acl, class=["tab-pane"], body=[]},
+            #panel{id=users, class=["tab-pane"], body=[ ]},
+            #panel{id=products, class=["tab-pane"], body=[ ]}
           ]}
-        ]} ]} } }
-  ] ++ index:footer().
+        ]}
+
+    ]) ++ index:footer().
+
+tab(categories)-> [
+    dashboard:section(input(), "icon-user"),
+    dashboard:section(categories(), "icon-list") ];
+tab(acl)-> {AclEn, Acl} = acls(), [
+    dashboard:section(acl(Acl), "icon-male"),
+    dashboard:section(acl_entry(AclEn), "icon-list") ];
+tab(users)-> [
+    dashboard:section(users(), "icon-user") ];
+tab(products)-> [
+    dashboard:section(products(), "icon-gamepad") ];
+tab(_)-> [].
+
+tab(Title, Feed, Icon)->
+  User = wf:user(),
+  {Feed,Fid} = lists:keyfind(Feed,1,User#user.feeds),
+  Entries = kvs:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
+  Last = case Entries of []-> []; E-> lists:last(E) end,
+  BtnId = wf:temp_id(),
+  Info = #info_more{fid=Fid, entries=Feed, toolbar=BtnId},
+  NoMore = length(Entries) < ?PAGE_SIZE,
+
+  dashboard:section([
+        #h3{class=[blue], body=Title },
+%        #panel{id=Feed, body=[#feature_req{entry=E} || E <- Entries]},
+        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
+            if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]}
+    ], Icon).
+
 
 subnav() -> [
     {categories, "categories", true},
@@ -169,7 +188,10 @@ event({revoke, Feature, Whom})->
 
 event(Event) -> error_logger:info_msg("Page event: ~p", [Event]), ok.
 
-api_event(Name,Tag,Term) -> error_logger:info_msg("[admin]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
+api_event(tabshow,Args,_) ->
+    [Id|_] = string:tokens(Args,"\"#"),
+    wf:update(list_to_atom(Id), tab(list_to_atom(Id)));
+api_event(_,_,_) -> ok.
 
 process_delivery([create],
                  [{Creator, Id, Name, Desc, Publicity}]) ->

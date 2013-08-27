@@ -15,14 +15,10 @@
 
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
-body()-> index:header() ++[
-  #section{id=content, body=
-    #panel{class=[container, account], body=
-      #panel{class=[row, dashboard], body=[
-        #panel{class=[span3], body=dashboard:sidenav(wf:user(), wf:user(), mygames, [])},
-        #panel{class=[span9], body=[
-          dashboard:section(input(#entry{}), "icon-edit"),
-          dashboard:section(games(), "icon-gamepad")]}]}}}]++index:footer().
+body()-> Nav = {wf:user(), mygames, []},
+    index:header() ++ dashboard:page(Nav, [
+        dashboard:section(input(#entry{}), "icon-edit"),
+        dashboard:section(games(), "icon-gamepad") ]) ++index:footer().
 
 input(#entry{}=E) ->
   User = wf:user(),
@@ -36,7 +32,7 @@ input(#entry{}=E) ->
     #h3{class=[blue], body= [<<"Add new game">>, #span{class=["pull-right", span3], style="color: #555555;",  body= <<"cover">>}]},
     #panel{class=["row-fluid"], body=[
     #panel{class=[span9], body=[
-      #textboxlist{id=cats, placeholder= <<"Categoried/Tags">>, values=string:join(Groups,",")},
+      #textboxlist{id=cats, placeholder= <<"Categories">>, values=string:join(Groups,",")},
       #textbox{id=title, class=[span12], placeholder="Game title", value = E#entry.title},
       #textarea{id=brief, class=[span12], rows="5", placeholder="Brief description", body = E#entry.description},
 
@@ -88,7 +84,7 @@ control_event("cats", _) ->
   SearchTerm = wf:q(term),
   Data = [ [list_to_binary(Id++"="++Name), list_to_binary(Name)] || #group{id=Id, name=Name} <- ?GRP_CACHE, string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
   element_textboxlist:process_autocomplete("cats", Data, SearchTerm);
-control_event("cover_upload", {query_file, Root, Dir, File, MimeType})->
+control_event("cover_upload", {query_file, Root, Dir, File, MimeType, PostWrite, Target})->
   Name = binary_to_list(File),
   Size = case file:read_file_info(filename:join([Root,Dir,Name])) of 
     {ok, FileInfo} ->
@@ -98,7 +94,7 @@ control_event("cover_upload", {query_file, Root, Dir, File, MimeType})->
         type = {attachment, MimeType},
         thumbnail_url = filename:join([Dir,"thumbnail",Name])},
       wf:session(medias, [Media]),
-      wf:update(media_block, product_ui:preview_medias(media_block, [Media])),
+      wf:update(media_block, product_ui:preview_medias(media_block, [Media], mygames)),
       FileInfo#file_info.size;
     {error, _} -> 0 end,
   {exist, Size};

@@ -12,7 +12,8 @@
     {admin,         <<"admin">>,            undefined}
     ]).
 
-sidenav(Who, What, Active, Tabs)->
+sidenav({What, Active, Tabs})->
+    Who = wf:user(),
     #panel{class=["dash-sidebar-menu"], body=#list{class=[nav, "nav-list","dash-sidebar-nav", "affix-top"], data_fields=[{<<"data-spy">>, <<"affix">>}], body=[
         begin
             SubTabs = if Active == Page -> [
@@ -21,7 +22,6 @@ sidenav(Who, What, Active, Tabs)->
                 #link{url= "#"++wf:to_list(Id), data_fields=[{<<"data-toggle">>, <<"tab">>}], body= Label}]} || {Id, Label, IsActive} <- Tabs]]; true -> [] end,
             Class = if Active == Page -> [active]; true -> [] end,
             PageFeed = lists:keyfind(Feed, 1, What#user.feeds),
-            error_logger:info_msg("Page feed: ~p", [PageFeed]),
             Badge = if PageFeed /= false -> {_, Fid} = PageFeed,
                     case kvs:get(feed, Fid) of {error,_}-> [];
                     {ok, F}-> #span{class=[label, "label-info"], body=integer_to_list(F#feed.entries_count)} end; true -> [] end,
@@ -29,7 +29,9 @@ sidenav(Who, What, Active, Tabs)->
             [#li{class=Class, body=#link{url="/"++atom_to_list(Page), body=[Title, Badge]}}, SubTabs]
         end || {Page, Title, Feed} <- lists:filter(fun({P,_,_})-> if Who == What ->
             case P of
-                admin -> kvs_acl:check_access(What#user.email, {feature, admin})==allow;
+                admin ->        kvs_acl:check_access(What#user.email, {feature, admin})==allow;
+                myreviews ->    kvs_acl:check_access(What#user.email, {feature, reviewer})==allow;
+                mygames ->      kvs_acl:check_access(What#user.email, {feature, developer})==allow;
                 _-> true end; true -> P==Active end end, ?PAGES)
     ]}}.
 
@@ -40,3 +42,9 @@ section(Id, Body, Icon, Section) ->
   #section{class=["row-fluid", "dashboard-section"], body = [
     #panel{class=[span1], body=#i{class=[Icon, "icon-2x", blue]}},
     #panel{id=Id, class=[span11, "dashboard-unit", Section], body=Body} ]}.
+
+page({_,_,_}=Nav, Body)-> [
+    #section{id=content, body=#panel{class=[container], body=#panel{class=[row, dashboard], body=[
+        #panel{class=[span3], body=sidenav(Nav)},
+        #panel{class=[span9], body=Body}]}}}];
+page(_,_)->[].

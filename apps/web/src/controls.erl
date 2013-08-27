@@ -1,7 +1,9 @@
 -module(controls).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/feeds.hrl").
+-include_lib("kvs/include/groups.hrl").
 -include("records.hrl").
 -compile(export_all).
 
@@ -19,41 +21,66 @@ render_element(#input{title=Title}=I) ->
     wf:render(dashboard:section([
     #h3{class=[blue], body= Title},
     #panel{id=ToolbarId, class=["row-fluid"], body=[
-        #panel{class=["btn-toolbar"], body=[
+        #panel{class=["btn-toolbar"], style=if I#input.collapsed==true -> ""; true -> "display:none;" end, body=[
             #link{class=[btn, "btn-large", "btn-info"], body= <<"Write">>, postback={show_input, FormId, ToolbarId}, delegate=controls}
         ]}
     ]},
-    #panel{id=FormId, class=["row-fluid"], style="display:none;", body=[
+    #panel{id=FormId, class=["row-fluid"], style=if I#input.collapsed==true -> "display:none;";true-> "" end, body=[
       #panel{class=[span9], body=[
-        #textboxlist{id=RecipientsId, placeholder=I#input.placeholder_rcp, delegate=controls, values=I#input.recipients},
+        #textboxlist{id=RecipientsId, placeholder=I#input.placeholder_rcp, delegate=controls, values=I#input.recipients, role=I#input.role},
         #textbox{id=TitleId, class=[span12], placeholder= I#input.placeholder_ttl},
         #htmlbox{id=EditorId, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, delegate_api=controls, img_tool=gm, post_target=MsId, size=?THUMB_SIZE},
         #panel{class=["btn-toolbar"], body=[
             #link{id=SaveId, class=[btn, "btn-large", "btn-info"], body= <<"Post">>,
-                delegate=controls, postback={post_entry, RecipientsId, EditorId, TitleId, MsId}, source=[TitleId, EditorId, RecipientsId] },
-            #link{class=[btn, "btn-large"], body= <<"Close">>, postback={hide_input, FormId, ToolbarId}, delegate=controls}
+                delegate=controls, postback={post_entry, RecipientsId, EditorId, TitleId, I#input.type, MsId}, source=[TitleId, EditorId, RecipientsId] },
+            #link{class=[btn, "btn-large"], style=if I#input.collapsed==false -> "display:none;";true-> "" end,
+                body= <<"Close">>, postback={hide_input, FormId, ToolbarId}, delegate=controls}
         ]},
         #panel{id=MsId, body=product_ui:preview_medias(MsId, Medias, controls)}
       ]},
       #panel{class=[span3], body=[]}]}], I#input.icon)).
 
-control_event(Cid, _) ->
+control_event(Cid, Role) ->
     SearchTerm = wf:q(term),
-    Data = [[list_to_binary(Id++"="++wf:to_list(Name)), list_to_binary(wf:to_list(Name))]
-    || #user{email=Id, display_name=Name} <- kvs:entries(kvs:get(feed, ?USR_FEED), user), string:str(string:to_lower(wf:to_list(Id)), string:to_lower(SearchTerm)) > 0],
+    Entries = [{element(#iterator.id, E), case Role of user-> element(#user.display_name, E); product-> element(#product.title, E); _-> skip end}
+        || E <- kvs:entries(kvs:get(feed, ?FEED(Role)), Role)],
+
+    Data = [[list_to_binary(atom_to_list(Role)++Id++"="++wf:to_list(Name)), list_to_binary(wf:to_list(Name))]
+        || {Id, Name} <- Entries, string:str(string:to_lower(wf:to_list(Name)), string:to_lower(SearchTerm)) > 0],
     element_textboxlist:process_autocomplete(Cid, Data, SearchTerm).
 
-event({post_entry, RecipientsId, EditorId, TitleId, MediasId}) ->
+
+% - entry type 
+%  
+event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId}) ->
     User = wf:user(),
     Desc = wf:q(EditorId),
     Title = wf:q(TitleId),
-    Users = [case kvs:get(user,S) of {error,_} -> []; {ok,G} ->G end || S <- string:tokens(wf:q(RecipientsId), ",")],
+    error_logger:info_msg("Entry type: ~p", [EntryType]),
+    error_logger:info_msg("Recipients line: ~p ", [wf:q(RecipientsId)]),
 
-     Recipients = lists:append([
-        [{user, Id, lists:keyfind(direct,1,Feeds)} || #user{email=Id, feeds=Feeds} <- Users, User#user.id /= Id],
-        [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}] ]),
+    R1 = lists:flatmap(fun(S) -> [begin
+        Type = list_to_atom(A),
+        Feed = case EntryType of
+            review -> reviews;
+            _ -> EntryType
+        end,
+        case kvs:get(Type, string:substr(S, length(A)+Pos)) of {error,_}-> [];
+        {ok, E} -> {Type, element(#iterator.id, E), lists:keyfind(Feed, 1, element(#iterator.feeds, E))} end end
 
-    error_logger:info_msg("Recipients: ~p", [Recipients]),
+        || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(wf:q(RecipientsId), ",")),
+
+    R2 = [[ {group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-
+        lists:flatten([case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(To)])]
+        || {RouteType, To, _} <- R1, RouteType==product],
+
+    error_logger:info_msg("Route2: ~p", [R2]),
+
+    UsrFeed = case EntryType of review -> feed; _-> EntryType  end,
+    R3 = [{user, User#user.email, lists:keyfind(UsrFeed, 1, User#user.feeds)}],
+
+    Recipients = lists:flatten([R1,R2,R3]),
+    error_logger:info_msg("[control]Recipients: ~p", [Recipients]),
 
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
@@ -66,11 +93,11 @@ event({post_entry, RecipientsId, EditorId, TitleId, MediasId}) ->
         created = now(),
         to = {RoutingType, To},
         from=From,
-        type=direct,
+        type=EntryType,
         media=Medias,
         title=Title,
         description=Desc,
-        shared=""}, TitleId, EditorId, MediasId, direct]) || {RoutingType, To, {_, FeedId}} <- Recipients];
+        shared=""}, RecipientsId, TitleId, EditorId, MediasId, R]) || {RoutingType, To, {_, FeedId}} = R <- Recipients];
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),
