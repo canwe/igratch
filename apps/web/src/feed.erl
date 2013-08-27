@@ -7,6 +7,8 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
+render_element(#feed_view{owner=undefined, title=Title, icon=Icon})->
+    wf:render(dashboard:section([#h3{class=[blue], body= Title}, index:error("Anonymous users has no feeds.")], Icon));
 render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mode=Mode})->
     {_, Fid} = Feed = lists:keyfind(FeedName, 1, element(#iterator.feeds, Owner)),
     Entries = kvs:entries(Feed, undefined, ?PAGE_SIZE),

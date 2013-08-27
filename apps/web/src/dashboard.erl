@@ -20,7 +20,8 @@ sidenav({What, Active, Tabs})->
                 if Tabs /= [] -> #li{class=[divider]}; true-> [] end,
                 [#li{body=[#link{url= "#"++wf:to_list(Id), data_fields=[{<<"data-toggle">>, <<"tab">>}], body= Label}]} || {Id, Label} <- Tabs]]; true -> [] end,
             Class = if Active == Page andalso SubTabs == [] -> [active]; true -> [] end,
-            PageFeed = lists:keyfind(Feed, 1, What#user.feeds),
+
+            PageFeed = lists:keyfind(Feed, 1, if What==undefined->[];true -> What#user.feeds end),
             Badge = if PageFeed /= false -> {_, Fid} = PageFeed,
                     case kvs:get(feed, Fid) of {error,_}-> [];
                     {ok, F}-> #span{class=[label, "label-info"], body=integer_to_list(F#feed.entries_count)} end; true -> [] end,
@@ -28,11 +29,12 @@ sidenav({What, Active, Tabs})->
             [#li{class=Class, body=#link{
                 url=if SubTabs/=[]->"#"; true -> "/" end ++atom_to_list(Page),
                 data_fields=if SubTabs/=[]->[{<<"data-toggle">>, <<"tab">>}];true-> [] end,  body=[Title, Badge]}}, SubTabs]
-        end || {Page, Title, Feed} <- lists:filter(fun({P,_,_})-> if Who == What ->
-            case P of
-                admin ->        kvs_acl:check_access(What#user.email, {feature, admin})==allow;
-                myreviews ->    kvs_acl:check_access(What#user.email, {feature, reviewer})==allow;
-                mygames ->      kvs_acl:check_access(What#user.email, {feature, developer})==allow;
+        end || {Page, Title, Feed} <- lists:filter(fun({P,_,_})-> 
+            if  What==undefined -> P == Active;
+                Who == What -> case P of
+                    admin ->        kvs_acl:check_access(What#user.email, {feature, admin})==allow;
+                    myreviews ->    kvs_acl:check_access(What#user.email, {feature, reviewer})==allow;
+                    mygames ->      kvs_acl:check_access(What#user.email, {feature, developer})==allow;
                 _-> true end; true -> P==Active end end, ?PAGES)
     ]}}.
 
