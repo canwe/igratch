@@ -1,4 +1,4 @@
--module(controls).
+-module(input).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/products.hrl").

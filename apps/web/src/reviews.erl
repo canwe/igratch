@@ -36,11 +36,6 @@ body()->
   ]}]}
   ] ++ index:footer().
 
-all(Reviews) -> [
-  #product_entry{entry=E, mode=line, controls=product:controls(E)} || E <- lists:foldl(
-    fun(#entry{entry_id=Eid}=E, Ai) -> [E|lists:filter(fun(#entry{entry_id=Eid1})-> Eid =/= Eid1 end, Ai)] end, [], lists:flatten(Reviews)) ].
-
-
 feed("all")-> [];
     %#feed_view{owner=any, feed=?FEED(product), title= <<"">>, mode=product, icon="icon-tags"};
 feed(Group) ->

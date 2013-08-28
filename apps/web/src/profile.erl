@@ -26,7 +26,7 @@ body() ->
             dashboard:section(payments(Who, What), "icon-list")
         ] end ])  ++ index:footer().
 
-profile_info(#user{} = Who, #user{} = What, Size) ->
+profile_info(Who, #user{} = What, Size) ->
 %    error_logger:info_msg("What: ~p", [What]),
     RegDate = product_ui:to_date(What#user.register_date),
     Mailto = if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
@@ -49,13 +49,13 @@ profile_info(#user{} = Who, #user{} = What, Size) ->
           features(Who, What, Size),
           #p{id=alerts}
         ]}}]} ];
-profile_info(#user{}=Who, What, Size) -> case kvs:get(user, What) of {ok, U}-> profile_info(Who,U,Size); _-> [] end.
+profile_info(Who, What, Size) -> case kvs:get(user, What) of {ok, U}-> profile_info(Who,U,Size); _-> [] end.
 
 features(Who, What, Size) ->
   Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
   Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
   Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
-  AmIAdmin= kvs_acl:check_access(Who#user.email,  {feature, admin}) =:= allow,
+  AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) =:= allow,
 %  error_logger:info_msg("Am I admin ~p", [AmIAdmin]),
   [#p{body=[
   if AmIAdmin -> #link{class=["text-warning"], 

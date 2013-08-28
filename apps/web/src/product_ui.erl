@@ -77,122 +77,75 @@ render_element(#product_hero{product=P}) ->
   ]},
   element_panel:render_element(Hero);
 
-render_element(#product_entry{entry=#entry{type={features, "jumbotron"}}=E}) ->
-  error_logger:info_msg("View desctiption entry with jumbotron layout ~p~n", [E]),
-  PostId = wf:temp_id(),
-  Entry = #panel{id=PostId, class=["blog-post", "jumbotron"],body=[
-    <<"Jumbotron">>
-  ]},
-element_panel:render_element(Entry);
-
-%render_element(#product_entry{entry=#entry{type={features, _}}=E, prod_id=ProdId})->
-%  PostId = E#entry.entry_id,
-%  EntryId = ?ID_DESC(PostId),
-%  TitleId = ?ID_TITLE(PostId),
-%  Ms = E#entry.media,
-%  EntryActionsLine = #list{class=[unstyled, inline], style="display:inline-block;", body=[
-%              #li{body=#link{body= <<"Edit">>, postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]}},
-%              #li{body=#link{body= <<"Remove">>, postback={remove_entry, E, ProdId}}}
-%            ]},
-%  Entry = #panel{id=PostId, class=["blog-post"], body=[
-%    #header{class=["blog-header"], body=[
-%          #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}]}
-%    ]},
-%    [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms],
-%
-%    #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
-
-%    #footer{class=["blog-footer", "row-fluid"], body=[
-%      EntryActionsLine
-%    ]}
+%render_element(#product_entry{entry=#entry{type={features, "jumbotron"}}=E}) ->
+%  error_logger:info_msg("View desctiption entry with jumbotron layout ~p~n", [E]),
+%  PostId = wf:temp_id(),
+%  Entry = #panel{id=PostId, class=["blog-post", "jumbotron"],body=[
+%    <<"Jumbotron">>
 %  ]},
-%  element_panel:render_element(Entry);
+%element_panel:render_element(Entry);
 
-%render_element(#product_entry{entry=#entry{type=Type}=E, mode=line, category=Category, controls=Controls})->
-%  Id = E#entry.entry_id,
-%  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-
-%  Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
-%    #panel{class=[span3, "article-meta"], body=[
-%      #h3{class=[blue], body= Category},
-%      #p{class=[username], body= #link{body=From, url= "/profile?id="++E#entry.from}},
-%      #p{class=[datestamp], body=[ #span{body= to_date(E#entry.created)} ]},
-%      #p{class=[statistics], body=[
-%        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
-%        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
-%      ]} ]},%
-
-%      #panel{id=?ID_MEDIA(Id), class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
-%      #panel{class=[span5, "article-text"], body=[
- %       #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
-%        #p{id = ?ID_DESC(Id), body=shorten(E#entry.description)},
-%        #panel{id=?ID_TOOL(Id), class=[more], body=Controls}
+%render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
+%  PostId = E#entry.entry_id,
+%  TitleId = ?ID_TITLE(PostId),
+%  EntryId= ?ID_DESC(PostId),
+%  {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
+%  Comments = kvs:entries(kvs:get(feed, Fid), comment),
+%  CommentId = wf:temp_id(),
+%  CommentsId = wf:temp_id(),
+%  Ms = E#entry.media,
+%  Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
+%  Entry = #panel{id=PostId, class=["blog-post"], body=[
+%    #h3{class=[blue], body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
+%    #figure{class=["thumbnail-figure"], body=[
+%      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms]
+%    ]},
+%    #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
+%    #panel{class=[comments, "row-fluid"], body=[
+%        #h3{body= <<"comments">>},
+%        #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
+%        #h3{class=["comments-form"], body= <<"Add your comment">>},
+%        #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=?THUMB_SIZE},
+%        #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
 %      ]}
 %  ]},
 %
 %  element_panel:render_element(Entry);
 
-render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
-  PostId = E#entry.entry_id,
-  TitleId = ?ID_TITLE(PostId),
-  EntryId= ?ID_DESC(PostId),
-  {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
-  Comments = kvs:entries(kvs:get(feed, Fid), comment),
-  CommentId = wf:temp_id(),
-  CommentsId = wf:temp_id(),
-  Ms = E#entry.media,
-  Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
-  Entry = #panel{id=PostId, class=["blog-post"], body=[
-    #h3{class=[blue], body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
-    #figure{class=["thumbnail-figure"], body=[
-      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms]
-    ]},
-    #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
-    #panel{class=[comments, "row-fluid"], body=[
-        #h3{body= <<"comments">>},
-        #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
-        #h3{class=["comments-form"], body= <<"Add your comment">>},
-        #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=?THUMB_SIZE},
-        #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
-      ]}
-  ]},
+%render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
+%  PostId = E#entry.entry_id,
+%  EntryId = ?ID_DESC(PostId),
+%  TitleId = ?ID_TITLE(PostId),
+%  Ms = E#entry.media,
+%  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+%  EntryActionsLine = [
+%    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]},
+%    #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId}}
+%  ],%
 
-  element_panel:render_element(Entry);
+%  Date = to_date(E#entry.created),
 
-render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
-  PostId = E#entry.entry_id,
-  EntryId = ?ID_DESC(PostId),
-  TitleId = ?ID_TITLE(PostId),
-  Ms = E#entry.media,
-  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-  EntryActionsLine = [
-    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]},
-    #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId}}
-  ],
-
-  Date = to_date(E#entry.created),
-
-  Entry = #panel{id=PostId, class=["blog-post"], body=[
-    #header{class=["blog-header"], body=[
-      #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
-    ]},
-    #figure{class=["thumbnail-figure"], body=[
-      [#entry_media{media=Me, fid=E#entry.entry_id} || Me <- Ms],
-      #figcaption{class=["thumbnail-title"], body=[
+%  Entry = #panel{id=PostId, class=["blog-post"], body=[
+%    #header{class=["blog-header"], body=[
+%      #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
+%    ]},
+%    #figure{class=["thumbnail-figure"], body=[
+%      [#entry_media{media=Me, fid=E#entry.entry_id} || Me <- Ms],
+%      #figcaption{class=["thumbnail-title"], body=[
 %            #h3{body=#span{body= E#entry.title}}
-      ]}
-    ]},
-    #panel{id=EntryId, body=wf:js_escape(E#entry.description), data_fields=[{<<"data-html">>, true}]},
-    #panel{id=?ID_TOOL(PostId)},
+%      ]}
+%    ]},
+%    #panel{id=EntryId, body=wf:js_escape(E#entry.description), data_fields=[{<<"data-html">>, true}]},
+%    #panel{id=?ID_TOOL(PostId)},
 
-    #footer{class=["blog-footer", "row-fluid"], body=[
-      #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
-      #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}},
-      EntryActionsLine,
-      #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, E#entry.id}}
-    ]}
-  ]},
-  element_panel:render_element(Entry);
+%    #footer{class=["blog-footer", "row-fluid"], body=[
+%      #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
+%      #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}},
+%      EntryActionsLine,
+%      #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, E#entry.id}}
+%    ]}
+%  ]},
+%  element_panel:render_element(Entry);
 
 render_element(#entry_comment{comment=#comment{}=C})->
   {Cid, {Eid, Fid}} = C#comment.id,

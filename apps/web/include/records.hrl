@@ -4,6 +4,7 @@
 -define(ID_DESC(Id),    Id++"d").
 -define(ID_TOOL(Id),    Id++"e").
 -define(ID_MEDIA(Id),   Id++"m").
+-define(ID_COMMENTS(Id),Id++"c").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(THUMB_SIZE, [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
 
@@ -14,12 +15,10 @@
 -record(product_cart,   {?ELEMENT_BASE(product_ui), product}).
 -record(product_line,   {?ELEMENT_BASE(product_ui), product, meta, controls}).
 -record(product_hero,   {?ELEMENT_BASE(product_ui), product}).
--record(product_entry,  {?ELEMENT_BASE(product_ui), entry, mode=brief, prod_id, category, controls=[]}).
 -record(entry_media,    {?ELEMENT_BASE(product_ui), media, fid, cid, mode}).
 -record(entry_comment,  {?ELEMENT_BASE(product_ui), comment}).
--record(feature_req,    {?ELEMENT_BASE(product_ui), entry}).
 
--record(input,          {?ELEMENT_BASE(controls), icon="icon-edit", collapsed=false, feed, type,
+-record(input,          {?ELEMENT_BASE(input), icon="icon-edit", collapsed=false, feed, type,
     recipients="",
     placeholder_rcp="",
     placeholder_ttl="Title",

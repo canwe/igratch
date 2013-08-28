@@ -10,7 +10,6 @@
 main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
-  {_Tabs, Reviews} = reviews:reviews(),
   Entries = lists:filter(fun(#entry{to=To})-> case To of {product, _}-> true; _-> false end end, kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end)),
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
@@ -45,9 +44,9 @@ body() ->
             ], "icon-gamepad")
         ]},
         #panel{class=[span10], body=[
-          dashboard:section(#product_entry{entry=E, mode=full}, "icon-align-justify"),
-          #h3{body= <<"more reviews">>, class=[blue, "text-center"]},
-          #panel{class=["row-fluid"], body=reviews:all(Reviews)}
+          dashboard:section(#feed_entry{entry=E, mode=detached}, "icon-align-justify"),
+          #h3{body= <<"more reviews">>, class=[blue, "text-center"]}
+%          #panel{class=["row-fluid"], body=reviews:all(Reviews)}
         ]}
       ]};
       [] -> index:error(<<"not_found">>) end }},
@@ -81,7 +80,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p,
 
 process_delivery([_, Eid, comment, Cid, add],
                  [From, Parent, Content, Medias, Csid, EditorId])->
-  error_logger:info_msg("comment add"),
+  error_logger:info_msg("comment add insert at the bottom of: ", [Csid]),
   Entry = #entry_comment{comment=#comment{
       id={Cid, Eid},
       entry_id=Eid,
