@@ -73,6 +73,24 @@ render_element(#feed_entry{entry=#entry{}=E, mode=direct, controls=Controls})->
     #p{body= wf:js_escape(E#entry.description)},
     #panel{id=?ID_TOOL(Id), class=[], body=Controls}
   ]},
+  element_panel:render_element(Entry);
+
+render_element(#feed_entry{entry=#entry{}=E, mode={feature, Feature}, controls=Controls})->
+    User = wf:user(),
+    Id = E#entry.entry_id,
+  From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
+
+  Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
+    #p{body=[
+      #small{body=["[", product_ui:to_date(E#entry.created), "] "]},
+      #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
+      <<" ">>,
+      wf:js_escape(wf:to_list(E#entry.title)),
+      case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end
+    ]},
+    #p{body= wf:js_escape(E#entry.description)},
+    #panel{id=?ID_TOOL(Id), class=[], body=Controls}
+  ]},
 
   element_panel:render_element(Entry);
 render_element(#feed_entry{entry=#product{}=P, mode=product, controls=Controls})->
@@ -100,7 +118,7 @@ render_element(#feed_entry{entry=#product{}=P, mode=product, controls=Controls})
     element_panel:render_element(Entry).
 
 controls(#entry{type=Type}=E) ->
-%    error_logger:info_msg("Type: ~p", [Type]),
+    error_logger:info_msg("Type: ~p", [Type]),
     User = wf:user(),
     IsAdmin = case User of undefined -> false; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
     case Type of {feature, _} when IsAdmin ->

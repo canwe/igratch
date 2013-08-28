@@ -238,29 +238,6 @@ render_element(#entry_media{media=Media, fid=Fid}) ->
   ]},
   element_panel:render_element(M).
 
-%render_element(#feature_req{entry=E})->
-%  From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
-%  User = wf:user(),
-%  Admin = kvs_acl:check_access(User#user.email, {feature, admin})==allow, 
-%  R = #panel{id=E#entry.entry_id, style="border-bottom:1px solid #eeeeee;", body=[
-%    #p{body=[
-%      #small{body=["[", to_date(E#entry.created), "] "]},
-%      #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
-%      <<" ">>,
-%      wf:js_escape(wf:to_list(E#entry.title)),
-%      case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end
-%    ]},
-%    #p{body= E#entry.description},
-%    case E#entry.type of 
-%      {feature, F} when Admin ->
-%        #panel{class=["btn-toolbar"], body=[
-%          #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type}},
-%          #link{class=[btn, "btn-info"], body= <<"reject">>, postback={cancel, E#entry.from, E#entry.entry_id, E#entry.type}}
-%        ]};
-%      _ -> [] end
-%  ]},
-%  element_panel:render_element(R).
-
 preview_medias(Id, Medias, Delegate)->
   L = length(Medias),
   if L > 0 ->

@@ -34,7 +34,6 @@ feed(_) -> [index:error("404")].
 control_event(_, _) -> ok.
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    error_logger:info_msg("Show feed Args: ~p Id:~p", [Args, Id]),
     wf:update(list_to_atom(Id), feed(list_to_atom(Id)));
 api_event(_,_,_) -> ok.
 
@@ -57,11 +56,11 @@ event({allow, Whom, Eid, Feature}) ->
                           created = now(),
                           to = {RoutingType, To},
                           from=User#user.email,
-                          type=reply,
+                          type=direct,
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You have been granted "++ io_lib:format("~p", [Feature])++"!",
-                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
+                          shared=""}, skip, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
 
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
@@ -82,11 +81,11 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
                           created = now(),
                           to = {RoutingType, To},
                           from=User#user.email,
-                          type=reply,
+                          type=direct,
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You request for "++ io_lib:format("~p", [Feature])++" has been rejected!",
-                          shared=""}, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
+                          shared=""}, skip, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
 
   % delete message from feed
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
@@ -94,6 +93,10 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid}, entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
 event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
+
+process_delivery([user,_,entry,_,add]=R, M)->
+    wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
+    feed:process_delivery(R,M);
 
 process_delivery([_,_,entry,Fid,delete], [E,From]) -> 
   User = wf:user(),

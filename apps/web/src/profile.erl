@@ -27,7 +27,7 @@ body() ->
         ] end ])  ++ index:footer().
 
 profile_info(#user{} = Who, #user{} = What, Size) ->
-    error_logger:info_msg("What: ~p", [What]),
+%    error_logger:info_msg("What: ~p", [What]),
     RegDate = product_ui:to_date(What#user.register_date),
     Mailto = if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
     Large = Size == "icon-2x",
@@ -56,7 +56,7 @@ features(Who, What, Size) ->
   Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
   Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
   AmIAdmin= kvs_acl:check_access(Who#user.email,  {feature, admin}) =:= allow,
-  error_logger:info_msg("Am I admin ~p", [AmIAdmin]),
+%  error_logger:info_msg("Am I admin ~p", [AmIAdmin]),
   [#p{body=[
   if AmIAdmin -> #link{class=["text-warning"], 
       data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"disable user">>,
@@ -139,10 +139,10 @@ event({request, Feature}) ->
                           created = now(),
                           to = {RoutingType, To},
                           from=From,
-                          type=direct, %{feature, Feature},
+                          type={feature, Feature},
                           media=[],
                           title= <<"Request">>,
-                          description= <<"">>,
+                          description= "{feature," ++ atom_to_list(Feature) ++ "} requested",
                           shared=""}, skip, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- Recipients],
 
       error_logger:info_msg("Recipients ~p", [Recipients]),
@@ -152,9 +152,7 @@ event({revoke, Feature, Whom})-> admin:event({revoke, Feature, Whom});
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
-process_delivery([user,To,entry,_,add],
-                 [#entry{type=T},Tid, Eid, MsId, TabId])->
-  User = wf:user(),
-  wf:update(sidenav, dashboard:sidenav({User, profile, []})),
-  wf:update(profile, profile_info(User, User, "icon-2x"));
-process_delivery(_,_) -> skip.
+process_delivery([user,_,entry,_,add]=R, M)->
+    wf:update(sidenav, dashboard:sidenav({wf:user(), profile, []})),
+    feed:process_delivery(R,M);
+process_delivery(R,M) -> feed:process_delivery(R,M).
