@@ -11,10 +11,14 @@
 main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
 body() -> 
-  wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){
-    $(e.target).parent().siblings().find('a.text-warning').removeClass('text-warning');
-  });"),
-  {Tabs, Reviews} = reviews:reviews(),
+    wf:wire(#api{name=tabshow}),
+    wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){"
+        "$(e.target).addClass('text-warning').siblings().removeClass('text-warning');"
+        "console.log('show tab' + e.target);"
+        "tabshow($(e.target).attr('href'));});"),
+    Tab = case wf:qs(<<"id">>) of undefined -> "all"; T ->  T end,
+    wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').addClass('text-warning').tab('show');});",[Tab])),
+
   header() ++ [
   #section{id="slider-box", class=["row-fluid"], body=#panel{id=carousel, class=[container], body=featured()}},
 
@@ -22,7 +26,9 @@ body() ->
     #panel{class=[container], body=[
       #panel{class=["row-fluid"], body=[
         #panel{class=[span9, "tab-content"], body=[
-          #panel{id=all, class=["tab-pane", active], body=reviews:all(Reviews)}, Tabs]},
+          #panel{id=all, class=["tab-pane"]},
+          [#panel{id=Id, class=["tab-pane"]} || #group{id=Id, scope=Scope} <- kvs:all(group), Scope==public]
+        ]},
         #aside{class=[span3], body=[
           #panel{class=[sidebar], body=[
             #panel{class=["row-fluid"], body=[
@@ -37,6 +43,13 @@ body() ->
       ]}
     ]}
   ]} ] ++ footer().
+
+feed("all")->
+    error_logger:info_msg("ALL", []),
+    #feed_view{owner=any, feed=?FEED(product), title= <<"">>, mode=product, icon="icon-tags"};
+feed(Group) ->
+    case kvs:get(group, Group) of {error,_}->[];
+    {ok, G}-> #feed_view{owner=G, feed=feed, title= <<"">>, mode=review, icon="icon-tags"} end.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
@@ -131,10 +144,16 @@ footer() -> [
         #li{body=#link{body=#image{image= <<"/static/img/social5.png">>}}},
         #li{body=#link{body=#image{image= <<"/static/img/social6.png">>}}} ]} ]} ]}}].
 
-error(Msg)->
-  #panel{class=[alert, "alert-danger","alert-block", fade, in], body=[
+error(Msg)-> alert(Msg, "alert-danger").
+info(Msg) -> alert(Msg, "alert-info").
+alert(Msg, Class)->
+  #panel{class=[alert, Class, "alert-block", fade, in], body=[
     #link{class=[close], url="#", data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>}, #strong{body= Msg} ]}.
 
+api_event(tabshow,Args,_) ->
+    [Id|_] = string:tokens(Args,"\"#"),
+    wf:update(list_to_atom(Id), feed(Id)),
+    wf:wire("Holder.run();");
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 event(init) -> wf:reg(?MAIN_CH), [];
@@ -145,4 +164,4 @@ event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
-process_delivery(R,M) -> product:process_delivery(R,M).
+process_delivery(R,M) -> feed:process_delivery(R,M).

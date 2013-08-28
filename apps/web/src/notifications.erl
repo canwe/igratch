@@ -100,7 +100,7 @@ process_delivery([_,_,entry,Fid,delete], [E,From]) ->
   Direct = lists:keyfind(direct, 1, User#user.feeds),
   if Direct == Fid ->
     wf:remove(E#entry.entry_id),
-    wf:update(sidenav, dashboard:sidenav(wf:user(), notifications, subnav()));
+    wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()}));
   true -> ok end;
 
 process_delivery(R,M) -> feed:process_delivery(R,M).

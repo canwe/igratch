@@ -125,12 +125,13 @@ event({request, Feature}) ->
   User =wf:user(),
   case kvs:get(acl, {feature, admin}) of {error, not_found} -> wf:update(alerts,index:error("system has no administrators yet"));
     {ok,#acl{id=Id}} ->
-      Recipients = [{user, User#user.email, lists:keyfind(direct, 1, User#user.feeds)} | lists:flatten([
+      Recipients = lists:flatten([
         case kvs:get(user, Accessor) of {error, not_found} -> []; {ok, U} -> {Type, Accessor, lists:keyfind(direct, 1, U#user.feeds)} end
-      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(acl, Id, acl_entry, undefined), Action =:= allow])],
+      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(acl, Id, acl_entry, undefined), Action =:= allow]),
 
       EntryId = kvs:uuid(),
       From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
+
       [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
                   [#entry{id={EntryId, FeedId},
                           entry_id=EntryId,
@@ -138,21 +139,22 @@ event({request, Feature}) ->
                           created = now(),
                           to = {RoutingType, To},
                           from=From,
-                          type={feature, Feature},
+                          type=direct, %{feature, Feature},
                           media=[],
                           title= <<"Request">>,
                           description= <<"">>,
-                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- Recipients],
+                          shared=""}, skip, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- Recipients],
 
       error_logger:info_msg("Recipients ~p", [Recipients]),
       wf:update(alerts, index:error(io_lib:format("~p", [Feature]) ++" requested"))
   end;
+event({revoke, Feature, Whom})-> admin:event({revoke, Feature, Whom});
 event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 process_delivery([user,To,entry,_,add],
                  [#entry{type=T},Tid, Eid, MsId, TabId])->
   User = wf:user(),
-  wf:update(sidenav, dashboard:sidenav(User, profile, [])),
+  wf:update(sidenav, dashboard:sidenav({User, profile, []})),
   wf:update(profile, profile_info(User, User, "icon-2x"));
 process_delivery(_,_) -> skip.

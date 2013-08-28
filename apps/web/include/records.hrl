@@ -4,7 +4,7 @@
 -define(ID_DESC(Id),    Id++"d").
 -define(ID_TOOL(Id),    Id++"e").
 -define(ID_MEDIA(Id),   Id++"m").
--define(ID_FEED(Id),    integer_to_list(Id)++"es").
+-define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(THUMB_SIZE, [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
 
 -record(struct,         {lst=[]}).

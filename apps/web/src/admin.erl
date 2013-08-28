@@ -23,7 +23,7 @@ body() ->
             #panel{id=Id, class=["tab-pane"]} || Id <-[categories, acl, users, products] ]} ]) ++ index:footer().
 
 tab(categories)-> [
-    dashboard:section(input(), "icon-user"),
+    dashboard:section(input(), "icon-tags"),
     dashboard:section(categories(), "icon-list") ];
 tab(acl)-> {AclEn, Acl} = acls(), [
     dashboard:section(acl(Acl), "icon-male"),
@@ -33,23 +33,6 @@ tab(users)-> [
 tab(products)-> [
     dashboard:section(products(), "icon-gamepad") ];
 tab(_)-> [].
-
-tab(Title, Feed, Icon)->
-  User = wf:user(),
-  {Feed,Fid} = lists:keyfind(Feed,1,User#user.feeds),
-  Entries = kvs:entries({Feed,Fid}, undefined, ?PAGE_SIZE),
-  Last = case Entries of []-> []; E-> lists:last(E) end,
-  BtnId = wf:temp_id(),
-  Info = #info_more{fid=Fid, entries=Feed, toolbar=BtnId},
-  NoMore = length(Entries) < ?PAGE_SIZE,
-
-  dashboard:section([
-        #h3{class=[blue], body=Title },
-%        #panel{id=Feed, body=[#feature_req{entry=E} || E <- Entries]},
-        #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
-            if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=product, postback={check_more, Last, Info}} end ]}
-    ], Icon).
-
 
 subnav() -> [
     {categories, "categories"},
@@ -190,13 +173,13 @@ process_delivery([create],
                  [{Creator, Id, Name, Desc, Publicity}]) ->
   error_logger:info_msg("responce to create group"),
   ok;
-process_delivery([user,To,entry,_,add],
-                 [#entry{type=T, feed_id=Fid}=E,Tid, Eid, MsId, TabId])->
-  error_logger:info_msg("ENTRY RECEIVED IN ~p", [To]),
-  What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
-  User = wf:user(),
-  {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
-  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E}); true -> ok end,
-  wf:update(sidenav, dashboard:sidenav(User, admin, subnav()));
+%process_delivery([user,To,entry,_,add],
+%                 [#entry{type=T, feed_id=Fid}=E,Tid, Eid, MsId, TabId])->
+%  error_logger:info_msg("ENTRY RECEIVED IN ~p", [To]),
+%  What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
+%  User = wf:user(),
+%  {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
+%  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E}); true -> ok end,
+%  wf:update(sidenav, dashboard:sidenav({User, admin, subnav()}));
 
-process_delivery(_R, _M) -> skip.
+process_delivery(R,M) -> feed:process_delivery(R,M).

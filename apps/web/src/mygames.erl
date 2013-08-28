@@ -27,7 +27,7 @@ input(#entry{}=E) ->
   Medias = E#entry.media,
   Groups = [case kvs:get(group,  Where) of {ok,#group{name=T}}-> Where++"="++T; _-> [] end || #group_subscription{where=Where} <- kvs_group:participate(E#entry.entry_id)],
   P = case kvs:get(product, E#entry.entry_id) of {ok, #product{}=Pr} -> Pr; _-> #product{} end,
-  case User of undefined ->[#h3{class=[blue], body= <<"">>}, index:error("Registered sellers can add the games.")]; _ ->
+  case User of undefined ->[#h3{class=[blue], body= <<"">>}, index:info("Registered sellers can add the games.")]; _ ->
     #panel{id=input, body=[
     #h3{class=[blue], body= [<<"Add new game">>, #span{class=["pull-right", span3], style="color: #555555;",  body= <<"cover">>}]},
     #panel{class=["row-fluid"], body=[

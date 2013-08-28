@@ -7,17 +7,25 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-render_element(#feed_view{owner=undefined, title=Title, icon=Icon})->
-    wf:render(dashboard:section([#h3{class=[blue], body= Title}, index:error("Anonymous users has no feeds.")], Icon));
-render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mode=Mode})->
-    {_, Fid} = Feed = lists:keyfind(FeedName, 1, element(#iterator.feeds, Owner)),
-    Entries = kvs:entries(Feed, undefined, ?PAGE_SIZE),
+render_element(#feed_view{owner=undefined, title=Title, icon=Icon}) ->
+    wf:render(dashboard:section([#h3{class=[blue], body= Title}, index:info("Anonymous users has no feeds.")], Icon));
+render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mode=Mode}) ->
+    {Fid, Entries} = case Mode of
+        product ->
+            Feed = case kvs:get(feed, FeedName) of {error,_}-> false; {ok, F}-> F end,
+            {FeedName, kvs:entries(Feed, product, ?PAGE_SIZE)};
+        _ when is_tuple(Owner) ->
+            {_, Id} = Feed = lists:keyfind(FeedName, 1, element(#iterator.feeds, Owner)),
+            {Id, kvs:entries(Feed, undefined, ?PAGE_SIZE)};
+        _ -> {undefined, []}
+    end,
+
     Last = case Entries of []-> []; E-> lists:last(E) end,
     EsId = wf:temp_id(),
     BtnId = wf:temp_id(),
     Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, mode=Mode},
     NoMore = length(Entries) < ?PAGE_SIZE,
-    error_logger:info_msg("SETUP FEED mode: ~p feed:~p", [Mode, Feed]),
+
     wf:render(dashboard:section([
         #h3{class=[blue], body= Title},
         #panel{id=?ID_FEED(Fid), body=[
@@ -66,12 +74,35 @@ render_element(#feed_entry{entry=#entry{}=E, mode=direct, controls=Controls})->
     #panel{id=?ID_TOOL(Id), class=[], body=Controls}
   ]},
 
-  element_panel:render_element(Entry).
+  element_panel:render_element(Entry);
+render_element(#feed_entry{entry=#product{}=P, mode=product, controls=Controls})->
+    Id = P#product.id,
+    From = case kvs:get(user, P#product.owner) of {ok, U} -> U#user.display_name; {error, _} -> P#product.owner end,
 
-controls(#entry{type=Type} =  E) ->
-    error_logger:info_msg("Type: ~p", [Type]),
+  Entry = #panel{id=Id, class=["row-fluid", article], body=[
+    #panel{class=[span3, "article-meta"], body=[
+%      #h3{class=[blue], body= Category},
+      #p{class=[username], body= #link{body=From, url= "/profile?id="++P#product.owner}},
+      #p{class=[datestamp], body=[ #span{body= product_ui:to_date(P#product.created)} ]},
+      #p{class=[statistics], body=[
+        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
+        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
+      ]} ]},
+
+      #panel{id=?ID_MEDIA(Id), class=[span4, shadow], body = #entry_media{media=#media{thumbnail_url=P#product.cover}, mode=reviews}},
+      #panel{class=[span5, "article-text"], body=[
+        #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= P#product.title}},
+        #p{id = ?ID_DESC(Id), body=product_ui:shorten(P#product.brief)},
+        #panel{id=?ID_TOOL(Id), class=[more], body=Controls}
+      ]}
+  ]},
+
+    element_panel:render_element(Entry).
+
+controls(#entry{type=Type}=E) ->
+%    error_logger:info_msg("Type: ~p", [Type]),
     User = wf:user(),
-    IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,
+    IsAdmin = case User of undefined -> false; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
     case Type of {feature, _} when IsAdmin ->
     #panel{class=["btn-toolbar"], body=[
         #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type}},
@@ -82,7 +113,9 @@ controls(#entry{type=Type} =  E) ->
         #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
         #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
         #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}];
-     _ -> [#link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}] end.
+     _ -> [#link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}] end;
+controls(#product{}=_P)-> [
+    ].
 
 control_event(_, _) -> ok.
 api_event(_,_,_) -> ok.
@@ -115,7 +148,7 @@ event({allow, Whom, Eid, Feature}) ->
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid},entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
-event({cancel, From, Eid, {feature, Feature}=Type}) ->
+event({cancel, From, Eid, {feature, Feature}}) ->
   User = wf:user(),
   % send message to user
   case kvs:get(user, From) of {error, not_found} -> skip;
@@ -141,6 +174,9 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid}, entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
+event({check_more, Start, Info = #info_more{mode=product}}) ->
+  read_entries(case Start of undefined -> undefined; S -> S#product.id end, Info),
+  wf:update(Info#info_more.toolbar, []);
 event({check_more, Start, Info = #info_more{}}) ->
   read_entries(case Start of undefined -> undefined; S -> S#entry.entry_id end, Info),
   wf:update(Info#info_more.toolbar, []);
@@ -177,23 +213,16 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery(R,M) -> error_logger:info_msg("delegate to product->"),product:process_delivery(R,M).
 
-read_entries(StartFrom, #info_more{fid=Fid}=I)->
-  Feed = case StartFrom of
-    undefined-> kvs:get(feed, Fid);
-    S -> kvs:get(entry, {S, Fid})
-  end,
-  case Feed of
-    {error, not_found} -> [];
-    {ok, #feed{}=F} -> traverse_entries(F#feed.top, ?PAGE_SIZE, I);
-    {ok, #entry{prev = E}} -> traverse_entries(E, ?PAGE_SIZE, I)
-  end.
+read_entries(StartFrom, #info_more{fid=Fid, mode=Mode}=I)->
+    {RecordName,StartId} = case Mode of product -> {product,StartFrom}; _-> {entry, if StartFrom == undefined -> undefined; true-> {StartFrom, Fid} end} end,
+    Feed = case StartId of undefined-> kvs:get(feed, Fid); S -> kvs:get(RecordName, S) end,
+    case Feed of {error, not_found} -> [];
+    {ok, #feed{}=F} -> traverse_entries({RecordName, F#feed.top}, ?PAGE_SIZE, I);
+    {ok, #entry{}=E} -> traverse_entries({entry, element(#iterator.prev, E)}, ?PAGE_SIZE, I);
+    {ok, #product{}=P} -> traverse_entries({product, element(#iterator.prev, P)}, ?PAGE_SIZE, I) end.
 
-traverse_entries(undefined,_, #info_more{toolbar=BtnId}) -> self() ! {delivery, [somepath, no_more], [BtnId]}, [];
+traverse_entries({_,undefined},_, #info_more{toolbar=BtnId}) -> self() ! {delivery, [somepath, no_more], [BtnId]}, [];
 traverse_entries(_,0,_) -> [];
-traverse_entries(Next, Count, I)->
-  case kvs:get(entry, Next) of
-    {error, not_found} -> [];
-    {ok, R}->
-      self() ! {delivery, [somepath, show_entry], [R, I]},
-      [R | traverse_entries(R#entry.prev, Count-1, I)]
-  end.
+traverse_entries({RecordName ,Next}, Count, I)->
+    case kvs:get(RecordName, Next) of {error, not_found} -> [];
+    {ok, R}-> self() ! {delivery, [somepath, show_entry], [R, I]}, [R | traverse_entries({RecordName, element(#iterator.prev, R)}, Count-1, I)] end.

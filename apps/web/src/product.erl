@@ -193,4 +193,4 @@ process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, descriptio
   wf:wire("Holder.run();");
 
 process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);
-process_delivery(R,M) -> feed:process_delivery(R,M).
+process_delivery(R,M) -> stop.
