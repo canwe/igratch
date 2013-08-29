@@ -5,6 +5,7 @@
 -define(ID_TOOL(Id),    Id++"e").
 -define(ID_MEDIA(Id),   Id++"m").
 -define(ID_COMMENTS(Id),Id++"c").
+-define(ID_CM_COUNT(Id),Id++"cc").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(THUMB_SIZE, [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
 -define(BTN_INFO,   [btn, "btn-large", "btn-info"]).

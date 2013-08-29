@@ -118,27 +118,24 @@ render_element(#feed_entry{entry=#product{}=P, mode=product, controls=Controls})
     element_panel:render_element(Entry);
 
 render_element(#feed_entry{entry=#entry{}=E, mode=detached})->
-    PostId = E#entry.entry_id,
-    TitleId = ?ID_TITLE(PostId),
-    EntryId= ?ID_DESC(PostId),
-    {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
-    Comments = kvs:entries(kvs:get(feed, Fid), comment),
+    Eid = E#entry.entry_id,
     CommentId = wf:temp_id(),
-    CommentsId = ?ID_COMMENTS(PostId),
+    {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
     Ms = E#entry.media,
     Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
-    Entry = #panel{id=PostId, class=["blog-post"], body=[
-        #h3{class=[blue], body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
+    Entry = #panel{id=Eid, class=["blog-post"], body=[
+        #h3{class=[blue], body=[#span{id=?ID_TITLE(Eid), body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
         #figure{class=["thumbnail-figure"], body=[
           [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms]
         ]},
-        #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
+        #panel{id=?ID_DESC(Eid), body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
         #panel{class=[comments, "row-fluid"], body=[
-            #h3{body= <<"comments">>},
-            #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
+            #h3{body=[ #span{class=[?ID_CM_COUNT(Eid)], body=[list_to_binary(integer_to_list(kvs_feed:comments_count(entry, E#entry.id)))]},<<" comments">>]},
+            #panel{id=?ID_COMMENTS(Eid), class=[], body=[#entry_comment{comment=C} || C <- kvs:entries(kvs:get(feed, Fid), comment)]},
             #h3{class=["comments-form"], body= <<"Add your comment">>},
             #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=?THUMB_SIZE},
-            #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
+            #panel{class=["btn-toolbar"], body=[#link{class=?BTN_INFO, body= <<"Post">>, 
+                postback={comment_entry, E#entry.id, CommentId, ?ID_COMMENTS(Eid), undefined, ""}, source=[CommentId]}]}
        ]}
     ]},
     element_panel:render_element(Entry).

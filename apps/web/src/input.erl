@@ -70,8 +70,6 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId, AlertId
     User = wf:user(),
     Desc = wf:q(EditorId),
     Title = wf:q(TitleId),
-    error_logger:info_msg("Entry type: ~p", [EntryType]),
-    error_logger:info_msg("Recipients line: ~p ", [wf:q(RecipientsId)]),
 
     R1 = lists:flatmap(fun(S) -> [begin
         Type = list_to_atom(A),
@@ -87,7 +85,6 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId, AlertId
     error_logger:info_msg("Route2: ~p", [R2]),
 
     UsrFeed = case EntryType of review -> feed; direct -> sent; reviews-> feed; _-> EntryType  end,
-    error_logger:info_msg("In user -> ~p", [UsrFeed]),
     R3 = case User of undefined -> []; _-> [{user, User#user.email, lists:keyfind(UsrFeed, 1, User#user.feeds)}] end,
 
     Recipients = lists:flatten([R1,R2,R3]),

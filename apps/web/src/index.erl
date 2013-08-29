@@ -13,9 +13,11 @@ main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body,
 body() -> 
     wf:wire(#api{name=tabshow}),
     wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){"
+        "id=$(e.target).attr('href');"
+        "if(id!='#all')$('a[href=\"#all\"').removeClass('text-warning');"
+        "else $(e.target).parent().parent().find('.text-warning').removeClass('text-warning');"
         "$(e.target).addClass('text-warning').siblings().removeClass('text-warning');"
-        "console.log('show tab' + e.target);"
-        "tabshow($(e.target).attr('href'));});"),
+        "tabshow(id);});"),
     Tab = case wf:qs(<<"id">>) of undefined -> "all"; T ->  T end,
     wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').addClass('text-warning').tab('show');});",[Tab])),
 
@@ -33,8 +35,8 @@ body() ->
           #panel{class=[sidebar], body=[
             #panel{class=["row-fluid"], body=[
               #h3{ class=[blue], body= #link{url="#all", body= <<"TAGS">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
-              #list{class=[inline, tagcloud], body=[
-                [#li{body=#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}}
+              #p{class=[inline, tagcloud], body=[
+                [#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
                 || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]}
             ]},
             #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, popular_items() ]}
@@ -158,7 +160,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Na
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 

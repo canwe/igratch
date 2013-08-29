@@ -28,31 +28,30 @@ body() ->
                   #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"?">>} ],
                     postback={read, entry, E#entry.id}},
                   #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, 
-                    #span{id=comments, class=[badge, "badge-info"], body= list_to_binary(integer_to_list(kvs_feed:comments_count(entry, Eid)))} 
+                    #span{class=[badge, "badge-info", ?ID_CM_COUNT(E#entry.entry_id)], body=[ list_to_binary(integer_to_list(kvs_feed:comments_count(entry, Eid)))] } 
                    ], postback={read, entry, E#entry.id}}
                 ]}
             ], "icon-eye-open"),
 
             dashboard:section([
                 #h3{class=[blue], body= <<"&nbsp;&nbsp;&nbsp;&nbsp;Game">>},
-                #p{body=[Product#product.title]},
+                #h4{body=[Product#product.title]},
                 #p{body=[Product#product.brief]},
 
                 #panel{class=["btn-toolbar", "text-center"], body=[
-                  #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy"],
+                  #button{class=[btn, "btn-inverse", "btn-info", "btn-buy"],
                     body= [<<"buy for ">>, #span{body= "$"++ float_to_list(Product#product.price/100, [{decimals, 2}]) }], postback={checkout, Product#product.id}},
-                  #button{class=[btn, "btn-large", "btn-warning"], body= [#span{class=["icon-shopping-cart"]}, <<" add to cart ">>], postback={add_cart, Product}}
+                  #button{class=[btn, "btn-warning"], body= [#span{class=["icon-shopping-cart"]}, <<" add to cart ">>], postback={add_cart, Product}}
                 ]}
             ], "icon-gamepad")
         ]},
 
         #panel{class=[span10], body=[
-          dashboard:section(#feed_entry{entry=E, mode=detached}, "icon-align-justify"),
-%          #h3{body= <<"more reviews">>, class=[blue, "text-center"]},
+          dashboard:section(#feed_entry{entry=E, mode=detached}, "icon-file-text-alt"),
+
           [ case kvs:get(group, Group) of {error,_}->[];
-            {ok, G}-> #feed_view{owner=G, feed=feed, title= <<"More reviews">>, mode=review, icon="icon-tags"} end
+            {ok, G}-> #feed_view{owner=G, feed=feed, title= "More "++ G#group.name ++" reviews", mode=review, icon="icon-tags"} end
             || #group_subscription{where=Group} <- kvs_group:participate(Product#product.id)]
-%          #panel{class=["row-fluid"], body=reviews:all(Reviews)}
         ]}
       ]};
       [] -> index:error(<<"not_found">>) end }},
@@ -84,9 +83,8 @@ event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([_, Eid, comment, Cid, add],
-                 [From, Parent, Content, Medias, Csid, EditorId])->
-  error_logger:info_msg("comment add insert at the bottom of: ", [Csid]),
+process_delivery([_, {EntryId,_}=Eid, comment, Cid, add],
+                 [From, Parent, Content, Medias, Csid, EditorId]) ->
   Entry = #entry_comment{comment=#comment{
       id={Cid, Eid},
       entry_id=Eid,
@@ -101,6 +99,6 @@ process_delivery([_, Eid, comment, Cid, add],
     "" -> wf:wire(wf:f("$('#~s').parent().find('.mce-content-body').html('');", [Csid]));
     _ ->  wf:remove(EditorId)
   end,
-  wf:update(comments, list_to_binary(integer_to_list(kvs_feed:comments_count(entry, Eid)))),
-  wf:wire("Holder.run();");
+    wf:wire(wf:f("$('.~s').html('~s');", [?ID_CM_COUNT(EntryId), integer_to_list(kvs_feed:comments_count(entry, Eid)) ])),
+    wf:wire("Holder.run();");
 process_delivery(R,M) -> feed:process_delivery(R,M).

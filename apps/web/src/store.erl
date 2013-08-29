@@ -13,8 +13,11 @@ main() -> #dtl{file="prod", bindings=[{title,<<"Store">>},{body, body()}]}.
 body()->
     wf:wire(#api{name=tabshow}),
     wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){"
+        "id=$(e.target).attr('href');"
+        "if(id!='#all')$('a[href=\"#all\"').removeClass('text-warning');"
+        "else $(e.target).parent().find('.text-warning').removeClass('text-warning');"
         "$(e.target).addClass('text-warning').siblings().removeClass('text-warning');"
-        "tabshow($(e.target).attr('href'));});"),
+        "tabshow(id);});"),
     Tab = case wf:qs(<<"id">>) of undefined -> "all"; T ->  T end,
     wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').addClass('text-warning').tab('show');});",[Tab])),
 
