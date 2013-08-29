@@ -210,8 +210,8 @@ controls(#entry{type=Type}=E) ->
         #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
         #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}];
      _ -> [#link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}] end;
-controls(#product{}=P)-> [
-    #link{body=[ <<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, P#product.id}}].
+controls(#product{}=P)->
+    [#link{body=[ <<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, P#product.id}}].
 
 control_event(_, _) -> ok.
 api_event(_,_,_) -> ok.
@@ -287,7 +287,7 @@ process_delivery([_,_,entry,_,add],
     wf:wire(#jq{target=Eid, method=[html], args="''"}),
     wf:wire(wf:f("$('#~s').parent().find(':hidden').parent().html('');", [Rid])),
     error_logger:info_msg("Render entry of type: ~p", [Entry#entry.type]),
-    Mode = case Entry#entry.type of 
+    Mode = case Entry#entry.type of
         product -> review;
         reviews -> review;
         features-> review;

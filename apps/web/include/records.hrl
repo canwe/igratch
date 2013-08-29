@@ -7,12 +7,13 @@
 -define(ID_COMMENTS(Id),Id++"c").
 -define(ID_CM_COUNT(Id),Id++"cc").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
--define(THUMB_SIZE, [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
--define(BTN_INFO,   [btn, "btn-large", "btn-info"]).
--define(STACK_BASE, ["icon-stack-base", "icon-circle"]).
--define(TOOLTIP,    [{<<"data-toggle">>,<<"tooltip">>}]).
-
--define(URL_PRODUCT(Id), "/product?id="++Id).
+-define(THUMB_SIZE,     [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
+-define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
+-define(BTN_INFO,       [btn, "btn-large", "btn-info"]).
+-define(BTN_SUCCESS,    [btn, "btn-large", "btn-success"]).
+-define(STACK_BASE,     ["icon-stack-base", "icon-circle"]).
+-define(TOOLTIP,        [{<<"data-toggle">>,<<"tooltip">>}]).
+-define(URL_PRODUCT(Id),"/product?id="++Id).
 
 -record(struct,         {lst=[]}).
 -record(info_more,      {entries, toolbar, category, fid, module, delegate, mode}).
