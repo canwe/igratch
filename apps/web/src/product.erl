@@ -79,7 +79,7 @@ feed(Tab)->
     error_logger:info_msg("Recipients: ~p", [Recipients]),
     [
     #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", collapsed=true, role=product, type=Tab, recipients=[Recipients]},
-    #feed_view{owner=P, feed=Tab, title= wf:to_list(Tab), icon="icon-circle", mode=review} ].
+    #feed_view{owner=P, feed=Tab, title= wf:to_list(Tab), icon="icon-circle", mode=blog} ].
 
 aside()-> [
     #aside{class=[sidebar], body=[
@@ -183,7 +183,7 @@ process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, descriptio
   wf:replace(Tid, #span{id =Tid, body=wf:js_escape(Title)}),
   wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
   wf:update(?ID_MEDIA(Id), #entry_media{media=Media, mode=reviews}),
-%  wf:update(?ID_TOOL(Id), []),
+  wf:update(?ID_TOOL(Id), []),
   wf:wire("Holder.run();");
 
 process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);

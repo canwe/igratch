@@ -38,4 +38,4 @@
 -record(ui_payload, {}).
 
 -record(feed_view,      {?ELEMENT_BASE(feed), icon="icon-list", feed, owner, mode}).
--record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[]}).
+-record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[], owner}).

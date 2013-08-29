@@ -77,41 +77,6 @@ render_element(#product_hero{product=P}) ->
   ]},
   element_panel:render_element(Hero);
 
-%render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
-%  PostId = E#entry.entry_id,
-%  EntryId = ?ID_DESC(PostId),
-%  TitleId = ?ID_TITLE(PostId),
-%  Ms = E#entry.media,
-%  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-%  EntryActionsLine = [
-%    #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]},
-%    #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId}}
-%  ],%
-
-%  Date = to_date(E#entry.created),
-
-%  Entry = #panel{id=PostId, class=["blog-post"], body=[
-%    #header{class=["blog-header"], body=[
-%      #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
-%    ]},
-%    #figure{class=["thumbnail-figure"], body=[
-%      [#entry_media{media=Me, fid=E#entry.entry_id} || Me <- Ms],
-%      #figcaption{class=["thumbnail-title"], body=[
-%            #h3{body=#span{body= E#entry.title}}
-%      ]}
-%    ]},
-%    #panel{id=EntryId, body=wf:js_escape(E#entry.description), data_fields=[{<<"data-html">>, true}]},
-%    #panel{id=?ID_TOOL(PostId)},
-
-%    #footer{class=["blog-footer", "row-fluid"], body=[
-%      #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ], postback={read, entry, E#entry.id}},
-%      #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ], postback={read, entry, E#entry.id}},
-%      EntryActionsLine,
-%      #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, E#entry.id}}
-%    ]}
-%  ]},
-%  element_panel:render_element(Entry);
-
 render_element(#entry_comment{comment=#comment{}=C})->
   {Cid, {Eid, Fid}} = C#comment.id,
   {Author, Avatar} = case kvs:get(user, C#comment.from) of 
@@ -149,12 +114,9 @@ render_element(#entry_media{media=[#media{title=Title, thumbnail_url=Thumb}|_], 
   Ext = filename:extension(Thumb),
   Name = filename:basename(Thumb, Ext),
   Dir = filename:dirname(Thumb),
-  element_image:render_element(#image{class=[], alt=Title, image=filename:join([Dir, Name++"_270x124"++Ext])});
+  element_image:render_element(#image{alt=Title, image=filename:join([Dir, Name++"_270x124"++Ext])});
 render_element(#entry_media{media=Media, fid=Fid}) ->
-  M = #panel{body=[
-%    #image{image=Media#media.url}
-  ]},
-  element_panel:render_element(M).
+  element_panel:render_element(#panel{body=[]}).
 
 timestamp_label({0, _}, Time) ->
   {_, H} = calendar:now_to_local_time(Time),

@@ -63,7 +63,7 @@ api_event(tabshow,Args,_) ->
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
-event({read, product, {Id,_}})-> wf:redirect("/product?id="++Id);
+event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event(Event) -> error_logger:info_msg("[store]Page event: ~p", [Event]), ok.
 

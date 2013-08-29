@@ -31,7 +31,7 @@ render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mo
     wf:render(dashboard:section(wf:temp_id(),[
         #h3{class=[blue], body= Title},
         #panel{id=?ID_FEED(Fid), body=[
-            #panel{id=EsId, body=[#feed_entry{entry=E, mode=Mode, controls=controls(E)} || E <- Entries]},
+            #panel{id=EsId, body=[#feed_entry{entry=E, mode=Mode, controls=controls(E), owner=Owner} || E <- Entries]},
             #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
             if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed, postback = {check_more, Last, Info}} end ]} ]}
     ], Icon, "feed"));
@@ -98,21 +98,66 @@ render_element(#feed_entry{entry=#entry{}=E, mode={feature, Feature}, controls=C
   ]},
 
   element_panel:render_element(Entry);
+
+%% Blog style entries
+
+render_element(#feed_entry{entry=#entry{}=E, owner=#product{}=P, mode=blog, controls=Controls})->
+    ProdId = P#product.id,
+    PostId = E#entry.entry_id,
+    EntryId = ?ID_DESC(PostId),
+    TitleId = ?ID_TITLE(PostId),
+    Ms = E#entry.media,
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+    EntryActionsLine = [
+        #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]},
+        #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId}}
+    ],
+
+    Date = product_ui:to_date(E#entry.created),
+
+    Entry = #panel{id=PostId, class=["blog-post"], body=[
+    #header{class=["blog-header"], body=[
+      #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
+    ]},
+    #figure{class=["thumbnail-figure"], body=[
+      [#entry_media{media=Me, fid=E#entry.entry_id} || Me <- Ms],
+      #figcaption{class=["thumbnail-title"], body=[
+            #h3{body=#span{body= E#entry.title}}
+      ]}
+    ]},
+    #panel{id=EntryId, body=wf:js_escape(E#entry.description), data_fields=[{<<"data-html">>, true}]},
+    #panel{id=?ID_TOOL(PostId)},
+
+    #footer{class=["blog-footer", "row-fluid"], body=[
+      #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ], postback={read, entry, E#entry.id}},
+      #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ], postback={read, entry, E#entry.id}},
+      EntryActionsLine,
+      #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, E#entry.id}}
+    ]}
+    ]},
+    element_panel:render_element(Entry);
+
+%% Product as entry
+
 render_element(#feed_entry{entry=#product{}=P, mode=product, controls=Controls})->
     Id = P#product.id,
     From = case kvs:get(user, P#product.owner) of {ok, U} -> U#user.display_name; {error, _} -> P#product.owner end,
 
-  Entry = #panel{id=Id, class=["row-fluid", article], body=[
+    Media = case P#product.cover of undefined -> #media{};
+    File -> #media{url = File, thumbnail_url = filename:join([filename:dirname(File), "thumbnail", filename:basename(File)])} end,
+
+    Entry = #panel{id=Id, class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
 %      #h3{class=[blue], body= Category},
       #p{class=[username], body= #link{body=From, url= "/profile?id="++P#product.owner}},
       #p{class=[datestamp], body=[ #span{body= product_ui:to_date(P#product.created)} ]},
       #p{class=[statistics], body=[
-        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
-        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
+        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ]},
+        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ]}
       ]} ]},
 
-      #panel{id=?ID_MEDIA(Id), class=[span4, shadow], body = #entry_media{media=#media{thumbnail_url=P#product.cover}, mode=reviews}},
+      #panel{id=?ID_MEDIA(Id), class=[span4, "media-pic"], body =#entry_media{media=[Media], title="", mode=reviews}},
+
       #panel{class=[span5, "article-text"], body=[
         #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= P#product.title}},
         #p{id = ?ID_DESC(Id), body=product_ui:shorten(P#product.brief)},
@@ -150,9 +195,10 @@ render_element(#feed_entry{entry=#entry{}=E, mode=detached})->
 % Feed entry controls (view,read,edit,delete,buy,like,etc.)
 
 controls(#entry{type=Type}=E) ->
-%    error_logger:info_msg("Type: ~p", [Type]),
     User = wf:user(),
-    IsAdmin = case User of undefined -> false; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
+    From = case kvs:get(user,E#entry.from) of {error,_} -> User; {ok,F} -> F end,
+    IsAdmin = case User of undefined -> false; U when U#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
+
     case Type of {feature, _} when IsAdmin ->
     #panel{class=["btn-toolbar"], body=[
         #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type}},
@@ -164,7 +210,8 @@ controls(#entry{type=Type}=E) ->
         #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
         #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}];
      _ -> [#link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}] end;
-controls(#product{}=_P)-> [].
+controls(#product{}=P)-> [
+    #link{body=[ <<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, P#product.id}}].
 
 control_event(_, _) -> ok.
 api_event(_,_,_) -> ok.

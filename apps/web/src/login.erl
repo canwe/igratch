@@ -74,7 +74,7 @@ api_event(fbLogin, Args, _Term)-> JSArgs = n2o_json:decode(Args), login(facebook
 api_event(Name,Tag,_Term) -> error_logger:info_msg("Login Name ~p~n, Tag ~p~n",[Name,Tag]).
 
 login_user(User) ->
-  error_logger:info_msg("Loin: ~p ", [User]),
+  error_logger:info_msg("Login: ~p ", [User]),
   wf:user(User),
   msg:notify([kvs_user, login, user, User#user.email, update_status], {}),
   wf:redirect("/profile").
