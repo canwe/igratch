@@ -173,13 +173,4 @@ process_delivery([create],
                  [{Creator, Id, Name, Desc, Publicity}]) ->
   error_logger:info_msg("responce to create group"),
   ok;
-%process_delivery([user,To,entry,_,add],
-%                 [#entry{type=T, feed_id=Fid}=E,Tid, Eid, MsId, TabId])->
-%  error_logger:info_msg("ENTRY RECEIVED IN ~p", [To]),
-%  What = case kvs:get(user, To) of {error, not_found} -> #user{}; {ok, U} -> U end,
-%  User = wf:user(),
-%  {_, Direct} = lists:keyfind(direct, 1, User#user.feeds),
-%  if Direct == Fid -> wf:insert_top(direct, #feature_req{entry=E}); true -> ok end,
-%  wf:update(sidenav, dashboard:sidenav({User, admin, subnav()}));
-
 process_delivery(R,M) -> feed:process_delivery(R,M).
