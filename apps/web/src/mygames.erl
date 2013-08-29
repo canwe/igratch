@@ -92,31 +92,30 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({save}) ->
-  User = wf:user(),
-  Title = wf:q(title),
-  Descr = wf:q(brief),
-  Cats = wf:q(cats),
-  Currency = wf:q(currency),
-  TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
-  Product = #product{
-    id = kvs:uuid(),
-    creator = User#user.email,
-    owner = User#user.email,
-    title = list_to_binary(Title),
-    brief = list_to_binary(Descr),
-    cover = TitlePic,
-    price = product_ui:to_price(wf:q(price)),
-    currency = Currency,
-    feeds = ?PRD_CHUNK,
-    created = now()
-  },
+    User = wf:user(),
+    Title = wf:q(title),
+    Descr = wf:q(brief),
+    Cats = wf:q(cats),
+    Currency = wf:q(currency),
+    TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
+    Product = #product{
+        id = kvs:uuid(),
+        creator = User#user.email,
+        owner = User#user.email,
+        title = list_to_binary(wf:js_escape(Title)),
+        brief = list_to_binary(wf:js_escape(Descr)),
+        cover = TitlePic,
+        price = product_ui:to_price(wf:q(price)),
+        currency = Currency,
+        feeds = ?PRD_CHUNK,
+        created = now() },
 
     Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
 
     Recipients = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)} |
         [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
 
-  msg:notify([kvs_product, product, register], [Product, {Recipients, Groups}]);
+    msg:notify([kvs_product, product, register], [Product, {Recipients, Groups}]);
 
 event({update, #product{}=P}) ->
   User = wf:user(),

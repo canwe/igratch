@@ -127,6 +127,7 @@ timestamp_label({Days, _}, _) when Days < 365 -> io_lib:format("~p " ++ "months 
 timestamp_label({Days, _}, _) when Days > 365 -> io_lib:format("~p " ++ "years ago", [trunc(Days/365)]);
 timestamp_label({Days, _}, _) -> io_lib:format("~p days ago", [Days]).
 
+shorten(undefined) -> "";
 shorten(Input) ->
   re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(Input,
     "<img[^>]*>",           "...",  [global, {return, list}]),
