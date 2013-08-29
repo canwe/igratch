@@ -55,7 +55,7 @@ input(#entry{}=E) ->
       ]}
     ]},
     #panel{class=[span3], body=[
-      #upload{id=cover_upload,preview=true, root=?ROOT, dir=Dir, value=P#product.cover, delegate_query=?MODULE, post_write=attach_media, img_tool=gm, post_target=media_block, size=?THUMB_SIZE}
+      #upload{id=cover_upload,preview=true, root=?ROOT, dir=Dir, value=P#product.cover, delegate_query=?MODULE, post_write=attach_media, delegate_api=input, img_tool=gm, post_target=media_block, size=?THUMB_SIZE}
     ]}
   ]}
  ]} end.
@@ -85,7 +85,6 @@ control_event("cover_upload", {query_file, Root, Dir, File, MimeType, PostWrite,
   {exist, Size};
 control_event(_, _) -> ok.
 
-api_event(attach_media, Tag, Term) -> product:api_event(attach_media, Tag, Term);
 api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 event(init) -> wf:reg(?MAIN_CH), [];
@@ -117,34 +116,6 @@ event({save}) ->
 
   msg:notify([kvs_product, product, register], [Product, {Recipients, Groups}]);
 
-%  case kvs:add(Product) of
-%    {ok, P} ->
-%      Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
-
-%      Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
-%        [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
-
-%      error_logger:info_msg("Message recipients: ~p", [Recipients]),
-%      Medias = case wf:session(medias) of undefined -> []; M -> M end,
-
-%      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
-
-%      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
-%                  [#entry{id={P#product.id, Fid},
-%                          feed_id=Fid,
-%                          entry_id=P#product.id,
-%                          created = now(),
-%                          to = {RoutingType, To},
-%                          from=P#product.owner,
-%                          type= product,
-%                          media=Medias,
-%                          title=Title,
-%                          description=Descr,
-%                          shared=""}, title, brief, media_block, myproducts]) || {RoutingType, To, {_, Fid}} <- Recipients],
-%
-%      msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
-%    _ -> error
-%  end;
 event({update, #product{}=P}) ->
   User = wf:user(),
   Title = wf:q(title),

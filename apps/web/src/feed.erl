@@ -28,13 +28,13 @@ render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mo
     Info = #info_more{fid=Fid, entries=EsId, toolbar=BtnId, mode=Mode},
     NoMore = length(Entries) < ?PAGE_SIZE,
 
-    wf:render(dashboard:section([
+    wf:render(dashboard:section(wf:temp_id(),[
         #h3{class=[blue], body= Title},
         #panel{id=?ID_FEED(Fid), body=[
             #panel{id=EsId, body=[#feed_entry{entry=E, mode=Mode, controls=controls(E)} || E <- Entries]},
             #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
             if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed, postback = {check_more, Last, Info}} end ]} ]}
-    ], Icon));
+    ], Icon, "feed"));
 
 %% Render the different feed entries
 
@@ -52,7 +52,8 @@ render_element(#feed_entry{entry=#entry{}=E, mode=review, category=Category, con
         #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
       ]} ]},
 
-      #panel{id=?ID_MEDIA(Id), class=[span4, shadow], body = #entry_media{media=E#entry.media, mode=reviews}},
+      #panel{id=?ID_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=E#entry.media, mode=reviews}},
+
       #panel{class=[span5, "article-text"], body=[
         #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
         #p{id = ?ID_DESC(Id), body=product_ui:shorten(E#entry.description)},
