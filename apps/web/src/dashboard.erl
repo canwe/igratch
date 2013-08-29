@@ -38,13 +38,12 @@ sidenav({What, Active, Tabs})->
                 _-> true end; true -> P==Active end end, ?PAGES)
     ]}}.
 
-alt_section(Body,Icon)-> section(wf:temp_id(), Body, Icon, "alt").
-section(Body, Icon)-> section(wf:temp_id(),Body, Icon).
+section(Body, Icon)-> section(wf:temp_id(),Body,Icon, "").
 section(Id, Body, Icon) -> section(Id, Body,Icon, "").
-section(Id, Body, Icon, Section) ->
-  #section{class=["row-fluid", "dashboard-section"], body = [
+section(Id, Body, Icon, Class) ->
+  #section{class=["row-fluid", "dashboard-section", Class], body = [
     #panel{class=[span1], body=#i{class=[Icon, "icon-2x", blue]}},
-    #panel{id=Id, class=[span11, "dashboard-unit", Section], body=Body} ]}.
+    #panel{id=Id, class=[span11, "dashboard-unit"], body=Body} ]}.
 
 page({_,_,_}=Nav, Body)-> [
     #section{id=content, body=#panel{class=[container], body=#panel{class=[row, dashboard], body=[

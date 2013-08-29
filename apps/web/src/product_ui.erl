@@ -191,27 +191,6 @@ render_element(#entry_media{media=Media, fid=Fid}) ->
   ]},
   element_panel:render_element(M).
 
-preview_medias(Id, Medias, Delegate)->
-  L = length(Medias),
-  if L > 0 ->
-    #carousel{indicators=false, style="border:1px solid #eee;", items=[
-      #panel{class=["row-fluid"], body=[
-        #panel{class=[span3], style="position:relative;", body=[
-          #link{class=[close], style="position:absolute; right:10px;top:5px; color:red;",  body= <<"&times;">>, postback={remove_media, M, Id}, delegate=Delegate},
-          #link{class=[thumbnail], body=[
-            #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x80">>;
-              Th ->
-                Ext = filename:extension(Th),
-                Name = filename:basename(Th, Ext),
-                Dir = filename:dirname(Th),
-                filename:join([Dir, Name++"_139x80"++Ext])
-             end}
-          ]}
-        ]}|| M <- lists:sublist(Medias, I, 4)
-      ]}|| I <- lists:seq(1, L, 4) ],
-      caption=#panel{body= <<"Entry will be posted with this medias.">>}};
-    true-> [] end.
-
 timestamp_label({0, _}, Time) ->
   {_, H} = calendar:now_to_local_time(Time),
   io_lib:format("~2..0b:~2..0b:~2..0b", tuple_to_list(H));

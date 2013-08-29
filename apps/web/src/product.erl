@@ -160,12 +160,6 @@ event({remove_entry, E=#entry{}, ProductId}) ->
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email]) || {RouteType, To, Fid} <- Recipients];
 
 event({read, entry, {Id,_}})-> wf:redirect("/review?id="++Id);
-event({remove_media, M, Id}) ->
-  Ms = case wf:session(medias) of undefined -> []; Mi -> Mi end,
-  New = lists:filter(fun(E)-> E/=M end, Ms),
-  wf:session(medias, New),
-  wf:update(Id, product_ui:preview_medias(Id, New));
-
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event({add_cart, #product{}=P}) ->
   error_logger:info_msg("Add to cart: ~p", [P]),

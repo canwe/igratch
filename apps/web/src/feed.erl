@@ -255,7 +255,7 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery(R,M) -> error_logger:info_msg("delegate to product->"),product:process_delivery(R,M).
+process_delivery(R,M) -> error_logger:info_msg("[feed]delegate to product->"),product:process_delivery(R,M).
 
 read_entries(StartFrom, #info_more{fid=Fid, mode=Mode}=I)->
     {RecordName,StartId} = case Mode of product -> {product,StartFrom}; _-> {entry, if StartFrom == undefined -> undefined; true-> {StartFrom, Fid} end} end,

@@ -4,6 +4,7 @@
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
+-include_lib("kvs/include/groups.hrl").
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
@@ -19,6 +20,7 @@ body() ->
       #panel{class=["row-fluid", dashboard], body=[
         #panel{class=[span2], body=[
             dashboard:section(profile:profile_info(wf:user(), E#entry.from, ""), "icon-user"),
+
             dashboard:section([
                 #h3{class=[blue], body= <<"&nbsp;&nbsp;&nbsp;&nbsp;Article">>},
                 #p{class=[datestamp], body=[product_ui:to_date(E#entry.created)]},
@@ -30,6 +32,7 @@ body() ->
                    ], postback={read, entry, E#entry.id}}
                 ]}
             ], "icon-eye-open"),
+
             dashboard:section([
                 #h3{class=[blue], body= <<"&nbsp;&nbsp;&nbsp;&nbsp;Game">>},
                 #p{body=[Product#product.title]},
@@ -40,12 +43,15 @@ body() ->
                     body= [<<"buy for ">>, #span{body= "$"++ float_to_list(Product#product.price/100, [{decimals, 2}]) }], postback={checkout, Product#product.id}},
                   #button{class=[btn, "btn-large", "btn-warning"], body= [#span{class=["icon-shopping-cart"]}, <<" add to cart ">>], postback={add_cart, Product}}
                 ]}
-
             ], "icon-gamepad")
         ]},
+
         #panel{class=[span10], body=[
           dashboard:section(#feed_entry{entry=E, mode=detached}, "icon-align-justify"),
-          #h3{body= <<"more reviews">>, class=[blue, "text-center"]}
+%          #h3{body= <<"more reviews">>, class=[blue, "text-center"]},
+          [ case kvs:get(group, Group) of {error,_}->[];
+            {ok, G}-> #feed_view{owner=G, feed=feed, title= <<"More reviews">>, mode=review, icon="icon-tags"} end
+            || #group_subscription{where=Group} <- kvs_group:participate(Product#product.id)]
 %          #panel{class=["row-fluid"], body=reviews:all(Reviews)}
         ]}
       ]};
@@ -74,7 +80,7 @@ event({comment_reply, {Cid, {Eid, Fid}}})->
     ]}
   ]});
 event({comment_cancel, Id}) -> wf:remove(Id);
-event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
@@ -97,4 +103,4 @@ process_delivery([_, Eid, comment, Cid, add],
   end,
   wf:update(comments, list_to_binary(integer_to_list(kvs_feed:comments_count(entry, Eid)))),
   wf:wire("Holder.run();");
-process_delivery(R,M) -> product:process_delivery(R,M).
+process_delivery(R,M) -> feed:process_delivery(R,M).

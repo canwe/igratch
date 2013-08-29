@@ -40,7 +40,7 @@ input(#entry{}=E) ->
         #textbox{id = price, class=[span2], value=float_to_list(P#product.price/100, [{decimals, 2}])},
         #select{id=currency, class=[selectpicker], body=[#option{label= L, body = V, selected=binary_to_list(V)==P#product.currency} || {L,V} <- Curs]}
       ]},
-      #panel{id=media_block, body=product_ui:preview_medias(media_block, Medias, mygames)},
+      #panel{id=media_block, body=input:preview_medias(media_block, Medias, mygames)},
 
       #panel{class=["btn-toolbar"],body=[
         case P#product.id of undefined -> 
@@ -79,7 +79,7 @@ control_event("cover_upload", {query_file, Root, Dir, File, MimeType, PostWrite,
         type = {attachment, MimeType},
         thumbnail_url = filename:join([Dir,"thumbnail",Name])},
       wf:session(medias, [Media]),
-      wf:update(media_block, product_ui:preview_medias(media_block, [Media], mygames)),
+      wf:update(media_block, input:preview_medias(media_block, [Media], mygames)),
       FileInfo#file_info.size;
     {error, _} -> 0 end,
   {exist, Size};
@@ -221,11 +221,11 @@ event({remove_product, E}) ->
 event({edit_product, #entry{}=E})->
   wf:session(medias, E#entry.media),
   wf:replace(input, input(E)),
-  wf:update(media_block, product_ui:preview_medias(media_block, E#entry.media)),
+  wf:update(media_block, input:preview_medias(media_block, E#entry.media)),
   wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
 event({remove_media, M, Id}) ->
   wf:wire("$('#cover_upload').trigger('reset');"),
-  product:event({remove_media, M, Id});
+  input:event({remove_media, M, Id});
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
 process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->

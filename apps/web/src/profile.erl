@@ -9,22 +9,31 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Account">>},{body,body()}]}].
+main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Profile">>},{body,body()}]}].
 
 body() ->
     Who = case wf:user() of undefined -> #user{}; U -> U end,
     What = case wf:qs(<<"id">>) of undefined -> Who;
         Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end end,
     Nav = {What, profile, []},
+
     index:header() ++ dashboard:page(Nav, [
         if What#user.email == undefined -> index:error("There is no user "++binary_to_list(wf:qs(<<"id">>))++"!");
         true -> [
             dashboard:section(profile, profile_info(Who, What, "icon-2x"), "icon-user"),
-            #input{title= <<"Write message">>, placeholder_rcp= <<"E-mail/User">>, role=user, type=direct,
-                placeholder_ttl= <<"Subject">>,
-                recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name), collapsed=true},
-            dashboard:section(payments(Who, What), "icon-list")
-        ] end ])  ++ index:footer().
+            if Who == What -> payments(What);
+            true -> [
+                #input{%title= <<"Write message">>,
+                    placeholder_rcp= <<"E-mail/User">>,
+                    placeholder_ttl= <<"Subject">>,
+                    class="alt",
+                    role=user,
+                    type=direct,
+                    show_recipients=false,
+                    collapsed=true,
+                    expand_btn= <<"Write message">>,
+                    recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
+                #feed_view{owner=What, feed=feed, title= <<"Recent activity">>, mode=review} ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) ->
 %    error_logger:info_msg("What: ~p", [What]),
@@ -56,65 +65,58 @@ features(Who, What, Size) ->
   Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
   Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
   AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) =:= allow,
-%  error_logger:info_msg("Am I admin ~p", [AmIAdmin]),
   [#p{body=[
   if AmIAdmin -> #link{class=["text-warning"], 
-      data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"disable user">>,
+      data_fields=?TOOLTIP, title= <<"disable user">>,
       postback={disable, What},
-      body = #span{class=["icon-stack", Size], body=[#i{class=["icon-stack-base", "icon-circle"]},#i{class=["icon-user"]}, #i{class=["icon-ban-circle", "text-error"]} ]} };
+      body = #span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-user"]}, #i{class=["icon-ban-circle", "text-error"]} ]} };
   true ->  #link{class=["text-warning"],
-      data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"user">>,
-      body=#span{class=["icon-stack", Size], body=[#i{class=["icon-stack-base", "icon-circle"]},#i{class=["icon-user"]}]}} end,
+      data_fields=?TOOLTIP, title= <<"user">>,
+      body=#span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-user"]}]}} end,
   if AmIAdmin andalso Writer -> #link{class=["text-success"],
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"revoke reviewer">>,
+    data_fields=?TOOLTIP, title= <<"revoke reviewer">>,
     postback={revoke, reviewer, What#user.email},
-    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-pencil", "icon-light"]}, #i{class=["icon-ban-circle", "text-error"]} ]}};
+    body=#span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-pencil", "icon-light"]}, #i{class=["icon-ban-circle", "text-error"]} ]}};
   Writer -> #link{class=["text-success"],
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"reviewer">>,
-    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-pencil", "icon-light"]}]}}; 
+    data_fields=?TOOLTIP, title= <<"reviewer">>,
+    body=#span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-pencil", "icon-light"]}]}}; 
   Who==What -> #link{
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"request reviewer role">>,
+    data_fields=?TOOLTIP, title= <<"request reviewer role">>,
     body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base", "icon-muted"]},#i{class=["icon-pencil"]}, #i{class=["icon-large", "icon-question", "text-error"]}]},
     postback={request, reviewer}};
   true -> []
   end,
   if AmIAdmin andalso Dev -> #link{class=[],
     postback={revoke, developer, What#user.email},
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"revoke developer">>,
+    data_fields=?TOOLTIP, title= <<"revoke developer">>,
     body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base", "icon-2x"]},#i{class=["icon-barcode", "icon-light"]}, #i{class=["icon-ban-circle", "text-error"]}  ]}};
   Dev -> #link{class=[""],
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"developer">>,
-    body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-barcode", "icon-light"]}]}}; 
+    data_fields=?TOOLTIP, title= <<"developer">>,
+    body=#span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-barcode", "icon-light"]}]}}; 
   Who == What -> #link{
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"request developer role">>,
+    data_fields=?TOOLTIP, title= <<"request developer role">>,
     body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base", "icon-muted"]},#i{class=["icon-barcode"]}, #i{class=["icon-large","icon-question", "text-error"]}]},
     postback={request, developer}};
   true -> []
   end,
   if Admin ->
   #link{
-    data_fields=[{<<"data-toggle">>,<<"tooltip">>}], title= <<"administrator">>,
-    body=#span{class=["icon-stack", Size, blue], body=[#i{class=["icon-circle", "icon-stack-base"]},#i{class=["icon-wrench icon-light"]}]}}; true->[] end
+    data_fields=?TOOLTIP, title= <<"administrator">>,
+    body=#span{class=["icon-stack", Size, blue], body=[#i{class=?STACK_BASE},#i{class=["icon-wrench icon-light"]}]}}; true->[] end
   ]}].
 
-payments(Who, What) -> [
-  if Who == What ->[
+payments(What) ->
+  dashboard:section([
     #h3{class=[blue], body= <<"Payments">>},
     #table{class=[table, "table-hover", payments],
       header=[#tr{cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>}, #th{body= <<"Price">>}, #th{body= <<"Game">>}]}],
       body=[[begin
-        {{Y, M, D}, _} = calendar:now_to_datetime(Py#payment.start_time),
-        Date = io_lib:format("~p ~s ~p", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]),
         #tr{cells= [
-          #td{body= [Date]},
+          #td{body= [product_ui:to_date(Py#payment.start_time)]},
           #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],body= [atom_to_list(Py#payment.state)]},
           #td{body=[case Cur of "USD"-> #span{class=["icon-usd"]}; _ -> #span{class=["icon-money"]} end, float_to_list(Price/100, [{decimals, 2}])]},
-          #td{body=#link{url="/product?id="++Id,body= Title}} ]} 
-      end || #payment{product=#product{id=Id, title=Title, price=Price, currency=Cur}} = Py <-kvs_payment:payments(What#user.email) ]]}];
-  true -> [
-    #h3{class=[blue], body= <<"Recent activity">>},
-      myreviews:reviews(What)
-  ] end ].
+          #td{body=#link{url=?URL_PRODUCT(Id),body= Title}} ]} 
+      end || #payment{product=#product{id=Id, title=Title, price=Price, currency=Cur}} = Py <-kvs_payment:payments(What#user.email) ]]}], "icon-list").
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("dashboard Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
@@ -149,10 +151,11 @@ event({request, Feature}) ->
       wf:update(alerts, index:error(io_lib:format("~p", [Feature]) ++" requested"))
   end;
 event({revoke, Feature, Whom})-> admin:event({revoke, Feature, Whom});
-event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 process_delivery([user,_,entry,_,add]=R, M)->
+    error_logger:info_msg("=>message sent!"),
     wf:update(sidenav, dashboard:sidenav({wf:user(), profile, []})),
     feed:process_delivery(R,M);
 process_delivery(R,M) -> feed:process_delivery(R,M).

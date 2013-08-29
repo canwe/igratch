@@ -7,6 +7,11 @@
 -define(ID_COMMENTS(Id),Id++"c").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(THUMB_SIZE, [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
+-define(BTN_INFO,   [btn, "btn-large", "btn-info"]).
+-define(STACK_BASE, ["icon-stack-base", "icon-circle"]).
+-define(TOOLTIP,    [{<<"data-toggle">>,<<"tooltip">>}]).
+
+-define(URL_PRODUCT(Id), "/product?id="++Id).
 
 -record(struct,         {lst=[]}).
 -record(info_more,      {entries, toolbar, category, fid, module, delegate, mode}).
@@ -18,11 +23,18 @@
 -record(entry_media,    {?ELEMENT_BASE(product_ui), media, fid, cid, mode}).
 -record(entry_comment,  {?ELEMENT_BASE(product_ui), comment}).
 
--record(input,          {?ELEMENT_BASE(input), icon="icon-edit", collapsed=false, feed, type,
-    recipients="",
-    placeholder_rcp="",
-    placeholder_ttl="Title",
-    placeholder_box=""}).
+-record(input,          {?ELEMENT_BASE(input),
+                        icon="icon-edit",
+                        collapsed=false,
+                        show_recipients=true,
+                        feed,
+                        type,
+                        recipients="",
+                        placeholder_rcp="",
+                        placeholder_ttl="Title",
+                        placeholder_box="",
+                        expand_btn=""}).
+-record(ui_payload, {}).
 
 -record(feed_view,      {?ELEMENT_BASE(feed), icon="icon-list", feed, owner, mode}).
 -record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[]}).
