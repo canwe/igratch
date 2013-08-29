@@ -77,41 +77,6 @@ render_element(#product_hero{product=P}) ->
   ]},
   element_panel:render_element(Hero);
 
-%render_element(#product_entry{entry=#entry{type={features, "jumbotron"}}=E}) ->
-%  error_logger:info_msg("View desctiption entry with jumbotron layout ~p~n", [E]),
-%  PostId = wf:temp_id(),
-%  Entry = #panel{id=PostId, class=["blog-post", "jumbotron"],body=[
-%    <<"Jumbotron">>
-%  ]},
-%element_panel:render_element(Entry);
-
-%render_element(#product_entry{entry=#entry{type=Type}=E, mode=full})->
-%  PostId = E#entry.entry_id,
-%  TitleId = ?ID_TITLE(PostId),
-%  EntryId= ?ID_DESC(PostId),
-%  {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
-%  Comments = kvs:entries(kvs:get(feed, Fid), comment),
-%  CommentId = wf:temp_id(),
-%  CommentsId = wf:temp_id(),
-%  Ms = E#entry.media,
-%  Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
-%  Entry = #panel{id=PostId, class=["blog-post"], body=[
-%    #h3{class=[blue], body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
-%    #figure{class=["thumbnail-figure"], body=[
-%      [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms]
-%    ]},
-%    #panel{id=EntryId, body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
-%    #panel{class=[comments, "row-fluid"], body=[
-%        #h3{body= <<"comments">>},
-%        #panel{id=CommentsId, class=[], body=[#entry_comment{comment=C}||C<-Comments]},
-%        #h3{class=["comments-form"], body= <<"Add your comment">>},
-%        #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=?THUMB_SIZE},
-%        #panel{class=["btn-toolbar"], body=[#link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, E#entry.id, CommentId, CommentsId, undefined, ""}, source=[CommentId]}]}
-%      ]}
-%  ]},
-%
-%  element_panel:render_element(Entry);
-
 %render_element(#product_entry{entry=#entry{}=E, prod_id=ProdId})->
 %  PostId = E#entry.entry_id,
 %  EntryId = ?ID_DESC(PostId),

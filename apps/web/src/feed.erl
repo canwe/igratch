@@ -7,6 +7,8 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
+%% Feed representation
+
 render_element(#feed_view{owner=undefined, title=Title, icon=Icon}) ->
     wf:render(dashboard:section([#h3{class=[blue], body= Title}, index:info("Anonymous users has no feeds.")], Icon));
 render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mode=Mode}) ->
@@ -33,6 +35,8 @@ render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mo
             #panel{id=BtnId, class=["btn-toolbar", "text-center"], body=[
             if NoMore -> []; true -> #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed, postback = {check_more, Last, Info}} end ]} ]}
     ], Icon));
+
+%% Render the different feed entries
 
 render_element(#feed_entry{entry=#entry{}=E, mode=review, category=Category, controls=Controls})->
   Id = E#entry.entry_id,
@@ -117,6 +121,8 @@ render_element(#feed_entry{entry=#product{}=P, mode=product, controls=Controls})
 
     element_panel:render_element(Entry);
 
+% Detached review
+
 render_element(#feed_entry{entry=#entry{}=E, mode=detached})->
     Eid = E#entry.entry_id,
     CommentId = wf:temp_id(),
@@ -140,6 +146,8 @@ render_element(#feed_entry{entry=#entry{}=E, mode=detached})->
     ]},
     element_panel:render_element(Entry).
 
+% Feed entry controls (view,read,edit,delete,buy,like,etc.)
+
 controls(#entry{type=Type}=E) ->
 %    error_logger:info_msg("Type: ~p", [Type]),
     User = wf:user(),
@@ -155,8 +163,7 @@ controls(#entry{type=Type}=E) ->
         #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
         #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}];
      _ -> [#link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}] end;
-controls(#product{}=_P)-> [
-    ].
+controls(#product{}=_P)-> [].
 
 control_event(_, _) -> ok.
 api_event(_,_,_) -> ok.
