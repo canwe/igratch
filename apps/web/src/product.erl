@@ -78,7 +78,7 @@ feed(Tab)->
         "user"++User#user.email++"="++wf:to_list(User#user.display_name)], ","),
     error_logger:info_msg("Recipients: ~p", [Recipients]),
     [
-    #input{title= "Write "++atom_to_list(Tab), placeholder_rcp= <<"">>, placeholder_ttl= <<"Title">>, collapsed=true, role=product, type=Tab, recipients=[Recipients]},
+    #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", collapsed=true, role=product, type=Tab, recipients=[Recipients]},
     #feed_view{owner=P, feed=Tab, title= wf:to_list(Tab), icon="icon-circle", mode=review} ].
 
 aside()-> [

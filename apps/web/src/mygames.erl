@@ -16,8 +16,10 @@
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
 body()-> Nav = {wf:user(), mygames, []},
+    InputId = wf:temp_id(),
+    wf:session(game_input, InputId),
     index:header() ++ dashboard:page(Nav, [
-        dashboard:section(input(#entry{}), "icon-edit"),
+        dashboard:section(InputId, input(#entry{}), "icon-edit"),
         #feed_view{owner=wf:user(), feed=products, title= <<"My games">>, mode=review, icon="icon-gamepad"} ]) ++index:footer().
 
 input(#entry{}=E) ->
@@ -33,8 +35,8 @@ input(#entry{}=E) ->
     #panel{class=["row-fluid"], body=[
     #panel{class=[span9], body=[
       #textboxlist{id=cats, placeholder= <<"Categories">>, values=string:join(Groups,",")},
-      #textbox{id=title, class=[span12], placeholder="Game title", value = E#entry.title},
-      #textarea{id=brief, class=[span12], rows="5", placeholder="Brief description", body = E#entry.description},
+      #textbox{id=title, class=[span12], placeholder="Game title", value = wf:js_escape(E#entry.title)},
+      #textarea{id=brief, class=[span12], rows="5", placeholder="Brief description", body = wf:js_escape(E#entry.description)},
 
       #panel{class=["input-append"], body=[
         #textbox{id = price, class=[span2], value=float_to_list(P#product.price/100, [{decimals, 2}])},
@@ -188,12 +190,11 @@ event({remove_product, E}) ->
   error_logger:info_msg("Remove pecipients: ~p", [Recipients]),
 
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, User#user.email]) || {RouteType, To, Fid} <- Recipients],
-  kvs_products:delete(E#entry.entry_id);
+  kvs_product:delete(E#entry.entry_id);
 event({edit_product, #entry{}=E})->
-  wf:session(medias, E#entry.media),
-  wf:replace(input, input(E)),
-  wf:update(media_block, input:preview_medias(media_block, E#entry.media)),
-  wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
+    wf:session(medias, E#entry.media),
+    wf:update(wf:session(game_input), input(E)),
+    wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
 event({remove_media, M, Id}) ->
   wf:wire("$('#cover_upload').trigger('reset');"),
   input:event({remove_media, M, Id});
@@ -202,20 +203,17 @@ event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->
   wf:update(?ID_TOOL(Id), controls(E)),
   product:process_delivery(R,E);
-process_delivery([group,_,entry,{_,_},delete], [_,_]) -> skip;
+process_delivery([group,_,entry,_,delete], [_,_]) -> skip;
 
 process_delivery([product, registered], {{ok, P}, {Recipients, Groups}}) ->
     error_logger:info_msg("=>Product ~p added, notify recipients~n", [P#product.id]),
-%      Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
-%      Recipients = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
-%        [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
-      error_logger:info_msg("Message recipients: ~p", [Recipients]),
-      Medias = case wf:session(medias) of undefined -> []; M -> M end,
+    error_logger:info_msg("Message recipients: ~p", [Recipients]),
+    Medias = case wf:session(medias) of undefined -> []; M -> M end,
 
-      [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
+    [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
 
-      [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
-                  [#entry{id={P#product.id, Fid},
+    [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
+                [#entry{id={P#product.id, Fid},
                           feed_id=Fid,
                           entry_id=P#product.id,
                           created = now(),
@@ -226,11 +224,5 @@ process_delivery([product, registered], {{ok, P}, {Recipients, Groups}}) ->
                           title=P#product.title,
                           description=P#product.brief,
                           shared=""}, cats, title, brief, media_block, R]) || {RoutingType, To, {_, Fid}}=R <- Recipients];
-
-%      msg:notify([kvs_products, product, init], [P#product.id, P#product.feeds]);
-
-process_delivery([product, registered], {Id, E}) ->
-%  Name = wf:session(name),
-%  if Id == Name -> wf:update(wf:session(name), index:error(atom_to_list(E))); true-> ok end;
-    error_logger:info_msg("Error adding product: ~p", [E]);
+process_delivery([product, registered], {Id, E}) -> error_logger:info_msg("Error adding product: ~p", [E]);
 process_delivery(R,M) -> feed:process_delivery(R,M).

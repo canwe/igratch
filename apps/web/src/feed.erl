@@ -48,8 +48,8 @@ render_element(#feed_entry{entry=#entry{}=E, mode=review, category=Category, con
       #p{class=[username], body= #link{body=From, url= "/profile?id="++E#entry.from}},
       #p{class=[datestamp], body=[ #span{body= product_ui:to_date(E#entry.created)} ]},
       #p{class=[statistics], body=[
-        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
-        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]}
+        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ]},
+        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info", ?ID_CM_COUNT(E#entry.entry_id)], body=integer_to_list(kvs_feed:comments_count(entry, E#entry.id))} ]}
       ]} ]},
 
       #panel{id=?ID_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=E#entry.media, mode=reviews}},
