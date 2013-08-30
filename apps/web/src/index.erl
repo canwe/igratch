@@ -146,10 +146,11 @@ footer() -> [
         #li{body=#link{body=#image{image= <<"/static/img/social5.png">>}}},
         #li{body=#link{body=#image{image= <<"/static/img/social6.png">>}}} ]} ]} ]}}].
 
-error(Msg)-> alert(Msg, "alert-danger").
-info(Msg) -> alert(Msg, "alert-info").
+error(Msg)-> alert(Msg,"alert-danger").
+info(Msg) -> alert(Msg,"alert-info").
+warn(Msg) -> alert(Msg,"alert-warning").
 alert(Msg, Class)->
-  #panel{class=[alert, Class, "alert-block", fade, in], body=[
+    #panel{class=[alert, Class, "alert-block", fade, in], body=[
     #link{class=[close], url="#", data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>}, #strong{body= Msg} ]}.
 
 api_event(tabshow,Args,_) ->

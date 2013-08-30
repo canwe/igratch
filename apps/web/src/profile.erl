@@ -18,7 +18,7 @@ body() ->
     Nav = {What, profile, []},
 
     index:header() ++ dashboard:page(Nav, [
-        if What#user.email == undefined -> index:error("There is no user "++binary_to_list(wf:qs(<<"id">>))++"!");
+        if What#user.email == undefined -> index:error("There is no user "++wf:to_list(wf:qs(<<"id">>))++"!");
         true -> [
             dashboard:section(profile, profile_info(Who, What, "icon-2x"), "icon-user"),
             if Who == What -> payments(What);
