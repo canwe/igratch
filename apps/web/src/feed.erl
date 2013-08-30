@@ -280,7 +280,7 @@ event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
 
 process_delivery([_,_,entry,_,add],
                  [#entry{feed_id=Fid} = Entry, Rid, Tid, Eid, MsId,_])->
-    error_logger:info_msg("[Feed-process_delivery]Add entry ~p", [Fid]),
+    error_logger:info_msg("[Feed - process_delivery] Add entry: ~p", [Fid]),
     wf:session(medias, []),
     wf:update(MsId, []),
     wf:wire(wf:f("$('#~s').val('');", [Tid])),
@@ -307,6 +307,7 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:wire("Holder.run();"),
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
+process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);
 process_delivery(R,M) -> error_logger:info_msg("[feed]delegate to product->"),product:process_delivery(R,M).
 
 read_entries(StartFrom, #info_more{fid=Fid, mode=Mode}=I)->

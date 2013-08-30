@@ -186,5 +186,4 @@ process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, descriptio
   wf:update(?ID_TOOL(Id), feed:controls(E)),
   wf:wire("Holder.run();");
 
-process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);
 process_delivery(R,M) -> stop.

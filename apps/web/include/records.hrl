@@ -7,6 +7,7 @@
 -define(ID_COMMENTS(Id),Id++"c").
 -define(ID_CM_COUNT(Id),Id++"cc").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
+-define(ID_FEED_TOOL(Id),    wf:to_list(Id)++"est").
 -define(THUMB_SIZE,     [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
 -define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
 -define(BTN_INFO,       [btn, "btn-large", "btn-info"]).
