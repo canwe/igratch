@@ -52,7 +52,7 @@ api_event(tabshow,Args,_) ->
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read, reviews, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
 
 process_delivery(R,M) -> feed:process_delivery(R,M).

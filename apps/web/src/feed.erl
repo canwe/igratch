@@ -19,6 +19,9 @@ render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mo
         _ when is_tuple(Owner) ->
             {_, Id} = Feed = lists:keyfind(FeedName, 1, element(#iterator.feeds, Owner)),
             {Id, kvs:entries(Feed, undefined, ?PAGE_SIZE)};
+        _ when is_atom(Owner) ->
+            Feed = case kvs:get(feed, FeedName) of {error,_}->false; {ok,F} -> F end,
+            {FeedName, kvs:entries(Feed, entry, ?PAGE_SIZE)};
         _ -> {undefined, []}
     end,
 
@@ -190,7 +193,11 @@ render_element(#feed_entry{entry=#entry{}=E, mode=detached})->
                 postback={comment_entry, E#entry.id, CommentId, ?ID_COMMENTS(Eid), undefined, ""}, source=[CommentId]}]}
        ]}
     ]},
-    element_panel:render_element(Entry).
+    element_panel:render_element(Entry);
+
+render_element(#feed_entry{mode=Mode}) ->
+    error_logger:info_msg("[feed] WARNING:render not matched element! feed mode: ~p", [Mode]),
+    [].
 
 % Feed entry controls (view,read,edit,delete,buy,like,etc.)
 
@@ -208,8 +215,8 @@ controls(#entry{type=Type}=E) ->
     product -> [
         #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
         #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
-        #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}];
-     _ -> [#link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}}] end;
+        #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.entry_id}}];
+     _ -> [#link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.entry_id}}] end;
 controls(#product{}=P)->
     [#link{body=[ <<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, P#product.id}}].
 

@@ -39,7 +39,7 @@ body() ->
                 [#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
                 || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]}
             ]},
-            #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, popular_items() ]}
+            #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, popular_items()]}
           ]}
         ]}
       ]}
@@ -48,7 +48,7 @@ body() ->
 
 feed("all")->
     error_logger:info_msg("ALL", []),
-    #feed_view{owner=any, feed=?FEED(product), title= <<"">>, mode=product, icon="icon-tags"};
+    #feed_view{owner=any, feed=?FEED(entry), title= <<"">>, mode=review, icon="icon-tags"};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}-> #feed_view{owner=G, feed=feed, title= <<"">>, mode=review, icon="icon-tags"} end.

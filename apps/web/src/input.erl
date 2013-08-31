@@ -82,13 +82,13 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId, AlertId
         lists:flatten([case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(To)])]
         || {RouteType, To, _} <- R1, RouteType==product],
 
-    error_logger:info_msg("Route2: ~p", [R2]),
+    UsrFeed = lists:keyfind(case EntryType of review -> feed; direct -> sent; reviews -> feed; _-> EntryType  end, 1, User#user.feeds),
+    R3 = case User of undefined -> []; _ when UsrFeed /=false -> [{user, User#user.email, UsrFeed}]; _-> [] end,
 
-    UsrFeed = case EntryType of review -> feed; direct -> sent; reviews-> feed; _-> EntryType  end,
-    R3 = case User of undefined -> []; _-> [{user, User#user.email, lists:keyfind(UsrFeed, 1, User#user.feeds)}] end,
+    R4 = case UsrFeed of {feed,_} -> {user, User#user.email, {feed, undefined}}; _-> [] end,
 
-    Recipients = lists:flatten([R1,R2,R3]),
-    error_logger:info_msg("[control]Recipients: ~p", [Recipients]),
+    Recipients = lists:flatten([R1,R2,R3, R4]),
+    error_logger:info_msg("[input] Recipients: ~p", [Recipients]),
 
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
