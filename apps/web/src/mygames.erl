@@ -189,6 +189,7 @@ event({update, #product{}=P, [TitleId, EditorId, PriceId, CurrencyId, Recipients
 
   event({edit_product, #entry{}});
 event({read, product, {Id,_}})-> wf:redirect(?URL_PRODUCT(Id));
+event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
 event({remove_product, E}) ->
   User = wf:user(),
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||

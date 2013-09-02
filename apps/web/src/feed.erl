@@ -24,7 +24,6 @@ render_element(#feed_view{icon=Icon, title=Title, feed=FeedName, owner=Owner, mo
             {FeedName, kvs:entries(Feed, entry, ?PAGE_SIZE)};
         _ -> {undefined, []}
     end,
-
     Last = case Entries of []-> []; E-> lists:last(E) end,
     EsId = wf:temp_id(),
     BtnId = wf:temp_id(),
@@ -48,7 +47,7 @@ render_element(#feed_entry{entry=#entry{}=E, mode=review, category=Category, con
   Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
       #h3{class=[blue], body= Category},
-      #p{class=[username], body= #link{body=From, url= "/profile?id="++E#entry.from}},
+      #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
       #p{class=[datestamp], body=[ #span{body= product_ui:to_date(E#entry.created)} ]},
       #p{class=[statistics], body=[
         #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ]},
@@ -348,6 +347,25 @@ process_delivery([_,_,entry,_,add],
     wf:insert_top(?ID_FEED(Fid), #feed_entry{entry=Entry, mode=Mode, controls=controls(Entry)}),
     wf:wire("Holder.run();");
 
+process_delivery([_,_,comment,_,add], [#comment{entry_id=Eid, feed_id=undefined}=C,_,EditorId]) ->
+    {EntryId, EFid} = Eid,
+    case kvs:get(entry, {EntryId, EFid}) of {error,_} -> error_logger:info_msg("no entry!!!!!!!!"),skip;
+    {ok,#entry{feeds=Feeds}} -> 
+        case lists:keyfind(comments, 1, Feeds) of
+        {_,Id} ->
+            error_logger:info_msg("~nEntry ~p", [Feeds]),
+%            error_logger:info_msg("DELIVERY ~p FEED: ~p", [To, Fid]),
+%            error_logger:info_msg("update fid: ~p", [Fid]),
+            wf:insert_bottom(?ID_FEED(comments), #entry_comment{comment=C#comment{feed_id=comments}}),
+
+            case EditorId of
+                "" -> wf:wire(wf:f("$('#~s').parent().find('.mce-content-body').html('');", [?ID_FEED(comments)]));
+                _ ->  wf:remove(EditorId)
+            end,
+            wf:wire(wf:f("$('.~s').html('~s');", [?ID_CM_COUNT(EntryId), integer_to_list(kvs_feed:comments_count(entry, {EntryId, EFid})) ])),
+            wf:wire("Holder.run();");
+        _ -> skip end end;
+
 process_delivery([_, To, comment, Cid, add],
                  [#comment{entry_id=Eid, feed_id=Fid}=C,_,EditorId]) ->
     {EntryId, EFid} = Eid,
@@ -374,6 +392,11 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);
+%process_delivery([comment,registered], {Id, E})-> 
+process_delivery([entry,registered], {E,_})->
+    error_logger:info_msg("ENTRY REGISTERED ~p", [E]);
+process_delivery([comment,registered], {C,_})->
+    error_logger:info_msg("COMMENT REGISTERED ~p", [C]);
 process_delivery(R,M) -> product:process_delivery(R,M).
 
 read_entries(StartFrom, #info_more{fid=Fid, mode=Mode}=I)->

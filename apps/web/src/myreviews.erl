@@ -17,4 +17,5 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> feed:process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id="++Id);
 event({read, review, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, review, Id})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[account] event: ~p", [Event]).

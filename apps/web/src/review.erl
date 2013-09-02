@@ -68,20 +68,29 @@ event({comment_entry, {Eid,_}, CFid, Csid, Parent, EditorId}) ->
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 %    error_logger:info_msg("=>comment entry ~p parent: ~p", [Eid, Parent]),
 
-    {R1,R2} = lists:mapfoldl(fun(#entry{to={RoutingType, To}, feed_id=Fid, feeds=Feeds}, Ain) ->
+    Recipients = lists:map(fun(#entry{to={RoutingType, To}, feed_id=Fid, feeds=Feeds}) ->
         {_, CsFid} = lists:keyfind(comments, 1, Feeds),
         CommentFid = case Parent of undefined -> CsFid;
             Pid -> case kvs:get(comment, {Pid, {Eid, Fid}}) of {error,_}-> CsFid;
                 {ok, C} -> case lists:keyfind(comments, 1, C#comment.feeds) of false -> CsFid; {_, PCid} -> PCid end end end,
 
-        {{RoutingType, To, {Eid, Fid, CommentFid}}, [{RoutingType, To, {Eid, Fid, undefined}}|Ain]}
+        {RoutingType, To, {Eid, Fid, CommentFid}}
         end,
-        [],
         [E || #entry{}=E <- kvs:all_by_index(entry, entry_id, Eid)]),
-    Recipients = lists:append(R1,lists:usort(R2)),
-%    error_logger:info_msg("Recipients: ~p", [Recipients]),
+    %Recipients = lists:append(R1,lists:usort(R2)),
+    error_logger:info_msg("Recipients: ~p", [Recipients]),
     Cid = kvs:uuid(),
     Created = now(),
+
+    C = #comment{id = {Cid, {Eid, ?FEED(entry)}},
+                from = From,
+                comment_id = Cid,
+                entry_id = {Eid, ?FEED(entry)},
+                feed_id = ?FEED(comment),
+                content = wf:js_escape(Comment),
+                media = Medias,
+                feeds=[{comments, kvs_feed:create()}],
+                created = Created },
 
     [msg:notify([kvs_feed, RoutingType, To, comment, Cid, add],
         [#comment{id= {Cid, {EntryId, EntryFid}},
@@ -94,7 +103,9 @@ event({comment_entry, {Eid,_}, CFid, Csid, Parent, EditorId}) ->
             feeds=[{comments, kvs_feed:create()}],
             created = Created }, Csid, EditorId])
 
-        || {RoutingType, To, {EntryId, EntryFid, CommentsFid}} <- Recipients];
+        || {RoutingType, To, {EntryId, EntryFid, CommentsFid}} <- Recipients],
+
+      msg:notify([kvs_feed, comment, register], [C, Csid, EditorId]);
 
 event({comment_reply, {Cid, {Eid, Fid}}, CFid })->
   CommentId = wf:temp_id(),
@@ -112,6 +123,6 @@ event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([_,_,comment,_,add], [#comment{feed_id=undefined},_,_]) -> skip;
+%process_delivery([_,_,comment,_,add], [#comment{feed_id=undefined},_,_]) -> skip;
 
 process_delivery(R,M) -> feed:process_delivery(R,M).

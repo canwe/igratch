@@ -85,14 +85,27 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId, AlertId
     UsrFeed = lists:keyfind(case EntryType of review -> feed; direct -> sent; reviews -> feed; _-> EntryType  end, 1, User#user.feeds),
     R3 = case User of undefined -> []; _ when UsrFeed /=false -> [{user, User#user.email, UsrFeed}]; _-> [] end,
 
-    R4 = case UsrFeed of {feed,_} -> {user, User#user.email, {feed, undefined}}; _-> [] end,
+%    R4 = case UsrFeed of {feed,_} -> {user, User#user.email, {feed, undefined}}; _-> [] end,
 
-    Recipients = lists:flatten([R1,R2,R3, R4]),
+    Recipients = lists:flatten([R1,R2,R3]),
     error_logger:info_msg("[input] Recipients: ~p", [Recipients]),
 
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
     EntryId = kvs:uuid(),
+
+    E = #entry{
+        id = {EntryId, ?FEED(entry)},
+        entry_id=EntryId,
+        feed_id = ?FEED(entry),
+        from=From,
+        to = lists:nth(1, [{Ty,To} || {Ty,To,_} <- R1, Ty==product]),
+        type=EntryType,
+        media=Medias,
+        title=Title,
+        description=Desc,
+        shared=""
+    },
 
     [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [#entry{
         id={EntryId, FeedId},
@@ -105,7 +118,9 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId, AlertId
         media=Medias,
         title=Title,
         description=Desc,
-        shared=""}, RecipientsId, TitleId, EditorId, MediasId, R]) || {RoutingType, To, {_, FeedId}} = R <- Recipients];
+        shared=""}, RecipientsId, TitleId, EditorId, MediasId, R]) || {RoutingType, To, {_, FeedId}} = R <- Recipients],
+
+    msg:notify([kvs_feed, entry, register], [E, RecipientsId, TitleId, EditorId, MediasId, ok]);
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),
