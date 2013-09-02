@@ -36,7 +36,7 @@ body() ->
             #panel{class=["row-fluid"], body=[
               #h3{ class=[blue], body= #link{url="#all", body= <<"TAGS">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
               #p{class=[inline, tagcloud], body=[
-                [#link{url="#"++Id, body=Name, data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
+                [#link{url="#"++Id, body=[<<" ">>,Name], data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
                 || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]}
             ]},
             #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, popular_items()]}
@@ -47,7 +47,6 @@ body() ->
   ]} ] ++ footer().
 
 feed("all")->
-    error_logger:info_msg("ALL", []),
     #feed_view{owner=any, feed=?FEED(entry), title= <<"">>, mode=review, icon="icon-tags"};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
@@ -162,6 +161,7 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Na
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read,_, Id})-> wf:redirect("/review?id="++Id);
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 

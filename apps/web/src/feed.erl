@@ -173,6 +173,7 @@ render_element(#feed_entry{entry=#product{}=P, mode=product, controls=Controls})
 % Detached review
 
 render_element(#feed_entry{entry=#entry{}=E, mode=detached})->
+%    error_logger:info_msg("Detached entry: ~p", [E]),
     Eid = E#entry.entry_id,
     CommentId = wf:temp_id(),
     {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
@@ -184,26 +185,64 @@ render_element(#feed_entry{entry=#entry{}=E, mode=detached})->
           [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms]
         ]},
         #panel{id=?ID_DESC(Eid), body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
+
         #panel{class=[comments, "row-fluid"], body=[
+
             #h3{body=[ #span{class=[?ID_CM_COUNT(Eid)], body=[list_to_binary(integer_to_list(kvs_feed:comments_count(entry, E#entry.id)))]},<<" comments">>]},
-            #panel{id=?ID_COMMENTS(Eid), class=[], body=[#entry_comment{comment=C} || C <- kvs:entries(kvs:get(feed, Fid), comment)]},
+            #panel{id=?ID_FEED(Fid), class=[], body=[#entry_comment{comment=C} || C <- kvs:entries(kvs:get(feed, Fid), comment)]},
+%            #panel{id=?ID_COMMENTS(Eid), class=[], body=[#entry_comment{comment=C} || C <- kvs:entries(kvs:get(feed, Fid), comment)]},
+
             #h3{class=["comments-form"], body= <<"Add your comment">>},
             #htmlbox{id=CommentId, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, size=?THUMB_SIZE},
             #panel{class=["btn-toolbar"], body=[#link{class=?BTN_INFO, body= <<"Post">>, 
-                postback={comment_entry, E#entry.id, CommentId, ?ID_COMMENTS(Eid), undefined, ""}, source=[CommentId]}]}
+                postback={comment_entry, E#entry.id, CommentId, ?ID_FEED(Fid), undefined, ""}, source=[CommentId]}]}
+%                postback={comment_entry, E#entry.id, CommentId, ?ID_COMMENTS(Eid), undefined, ""}, source=[CommentId]}]}
        ]}
     ]},
     element_panel:render_element(Entry);
 
 render_element(#feed_entry{mode=Mode}) ->
     error_logger:info_msg("[feed] WARNING:render not matched element! feed mode: ~p", [Mode]),
-    [].
+    [];
+
+%% Comment entries
+render_element(#entry_comment{comment=#comment{}=C})->
+  {Cid, {Eid, Fid}} = C#comment.id,
+  {Author, Avatar} = case kvs:get(user, C#comment.from) of 
+      {ok, User} -> {User#user.display_name, case User#user.avatar of
+        undefined-> #image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>};
+        Img-> #image{class=["media-object", "img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end};
+      {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>}} end,
+
+  Date = product_ui:to_date(C#comment.created),
+%  Entries = case lists:keyfind(comments, 1, C#comment.feeds) of
+%    {_, CFid} -> kvs:entries(kvs:get(feed, CFid), comment);
+%    _-> [] end,
+
+  Comment = #panel{class=[media, "media-comment"], body=[
+    #link{class=["pull-left"], body=[Avatar]},
+    #panel{id=C#comment.comment_id, class=["media-body"], body=[
+        #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
+        #p{body= C#comment.content},
+        #p{body= [#entry_media{media=M, fid=Fid, cid = Cid} ||  M <- C#comment.media]},
+        case lists:keyfind(comments, 1, C#comment.feeds) of
+            {_,CFid} ->[
+                #p{class=["media-heading"], body=[
+                    #link{class=["comment-reply"], body=[ <<"reply ">>, #i{class=["icon-reply", "icon-large"]}], postback={comment_reply, C#comment.id, ?ID_FEED(CFid)}}
+                ]},
+                #panel{id=?ID_FEED(CFid), body=[#entry_comment{comment=Comment} || Comment <- kvs:entries(kvs:get(feed, CFid), comment)] }];
+            _ -> []
+        end
+    ]}
+  ]},
+  element_panel:render_element(Comment).
+
 
 % Feed entry controls (view,read,edit,delete,buy,like,etc.)
 
 controls(#entry{type=Type}=E) ->
     User = wf:user(),
-    From = case kvs:get(user,E#entry.from) of {error,_} -> User; {ok,F} -> F end,
+%    From = case kvs:get(user,E#entry.from) of {error,_} -> User; {ok,F} -> F end,
     IsAdmin = case User of undefined -> false; U when U#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
 
     case Type of {feature, _} when IsAdmin ->
@@ -283,11 +322,11 @@ event({check_more, Start, Info = #info_more{mode=product}}) ->
 event({check_more, Start, Info = #info_more{}}) ->
   read_entries(case Start of undefined -> undefined; S -> S#entry.entry_id end, Info),
   wf:update(Info#info_more.toolbar, []);
-event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
+event(_Event) -> ok.
 
 process_delivery([_,_,entry,_,add],
                  [#entry{feed_id=Fid} = Entry, Rid, Tid, Eid, MsId,_])->
-    error_logger:info_msg("[Feed - process_delivery] Add entry: ~p", [Fid]),
+%    error_logger:info_msg("[Feed - process_delivery] Add entry: ~p", [Fid]),
     wf:session(medias, []),
     wf:update(MsId, []),
     wf:wire(wf:f("$('#~s').val('');", [Tid])),
@@ -305,9 +344,29 @@ process_delivery([_,_,entry,_,add],
         bundles -> review;
         T -> T
     end,
-    error_logger:info_msg("MODE: ~p", [Mode]),
+%    error_logger:info_msg("MODE: ~p", [Mode]),
     wf:insert_top(?ID_FEED(Fid), #feed_entry{entry=Entry, mode=Mode, controls=controls(Entry)}),
     wf:wire("Holder.run();");
+
+process_delivery([_, To, comment, Cid, add],
+                 [#comment{entry_id=Eid, feed_id=Fid}=C,_,EditorId]) ->
+    {EntryId, EFid} = Eid,
+    case kvs:get(entry, {EntryId, EFid}) of {error,_} -> error_logger:info_msg("no entry!!!!!!!!"),skip;
+    {ok,#entry{feeds=Feeds}} -> 
+        case lists:keyfind(comments, 1, Feeds) of
+        {_,Id} ->
+            error_logger:info_msg("~nEntry ~p", [Feeds]),
+            error_logger:info_msg("DELIVERY ~p FEED: ~p", [To, Fid]),
+            error_logger:info_msg("update fid: ~p", [Fid]),
+            wf:insert_bottom(?ID_FEED(Fid), #entry_comment{comment=C}),
+
+            case EditorId of
+                "" -> wf:wire(wf:f("$('#~s').parent().find('.mce-content-body').html('');", [?ID_FEED(Fid)]));
+                _ ->  wf:remove(EditorId)
+            end,
+            wf:wire(wf:f("$('.~s').html('~s');", [?ID_CM_COUNT(EntryId), integer_to_list(kvs_feed:comments_count(entry, {EntryId, EFid})) ])),
+            wf:wire("Holder.run();");
+        _ -> skip end end;
 
 process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:insert_bottom(Info#info_more.entries, #feed_entry{entry=Entry, mode=Info#info_more.mode, controls=controls(Entry)}),
@@ -315,7 +374,7 @@ process_delivery([show_entry], [Entry, #info_more{} = Info]) ->
   wf:update(Info#info_more.toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed, postback={check_more, Entry, Info}});
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);
-process_delivery(R,M) -> error_logger:info_msg("[feed]delegate to product->"),product:process_delivery(R,M).
+process_delivery(R,M) -> product:process_delivery(R,M).
 
 read_entries(StartFrom, #info_more{fid=Fid, mode=Mode}=I)->
     {RecordName,StartId} = case Mode of product -> {product,StartFrom}; _-> {entry, if StartFrom == undefined -> undefined; true-> {StartFrom, Fid} end} end,

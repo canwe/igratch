@@ -24,7 +24,6 @@
 -record(product_line,   {?ELEMENT_BASE(product_ui), product, meta, controls}).
 -record(product_hero,   {?ELEMENT_BASE(product_ui), product}).
 -record(entry_media,    {?ELEMENT_BASE(product_ui), media, fid, cid, mode}).
--record(entry_comment,  {?ELEMENT_BASE(product_ui), comment}).
 
 -record(input,          {?ELEMENT_BASE(input),
                         icon="icon-edit",
@@ -41,3 +40,4 @@
 
 -record(feed_view,      {?ELEMENT_BASE(feed), icon="icon-list", feed, owner, mode}).
 -record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[], owner}).
+-record(entry_comment,  {?ELEMENT_BASE(feed), comment}).

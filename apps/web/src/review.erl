@@ -11,12 +11,14 @@
 main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 
 body() ->
-  Entries = lists:filter(fun(#entry{to=To})-> case To of {product, _}-> true; _-> false end end, kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end)),
+  Entries = lists:filter(fun(#entry{to=To})-> case To of {product, _}-> true; _-> false end end,
+    kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end)),
+
   index:header()++[
   #section{class=[section], body=#panel{class=[container], body=
     case Entries of [E=#entry{id=Eid, to={product, Prid}}|_] ->
         Product = case kvs:get(product, Prid) of {error,_}-> #product{}; {ok, P}-> P end,
-        error_logger:info_msg("Product review: ~p", [Product]),
+%        error_logger:info_msg("Product review: ~p", [Product]),
       #panel{class=["row-fluid", dashboard], body=[
         #panel{class=[span2], body=[
             dashboard:section(profile:profile_info(wf:user(), E#entry.from, ""), "icon-user"),
@@ -60,18 +62,45 @@ body() ->
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({comment_entry, Eid, Cid, Csid, Parent, EditorId})->
-  Comment = wf:q(Cid),
-  Medias = case wf:session(medias) of undefined -> []; L -> L end,
-  From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
+event({comment_entry, {Eid,_}, CFid, Csid, Parent, EditorId}) ->
+    Comment = wf:q(CFid),
+    Medias = case wf:session(medias) of undefined -> []; L -> L end,
+    From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
+%    error_logger:info_msg("=>comment entry ~p parent: ~p", [Eid, Parent]),
 
-  msg:notify([kvs_feed, entry, Eid, comment, kvs:uuid(), add], [From, Parent, Comment, Medias, Csid, EditorId]);
+    {R1,R2} = lists:mapfoldl(fun(#entry{to={RoutingType, To}, feed_id=Fid, feeds=Feeds}, Ain) ->
+        {_, CsFid} = lists:keyfind(comments, 1, Feeds),
+        CommentFid = case Parent of undefined -> CsFid;
+            Pid -> case kvs:get(comment, {Pid, {Eid, Fid}}) of {error,_}-> CsFid;
+                {ok, C} -> case lists:keyfind(comments, 1, C#comment.feeds) of false -> CsFid; {_, PCid} -> PCid end end end,
 
-event({comment_reply, {Cid, {Eid, Fid}}})->
+        {{RoutingType, To, {Eid, Fid, CommentFid}}, [{RoutingType, To, {Eid, Fid, undefined}}|Ain]}
+        end,
+        [],
+        [E || #entry{}=E <- kvs:all_by_index(entry, entry_id, Eid)]),
+    Recipients = lists:append(R1,lists:usort(R2)),
+%    error_logger:info_msg("Recipients: ~p", [Recipients]),
+    Cid = kvs:uuid(),
+    Created = now(),
+
+    [msg:notify([kvs_feed, RoutingType, To, comment, Cid, add],
+        [#comment{id= {Cid, {EntryId, EntryFid}},
+            from = From,
+            comment_id = Cid,
+            entry_id = {EntryId,EntryFid},
+            feed_id = CommentsFid,
+            content = wf:js_escape(Comment),
+            media = Medias,
+            feeds=[{comments, kvs_feed:create()}],
+            created = Created }, Csid, EditorId])
+
+        || {RoutingType, To, {EntryId, EntryFid, CommentsFid}} <- Recipients];
+
+event({comment_reply, {Cid, {Eid, Fid}}, CFid })->
   CommentId = wf:temp_id(),
   PanelId =wf:temp_id(),
   Dir = "static/" ++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
-  wf:insert_bottom(Cid, #panel{id=PanelId, body=[
+  wf:insert_before(CFid, #panel{id=PanelId, body=[
     #htmlbox{id=CommentId, root=?ROOT, dir=Dir, img_tool=gm, size=?THUMB_SIZE},
     #panel{class=["btn-toolbar"], body=[
       #link{class=[btn, "btn-large", "btn-info"], body= <<"Post">>, postback={comment_entry, {Eid, Fid}, CommentId, Cid, Cid, PanelId}, source=[CommentId]},
@@ -83,22 +112,6 @@ event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
-process_delivery([_, {EntryId,_}=Eid, comment, Cid, add],
-                 [From, Parent, Content, Medias, Csid, EditorId]) ->
-  Entry = #entry_comment{comment=#comment{
-      id={Cid, Eid},
-      entry_id=Eid,
-      comment_id=Cid,
-      content=wf:js_escape(Content),
-      media=Medias,
-      parent=Parent,
-      from=From,
-      created=erlang:now()}},
-  wf:insert_bottom(Csid, Entry),
-  case EditorId of
-    "" -> wf:wire(wf:f("$('#~s').parent().find('.mce-content-body').html('');", [Csid]));
-    _ ->  wf:remove(EditorId)
-  end,
-    wf:wire(wf:f("$('.~s').html('~s');", [?ID_CM_COUNT(EntryId), integer_to_list(kvs_feed:comments_count(entry, Eid)) ])),
-    wf:wire("Holder.run();");
+process_delivery([_,_,comment,_,add], [#comment{feed_id=undefined},_,_]) -> skip;
+
 process_delivery(R,M) -> feed:process_delivery(R,M).

@@ -39,8 +39,8 @@ body()->
   ]}]}
   ] ++ index:footer().
 
-feed("all")-> [];
-    %#feed_view{owner=any, feed=?FEED(product), title= <<"">>, mode=product, icon="icon-tags"};
+feed("all") ->
+    #feed_view{owner=any, feed=?FEED(entry), title= <<"">>, mode=review, icon="icon-tags"};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}-> #feed_view{owner=G, feed=feed, title= <<"">>, mode=review, icon="icon-tags"} end.
@@ -53,6 +53,7 @@ api_event(tabshow,Args,_) ->
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, _, Id})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
 
 process_delivery(R,M) -> feed:process_delivery(R,M).

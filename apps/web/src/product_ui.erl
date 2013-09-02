@@ -77,33 +77,6 @@ render_element(#product_hero{product=P}) ->
   ]},
   element_panel:render_element(Hero);
 
-render_element(#entry_comment{comment=#comment{}=C})->
-  {Cid, {Eid, Fid}} = C#comment.id,
-  {Author, Avatar} = case kvs:get(user, C#comment.from) of 
-      {ok, User} -> {User#user.display_name, case User#user.avatar of
-        undefined-> #image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>};
-        Img-> #image{class=["media-object", "img-circle", "img-polaroid"], image=iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]), width= <<"50px">>, height= <<"50px">>} end};
-      {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>}} end,
-
-  Date = to_date(C#comment.created),
-  Entries = case lists:keyfind(comments, 1, C#comment.feeds) of
-    {_, CFid} -> kvs:entries(kvs:get(feed, CFid), comment);
-    _-> [] end,
-
-  Comment = #panel{class=[media, "media-comment"], body=[
-    #link{class=["pull-left"], body=[Avatar]},
-    #panel{id=C#comment.comment_id, class=["media-body"], body=[
-        #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
-        #p{body= C#comment.content},
-        #p{body= [#entry_media{media=M, fid=Fid, cid = Cid} ||  M <- C#comment.media]},
-        #p{class=["media-heading"], body=[
-          #link{class=["comment-reply"], body=[ <<"reply ">>, #i{class=["icon-reply", "icon-large"]}], postback={comment_reply, C#comment.id}}
-        ]},
-        #panel{body=[#entry_comment{comment=C} || C <- Entries ]}
-    ]}
-  ]},
-  element_panel:render_element(Comment);
-
 render_element(#entry_media{media=undefined, mode=reviews}) -> 
   element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}], alt="no media", class=[]});
 render_element(#entry_media{media=[], mode=reviews}) -> 
