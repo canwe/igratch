@@ -24,7 +24,9 @@ body() ->
 
 tab(categories)-> [
     dashboard:section(input(), "icon-tags"),
-    dashboard:section(categories(), "icon-list") ];
+%    dashboard:section(categories(), "icon-list") 
+    categories()
+    ];
 tab(acl)-> {AclEn, Acl} = acls(), [
     dashboard:section(acl(Acl), "icon-male"),
     dashboard:section(acl_entry(AclEn), "icon-list") ];
@@ -54,13 +56,53 @@ input()-> [
     #link{id=save_cat, class=[btn, "btn-large"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc, cat_scope]} 
     ]} ]} ].
 
-categories()->[
-  #h3{body= <<"Categories">>},
-  #table{id=cats, class=[table, "table-hover"],
-    header=[#tr{cells=[#th{body= <<"id">>}, #th{body= <<"name">>}, #th{body= <<"description">>}, #th{body= <<"scope">>}]}],
-    body=[[#tr{class=[case Scope of private -> "info"; _-> "" end],
-      cells=[#td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} || #group{id=Id, name=Name, description=Desc, scope=Scope}<-
-        kvs:entries(kvs:get(feed, ?GRP_FEED), group)]]}
+-record(state, {sel_all, sel_toolbar, feed_toolbar, close, feed_title, full}).
+categories()->
+    {ok,Feed} = kvs:get(feed, ?GRP_FEED),
+    Entries = kvs:entries(Feed, group, undefined, ?PAGE_SIZE),
+    SelTb = wf:temp_id(),
+    FeedTb = wf:temp_id(),
+    Close = wf:temp_id(),
+    SAll = wf:temp_id(),
+    Del = wf:temp_id(),
+    FeedTitle = wf:temp_id(),
+    ChangeFeed = wf:temp_id(),
+    Last = case Entries of []-> []; E-> lists:last(E) end,
+    SelAllIds = [ Id++"|"|| #group{id=Id}<- Entries ],
+    wf:session(selected,[]),
+    State = #state{sel_all=SAll, sel_toolbar=SelTb, feed_toolbar=FeedTb, close=Close, feed_title=FeedTitle, full=SelAllIds},
+    [
+    #panel{id=FeedTitle, class=["row-fluid"], style="border-bottom:1px solid white; box-shadow: 1px 1px #eeeeee;", body= [
+        #panel{class=[span1], style="padding:0 5px;", body=#h3{body=[
+           #i{class=["icon-list", blue]},
+           #checkbox{id=SAll, class=[checkbox, inline],postback={select, SAll, State}, source=[SAll], value=SelAllIds}
+        ]}},
+        #panel{class=[span11], style="padding-right:5px;", body=[
+            #h3{body=[<<"Categories ">>,
+                #span{id=SelTb, style="display:none;", body=[
+                    #link{id=Del, class=[btn], body=[<<"delete">>]},
+                    #link{id=ChangeFeed, class=[btn], body=[<<"archive">>]}
+                ]},
+
+                #span{class=["pull-right"], body=[
+                    #panel{id=FeedTb, body=[
+                        #small{body=["1-", integer_to_list(?PAGE_SIZE), " of ", integer_to_list(Feed#feed.entries_count)]},
+                        #link{class=[btn], body=[<<"<">>], postback={prev, Last}},
+                        #link{class=[btn], body=[<<">">>], postback={next, Last}}
+                    ]},
+                    #link{id=Close, class=[close, "text-error"], style="padding:2px 12px; margin-top:7px;display:none;",
+                        postback={cancel_select, State}, body= <<"&times;">>}
+                ]}
+            ]}
+        ]}
+    ]},
+
+    #table{id=cats, class=[table, "table-hover"],
+        header=[#tr{style="background:white;border-bottom: 2px solid #079ebd; color:black;",
+            cells=[#th{body= <<"">>},#th{body= <<"id">>}, #th{body= <<"name">>}, #th{body= <<"description">>}, #th{body= <<"scope">>}]}],
+        body=[[#tr{id=Id++"tr", class=[case Scope of private -> "info"; _-> "" end], cells=[
+            #td{body= [#checkbox{id=Id, postback={select, Id, State}, source=[Id], value=Id}]}, #td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} 
+            || #group{id=Id, name=Name, description=Desc, scope=Scope} <- Entries ]]}
 ].
 
 resources()->[
@@ -116,6 +158,41 @@ products()->[
         #tr{cells=[#td{body=U#product.title} ]}
       end|| U <- kvs:entries(kvs:get(feed, ?PRD_FEED), product)
     ]]}].
+
+event({prev, Last}) ->
+    error_logger:info_msg("Prev ~p",[Last]),
+    ok;
+event({next, Last}) ->
+    error_logger:info_msg("Next ~p", [Last]),
+    ok;
+
+event({cancel_select, #state{}=State}) ->
+    [wf:wire(#jq{target=C, method=["prop"], args=["'checked', false"]}) || C <- wf:session(selected)],
+    wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', false"]}),
+    wf:wire(#jq{target=State#state.sel_toolbar, method=["hide"]}),
+    wf:wire(#jq{target=State#state.feed_toolbar, method=["show"]}),
+    wf:wire(#jq{target=State#state.close, method=["hide"]}),
+    wf:wire(#jq{target=State#state.feed_title, method=["attr"], args=["'style', 'background-color:none;'"]}),
+    wf:session(selected, []);
+
+event({select, CurrSel, #state{}=State})->
+    Selection = wf:session(selected),
+    NewSel = case wf:q(CurrSel) of "undefined" -> if CurrSel == State#state.sel_all -> sets:new(); true -> sets:from_list(Selection--[CurrSel]) end;
+    Val -> Vals = string:tokens(Val,"|"),
+        [wf:wire(#jq{target=C, method=["prop"], args=["'checked', 'checked'"]}) || C <- Vals],
+        sets:from_list(Vals++Selection)
+    end,
+    case sets:size(NewSel) of 0 -> event({cancel_select, State});
+    S ->
+        wf:wire(#jq{target=State#state.sel_toolbar, method=["show"]}),
+        wf:wire(#jq{target=State#state.close, method=["show"]}),
+        wf:wire(#jq{target=State#state.feed_title, method=["attr"], args=["'style', 'background-color:lightblue'"]}),
+        wf:wire(#jq{target=State#state.feed_toolbar, method=["hide"]}),
+        error_logger:info_msg("Size: ~p", [S]),
+        if S == ?PAGE_SIZE -> wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', 'checked'"]});
+        true -> wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', false"]}) end
+    end,
+    wf:session(selected, sets:to_list(NewSel));
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);

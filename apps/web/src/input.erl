@@ -99,7 +99,7 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId, AlertId
         entry_id=EntryId,
         feed_id = ?FEED(entry),
         from=From,
-        to = lists:nth(1, [{Ty,To} || {Ty,To,_} <- R1, Ty==product]),
+        to = R1,
         type=EntryType,
         media=Medias,
         title=Title,
