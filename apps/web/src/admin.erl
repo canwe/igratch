@@ -56,7 +56,7 @@ input()-> [
     #link{id=save_cat, class=[btn, "btn-large"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc, cat_scope]} 
     ]} ]} ].
 
--record(state, {sel_all, sel_toolbar, feed_toolbar, close, feed_title, full}).
+-record(state, {feed_id, prev, next, sel_all, sel_toolbar, feed_toolbar, close, feed_title, full}).
 categories()->
     {ok,Feed} = kvs:get(feed, ?GRP_FEED),
     Entries = kvs:entries(Feed, group, undefined, ?PAGE_SIZE),
@@ -68,27 +68,33 @@ categories()->
     FeedTitle = wf:temp_id(),
     ChangeFeed = wf:temp_id(),
     Last = case Entries of []-> []; E-> lists:last(E) end,
+    First = case Entries of []->[]; E1-> lists:nth(1,E1) end,
     SelAllIds = [ Id++"|"|| #group{id=Id}<- Entries ],
     wf:session(selected,[]),
-    State = #state{sel_all=SAll, sel_toolbar=SelTb, feed_toolbar=FeedTb, close=Close, feed_title=FeedTitle, full=SelAllIds},
+    FeedId = wf:temp_id(),
+    PrevId = wf:temp_id(),
+    NextId = wf:temp_id(),
+    State = #state{feed_id=FeedId, sel_all=SAll, sel_toolbar=SelTb, feed_toolbar=FeedTb, prev=PrevId, next=NextId, close=Close, feed_title=FeedTitle, full=SelAllIds},
     [
     #panel{id=FeedTitle, class=["row-fluid"], style="border-bottom:1px solid white; box-shadow: 1px 1px #eeeeee;", body= [
         #panel{class=[span1], style="padding:0 5px;", body=#h3{body=[
            #i{class=["icon-list", blue]},
-           #checkbox{id=SAll, class=[checkbox, inline],postback={select, SAll, State}, source=[SAll], value=SelAllIds}
+           #checkbox{id=SAll, class=[checkbox, inline],postback={select, SAll, State}, source=[SAll], value=SelAllIds, style="padding-top:0; padding-left:23px"}
         ]}},
         #panel{class=[span11], style="padding-right:5px;", body=[
             #h3{body=[<<"Categories ">>,
                 #span{id=SelTb, style="display:none;", body=[
-                    #link{id=Del, class=[btn], body=[<<"delete">>]},
+                    #link{id=Del, class=[btn], body=[<<"delete">>], postback={delete, State}},
                     #link{id=ChangeFeed, class=[btn], body=[<<"archive">>]}
                 ]},
 
                 #span{class=["pull-right"], body=[
                     #panel{id=FeedTb, body=[
                         #small{body=["1-", integer_to_list(?PAGE_SIZE), " of ", integer_to_list(Feed#feed.entries_count)]},
-                        #link{class=[btn], body=[<<"<">>], postback={prev, Last}},
-                        #link{class=[btn], body=[<<">">>], postback={next, Last}}
+                        #link{id=PrevId,class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
+                            postback={traverse, #iterator.next, First, State}},
+                        #link{id=NextId,class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
+                            postback={traverse, #iterator.prev, Last, State}}
                     ]},
                     #link{id=Close, class=[close, "text-error"], style="padding:2px 12px; margin-top:7px;display:none;",
                         postback={cancel_select, State}, body= <<"&times;">>}
@@ -97,7 +103,7 @@ categories()->
         ]}
     ]},
 
-    #table{id=cats, class=[table, "table-hover"],
+    #table{id=FeedId, class=[table, "table-hover"],
         header=[#tr{style="background:white;border-bottom: 2px solid #079ebd; color:black;",
             cells=[#th{body= <<"">>},#th{body= <<"id">>}, #th{body= <<"name">>}, #th{body= <<"description">>}, #th{body= <<"scope">>}]}],
         body=[[#tr{id=Id++"tr", class=[case Scope of private -> "info"; _-> "" end], cells=[
@@ -159,12 +165,40 @@ products()->[
       end|| U <- kvs:entries(kvs:get(feed, ?PRD_FEED), product)
     ]]}].
 
-event({prev, Last}) ->
-    error_logger:info_msg("Prev ~p",[Last]),
+event({delete, State})->
+    Selection = wf:session(selected),
+    [begin
+        error_logger:info_msg("Delete selection: ~p", [Id]),
+        {ok, Obj} = kvs:get(group, Id),
+        msg:notify([kvs_feed, unregister, Obj])
+    end
+    ||Id<-Selection],
     ok;
-event({next, Last}) ->
-    error_logger:info_msg("Next ~p", [Last]),
-    ok;
+event({traverse, Direction, Start, State})->
+    error_logger:info_msg("=> Traverse ~p from ~p~n", [Direction ,Start]),
+    Prev = element(Direction, Start),
+    error_logger:info_msg("Really next element ~p~n", [Prev]),
+    Entries = kvs:entries(auto, group, Prev, ?PAGE_SIZE, Direction),
+%    error_logger:info_msg("Entries: ~p~n", [Entries]),
+
+    NewLast  = case Entries of [] -> []; E  -> lists:last(E) end,
+    NewFirst = case Entries of [] -> []; E1 -> lists:nth(1,E1) end,
+
+    error_logger:info_msg("Entries count: ~p", [length(Entries)]),
+
+    wf:update(State#state.feed_id,
+    [
+    wf_tags:emit_tag(<<"thead">>, wf:render([#tr{style="background:white;border-bottom: 2px solid #079ebd; color:black;",
+            cells=[#th{body= <<"">>},#th{body= <<"id">>}, #th{body= <<"name">>}, #th{body= <<"description">>}, #th{body= <<"scope">>}]}]), []),
+
+    [#tr{id=Id++"tr", class=[case Scope of private -> "info"; _-> "" end], cells=[
+            #td{body= [#checkbox{id=Id, postback={select, Id, State}, source=[Id], value=Id}]}, #td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} 
+            || #group{id=Id, name=Name, description=Desc, scope=Scope} <- Entries ]]),
+
+    wf:replace(State#state.prev, #link{id=State#state.prev, class=[btn, case element(#iterator.next, NewFirst) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>], 
+        postback={traverse, #iterator.next, NewFirst, State}}),
+    wf:replace(State#state.next, #link{id=State#state.next, class=[btn, case element(#iterator.prev, NewLast) of undefined -> "disabled"; _ -> "" end], body=[<<">">>], 
+        postback={traverse, #iterator.prev, NewLast, State}});
 
 event({cancel_select, #state{}=State}) ->
     [wf:wire(#jq{target=C, method=["prop"], args=["'checked', false"]}) || C <- wf:session(selected)],
@@ -188,7 +222,6 @@ event({select, CurrSel, #state{}=State})->
         wf:wire(#jq{target=State#state.close, method=["show"]}),
         wf:wire(#jq{target=State#state.feed_title, method=["attr"], args=["'style', 'background-color:lightblue'"]}),
         wf:wire(#jq{target=State#state.feed_toolbar, method=["hide"]}),
-        error_logger:info_msg("Size: ~p", [S]),
         if S == ?PAGE_SIZE -> wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', 'checked'"]});
         true -> wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', false"]}) end
     end,
@@ -210,7 +243,11 @@ event(save_cat) ->
 
       wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(
         #tr{class=[case G#group.scope of private -> "info"; _-> "" end], cells=[
-          #td{body= G#group.id}, #td{body=G#group.name}, #td{body=G#group.description}, #td{body=atom_to_list(G#group.scope)} ]} )])),
+            #td{body=#checkbox{id=G#group.id}},
+            #td{body= G#group.id},
+            #td{body=G#group.name},
+            #td{body=G#group.description},
+            #td{body=atom_to_list(G#group.scope)} ]} )])),
       wf:wire("$('#cat_name').val('');$('#cat_desc').val('')");
     {error, _} -> skip
   end;
@@ -247,7 +284,7 @@ api_event(tabshow,Args,_) ->
 api_event(_,_,_) -> ok.
 
 process_delivery([create],
-                 [{Creator, Id, Name, Desc, Publicity}]) ->
+                 [{_Creator, _Id, _Name, _Desc, _Publicity}]) ->
   error_logger:info_msg("responce to create group"),
   ok;
 process_delivery(R,M) -> feed:process_delivery(R,M).
