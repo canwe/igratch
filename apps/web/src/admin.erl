@@ -56,30 +56,56 @@ input()-> [
     #link{id=save_cat, class=[btn, "btn-large"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc, cat_scope]} 
     ]} ]} ].
 
--record(state, {feed_id, prev, next, sel_all, sel_toolbar, feed_toolbar, close, feed_title, full}).
+-record(state, {feed_id, prev, next, page_label, sel_all, sel_all_ctl, del_ctl, sel_toolbar, feed_toolbar, close, feed_title, full, start, total, current, start_element, last_element}).
 categories()->
     {ok,Feed} = kvs:get(feed, ?GRP_FEED),
-    Entries = kvs:entries(Feed, group, undefined, ?PAGE_SIZE),
+    Entries = kvs:entries(Feed, group, ?PAGE_SIZE),
     SelTb = wf:temp_id(),
     FeedTb = wf:temp_id(),
     Close = wf:temp_id(),
     SAll = wf:temp_id(),
+    SW = wf:temp_id(),
     Del = wf:temp_id(),
     FeedTitle = wf:temp_id(),
     ChangeFeed = wf:temp_id(),
-    Last = case Entries of []-> []; E-> lists:last(E) end,
-    First = case Entries of []->[]; E1-> lists:nth(1,E1) end,
+    Last = case Entries of []-> #iterator{}; E-> lists:last(E) end,
+    First = case Entries of []-> #iterator{}; E1-> lists:nth(1,E1) end,
     SelAllIds = [ Id++"|"|| #group{id=Id}<- Entries ],
     wf:session(selected,[]),
     FeedId = wf:temp_id(),
     PrevId = wf:temp_id(),
     NextId = wf:temp_id(),
-    State = #state{feed_id=FeedId, sel_all=SAll, sel_toolbar=SelTb, feed_toolbar=FeedTb, prev=PrevId, next=NextId, close=Close, feed_title=FeedTitle, full=SelAllIds},
+    PageLbl = wf:temp_id(),
+    TotalCount = Feed#feed.entries_count,
+    CurrentCount = length(Entries),
+    State = #state{feed_id=FeedId, 
+        sel_all=SAll,
+        sel_toolbar=SelTb,
+        feed_toolbar=FeedTb,
+        prev=PrevId,
+        next=NextId,
+        page_label=PageLbl,
+        close=Close,
+        feed_title=FeedTitle,
+%        full=SelAllIds,
+        sel_all_ctl = SW,
+        del_ctl = Del,
+        start_element = First,
+        last_element = Last,
+        start = 1,
+        total = TotalCount,
+        current = CurrentCount},
+    error_logger:info_msg("FIRST: ~p", [First]),
+%    error_logger:info_msg("Entries: ~p", [Entries]),
+    
     [
     #panel{id=FeedTitle, class=["row-fluid"], style="border-bottom:1px solid white; box-shadow: 1px 1px #eeeeee;", body= [
         #panel{class=[span1], style="padding:0 5px;", body=#h3{body=[
            #i{class=["icon-list", blue]},
-           #checkbox{id=SAll, class=[checkbox, inline],postback={select, SAll, State}, source=[SAll], value=SelAllIds, style="padding-top:0; padding-left:23px"}
+            #span{id=SW,body=[
+                #checkbox{id=SAll, class=[checkbox, inline],postback={select, SAll, State}, source=[SAll], value=SelAllIds,
+                    style="padding-top:0; padding-left:23px;" ++ if TotalCount > 0 -> [] ; true-> "display:none;" end} 
+            ]}
         ]}},
         #panel{class=[span11], style="padding-right:5px;", body=[
             #h3{body=[<<"Categories ">>,
@@ -90,11 +116,13 @@ categories()->
 
                 #span{class=["pull-right"], body=[
                     #panel{id=FeedTb, body=[
-                        #small{body=["1-", integer_to_list(?PAGE_SIZE), " of ", integer_to_list(Feed#feed.entries_count)]},
+                        if TotalCount > 0 -> [
+                        #small{id=PageLbl, body=[integer_to_list(State#state.start), "-", integer_to_list(CurrentCount), " of ", integer_to_list(TotalCount)]},
                         #link{id=PrevId,class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
                             postback={traverse, #iterator.next, First, State}},
                         #link{id=NextId,class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
-                            postback={traverse, #iterator.prev, Last, State}}
+                            postback={traverse, #iterator.prev, Last, State}}]; true -> [] end
+    
                     ]},
                     #link{id=Close, class=[close, "text-error"], style="padding:2px 12px; margin-top:7px;display:none;",
                         postback={cancel_select, State}, body= <<"&times;">>}
@@ -170,21 +198,41 @@ event({delete, State})->
     [begin
         error_logger:info_msg("Delete selection: ~p", [Id]),
         {ok, Obj} = kvs:get(group, Id),
-        msg:notify([kvs_feed, unregister, Obj])
+        msg:notify([kvs_feed, group, unregister], [Obj, State])
     end
     ||Id<-Selection],
     ok;
 event({traverse, Direction, Start, State})->
     error_logger:info_msg("=> Traverse ~p from ~p~n", [Direction ,Start]),
     Prev = element(Direction, Start),
-    error_logger:info_msg("Really next element ~p~n", [Prev]),
-    Entries = kvs:entries(auto, group, Prev, ?PAGE_SIZE, Direction),
+    error_logger:info_msg("Really next element ~p dir:~p~n", [Prev, Direction]),
+    Entries = case Prev of undefined when Direction == #iterator.prev ->
+        {ok,Feed} = kvs:get(feed, ?GRP_FEED),
+        kvs:entries(Feed, group, ?PAGE_SIZE);
+    undefined when Direction == #iterator.next ->
+        {ok,Feed} = kvs:get(feed, ?GRP_FEED),
+        kvs:entries(Feed, group, ?PAGE_SIZE);
+%    undefined -> [];
+        _ ->
+        error_logger:info_msg("Read 4 from ~p in ~p", [Prev, Direction]),
+        kvs:entries(group, Prev, ?PAGE_SIZE, Direction)
+    end,
+%    Entries = kvs:entries(group, Prev, ?PAGE_SIZE, Direction),
+
+    SelAllIds = [ Id++"|"|| #group{id=Id}<- Entries ],
 %    error_logger:info_msg("Entries: ~p~n", [Entries]),
 
-    NewLast  = case Entries of [] -> []; E  -> lists:last(E) end,
-    NewFirst = case Entries of [] -> []; E1 -> lists:nth(1,E1) end,
+    NewLast  = case Entries of [] -> #iterator{}; E  -> lists:last(E) end,
+    NewFirst = case Entries of [] -> #iterator{}; E1 -> lists:nth(1,E1) end,
 
     error_logger:info_msg("Entries count: ~p", [length(Entries)]),
+    TotalCount = State#state.total,
+    CurrentCount = length(Entries),
+    NewStart = case Direction of
+        #iterator.prev -> State#state.start+?PAGE_SIZE;
+        #iterator.next -> State#state.start-?PAGE_SIZE
+    end,
+    error_logger:info_msg("Entries count: ~p", [CurrentCount]),
 
     wf:update(State#state.feed_id,
     [
@@ -192,13 +240,23 @@ event({traverse, Direction, Start, State})->
             cells=[#th{body= <<"">>},#th{body= <<"id">>}, #th{body= <<"name">>}, #th{body= <<"description">>}, #th{body= <<"scope">>}]}]), []),
 
     [#tr{id=Id++"tr", class=[case Scope of private -> "info"; _-> "" end], cells=[
-            #td{body= [#checkbox{id=Id, postback={select, Id, State}, source=[Id], value=Id}]}, #td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} 
+            #td{body= [#checkbox{id=Id, postback={select, Id, State#state{current=length(Entries)}}, source=[Id], value=Id}]}, #td{body=Id}, #td{body=Name}, #td{body=Desc}, #td{body=atom_to_list(Scope)}]} 
             || #group{id=Id, name=Name, description=Desc, scope=Scope} <- Entries ]]),
 
     wf:replace(State#state.prev, #link{id=State#state.prev, class=[btn, case element(#iterator.next, NewFirst) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>], 
-        postback={traverse, #iterator.next, NewFirst, State}}),
+        postback={traverse, #iterator.next, NewFirst, State#state{start=NewStart, start_element=NewFirst, last_element=NewLast}}}),
     wf:replace(State#state.next, #link{id=State#state.next, class=[btn, case element(#iterator.prev, NewLast) of undefined -> "disabled"; _ -> "" end], body=[<<">">>], 
-        postback={traverse, #iterator.prev, NewLast, State}});
+        postback={traverse, #iterator.prev, NewLast, State#state{start=NewStart, start_element=NewFirst, last_element=NewLast}}}),
+
+    wf:update(State#state.page_label, [integer_to_list(NewStart), "-", integer_to_list(NewStart+CurrentCount-1), " of ", integer_to_list(TotalCount)]),
+
+    wf:update(State#state.sel_all_ctl,
+        #checkbox{id=State#state.sel_all, class=[checkbox, inline],postback={select, State#state.sel_all, State#state{current=length(Entries)}},
+            source=[State#state.sel_all], value=SelAllIds,
+            style="padding-top:0; padding-left:23px;" ++ if TotalCount > 0 -> [] ; true-> "display:none;" end}
+    ),
+    wf:replace(State#state.del_ctl, #link{id=State#state.del_ctl, class=[btn], body=[<<"delete">>], postback={delete, 
+        State#state{start_element=NewFirst, last_element=NewLast}}});
 
 event({cancel_select, #state{}=State}) ->
     [wf:wire(#jq{target=C, method=["prop"], args=["'checked', false"]}) || C <- wf:session(selected)],
@@ -211,18 +269,25 @@ event({cancel_select, #state{}=State}) ->
 
 event({select, CurrSel, #state{}=State})->
     Selection = wf:session(selected),
+    error_logger:info_msg("CurrSel: ~p", [CurrSel]),
     NewSel = case wf:q(CurrSel) of "undefined" -> if CurrSel == State#state.sel_all -> sets:new(); true -> sets:from_list(Selection--[CurrSel]) end;
     Val -> Vals = string:tokens(Val,"|"),
         [wf:wire(#jq{target=C, method=["prop"], args=["'checked', 'checked'"]}) || C <- Vals],
         sets:from_list(Vals++Selection)
     end,
+%    error_logger:info_msg("-~p", [NewSel]),
+%    error_logger:info_msg("Select: ~p  |~p", [CurrSel, State]),
+    error_logger:info_msg("New selection: ~p", [NewSel]),
+    error_logger:info_msg("Size: ~p", [sets:size(NewSel)]),
+    error_logger:info_msg("Current: ~p", [State#state.current]),
+
     case sets:size(NewSel) of 0 -> event({cancel_select, State});
     S ->
         wf:wire(#jq{target=State#state.sel_toolbar, method=["show"]}),
         wf:wire(#jq{target=State#state.close, method=["show"]}),
         wf:wire(#jq{target=State#state.feed_title, method=["attr"], args=["'style', 'background-color:lightblue'"]}),
         wf:wire(#jq{target=State#state.feed_toolbar, method=["hide"]}),
-        if S == ?PAGE_SIZE -> wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', 'checked'"]});
+        if S == ?PAGE_SIZE orelse S == State#state.current -> wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', 'checked'"]});
         true -> wf:wire(#jq{target=State#state.sel_all, method=["prop"], args=["'checked', false"]}) end
     end,
     wf:session(selected, sets:to_list(NewSel));
@@ -287,4 +352,36 @@ process_delivery([create],
                  [{_Creator, _Id, _Name, _Desc, _Publicity}]) ->
   error_logger:info_msg("responce to create group"),
   ok;
+process_delivery([group, unregistered], {{ok, Id}, [State]})->
+    error_logger:info_msg("=>>Group unregistered: ~p", [Id]),
+    event({cancel_select, State}),
+    Start = State#state.start_element,
+%    Last = State#state.last_element,
+%    error_logger:info_msg("Start element: ~p",[Start]),
+    StartId = element(#iterator.id, Start),
+    error_logger:info_msg("Start element: ~p", [Start]),
+    error_logger:info_msg("Start deleted? ~p", [StartId == Id]),
+    case element(#iterator.next, Start) of
+        undefined ->
+            error_logger:info_msg("No element before start"),
+            error_logger:info_msg("After start: ~p", [element(#iterator.prev, Start)]),
+            event({traverse, #iterator.next, #iterator{}, State});
+        N when Id == StartId ->
+            error_logger:info_msg("start element of page deleted"),
+            case element(#iterator.prev, Start) of
+                undefined -> 
+                    error_logger:info_msg("no prev of start so read next [~p]", [N]),
+                    event({traverse, #iterator.next, Start, State});
+                _ ->
+                    error_logger:info_msg("some element prev the start, so just read prev of next of start. or just start :) "),
+                    case kvs:get(group,N) of {error,E} -> error_logger:info_msg("No N in DB", [N]);
+                    {ok, G} ->event({traverse, #iterator.prev, G, State}) end
+            end;
+        N ->
+            error_logger:info_msg("Befor start is ~p",[N]),
+            error_logger:info_msg("After start: ~p", [element(#iterator.prev, Start)]),
+            case kvs:get(group,N) of {error,E} -> error_logger:info_msg("No N in DB", [N]);
+            {ok, G} -> event({traverse, #iterator.prev, G, State}) end
+        end,
+    ok;
 process_delivery(R,M) -> feed:process_delivery(R,M).
