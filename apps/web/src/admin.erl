@@ -87,7 +87,7 @@ categories()->
         page_label=PageLbl,
         close=Close,
         feed_title=FeedTitle,
-%        full=SelAllIds,
+        full=SelAllIds,
         sel_all_ctl = SW,
         del_ctl = Del,
         start_element = First,
@@ -96,8 +96,6 @@ categories()->
         total = TotalCount,
         current = CurrentCount},
     error_logger:info_msg("FIRST: ~p", [First]),
-%    error_logger:info_msg("Entries: ~p", [Entries]),
-    
     [
     #panel{id=FeedTitle, class=["row-fluid"], style="border-bottom:1px solid white; box-shadow: 1px 1px #eeeeee;", body= [
         #panel{class=[span1], style="padding:0 5px;", body=#h3{body=[
@@ -200,7 +198,7 @@ event({delete, State})->
         {ok, Obj} = kvs:get(group, Id),
         msg:notify([kvs_feed, group, unregister], [Obj, State])
     end
-    ||Id<-Selection],
+    ||Id<- Selection ],
     ok;
 event({traverse, Direction, Start, State})->
     error_logger:info_msg("=> Traverse ~p from ~p~n", [Direction ,Start]),
@@ -225,7 +223,6 @@ event({traverse, Direction, Start, State})->
     NewLast  = case Entries of [] -> #iterator{}; E  -> lists:last(E) end,
     NewFirst = case Entries of [] -> #iterator{}; E1 -> lists:nth(1,E1) end,
 
-    error_logger:info_msg("Entries count: ~p", [length(Entries)]),
     TotalCount = State#state.total,
     CurrentCount = length(Entries),
     NewStart = case Direction of
@@ -233,6 +230,7 @@ event({traverse, Direction, Start, State})->
         #iterator.next -> State#state.start-?PAGE_SIZE
     end,
     error_logger:info_msg("Entries count: ~p", [CurrentCount]),
+    error_logger:info_msg("New First: ~p~n", [NewFirst]),
 
     wf:update(State#state.feed_id,
     [
@@ -251,7 +249,7 @@ event({traverse, Direction, Start, State})->
     wf:update(State#state.page_label, [integer_to_list(NewStart), "-", integer_to_list(NewStart+CurrentCount-1), " of ", integer_to_list(TotalCount)]),
 
     wf:update(State#state.sel_all_ctl,
-        #checkbox{id=State#state.sel_all, class=[checkbox, inline],postback={select, State#state.sel_all, State#state{current=length(Entries)}},
+        #checkbox{id=State#state.sel_all, class=[checkbox, inline],postback={select, State#state.sel_all, State#state{current=CurrentCount}},
             source=[State#state.sel_all], value=SelAllIds,
             style="padding-top:0; padding-left:23px;" ++ if TotalCount > 0 -> [] ; true-> "display:none;" end}
     ),
@@ -356,8 +354,8 @@ process_delivery([group, unregistered], {{ok, Id}, [State]})->
     error_logger:info_msg("=>>Group unregistered: ~p", [Id]),
     event({cancel_select, State}),
     Start = State#state.start_element,
-%    Last = State#state.last_element,
-%    error_logger:info_msg("Start element: ~p",[Start]),
+    A = kvs:get(group, Start#group.id),
+    error_logger:info_msg("START: ~p", [A]),
     StartId = element(#iterator.id, Start),
     error_logger:info_msg("Start element: ~p", [Start]),
     error_logger:info_msg("Start deleted? ~p", [StartId == Id]),
@@ -378,10 +376,12 @@ process_delivery([group, unregistered], {{ok, Id}, [State]})->
                     {ok, G} ->event({traverse, #iterator.prev, G, State}) end
             end;
         N ->
+            case kvs:get(group, element(#iterator.id, Start)) of {error, not_found} -> event({traverse, #iterator.next, Start, State});
+            _->
             error_logger:info_msg("Befor start is ~p",[N]),
             error_logger:info_msg("After start: ~p", [element(#iterator.prev, Start)]),
             case kvs:get(group,N) of {error,E} -> error_logger:info_msg("No N in DB", [N]);
-            {ok, G} -> event({traverse, #iterator.prev, G, State}) end
+            {ok, G} -> event({traverse, #iterator.prev, G, State}) end end
         end,
     ok;
 process_delivery(R,M) -> feed:process_delivery(R,M).
