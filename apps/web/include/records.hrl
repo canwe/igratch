@@ -8,7 +8,7 @@
 -define(ID_CM_COUNT(Id),Id++"cc").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(ID_FEED_TOOL(Id),    wf:to_list(Id)++"est").
--define(THUMB_SIZE,     [{270, 124}, {200, 200}, {139, 80}, {1170, 380}]).
+-define(THUMB_SIZE,     [{139, 80}, {270, 124}, {200, 200}, {570, 570}, {1170, 350}]).
 -define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
 -define(BTN_INFO,       [btn, "btn-large", "btn-info"]).
 -define(BTN_SUCCESS,    [btn, "btn-large", "btn-success"]).
@@ -17,7 +17,7 @@
 -define(URL_PRODUCT(Id),"/product?id="++Id).
 
 -record(struct,         {lst=[]}).
--record(info_more,      {entries, toolbar, category, fid, module, delegate, mode}).
+-record(info_more,      {toolbar, category, fid, module, delegate, mode}).
 -record(product_figure, {?ELEMENT_BASE(product_ui), product}).
 -record(product_row,    {?ELEMENT_BASE(product_ui), product}).
 -record(product_cart,   {?ELEMENT_BASE(product_ui), product}).
@@ -38,6 +38,34 @@
                         expand_btn=""}).
 -record(ui_payload, {}).
 
--record(feed_view,      {?ELEMENT_BASE(feed), icon="icon-list", feed, owner, mode}).
+-record(feed_view,      {?ELEMENT_BASE(feed), icon="icon-list", owner, feed, mode, page_size=?PAGE_SIZE, start=undefined}).
+-record(feed_ctl,       {?ELEMENT_BASE(feed_ctl)}).
 -record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[], owner}).
 -record(entry_comment,  {?ELEMENT_BASE(feed), comment}).
+
+-record(feed2, {?ELEMENT_BASE(feed2), icon="", entry_type, container, container_id, page_size=?PAGE_SIZE, header=[], selection=false}).
+-record(feed_entry2, {?ELEMENT_BASE(feed2), entry, state, view}).
+
+-record(feed_state, {
+    entry_type,
+    container,
+    container_id,
+    feed_title,
+    selection,
+    selectall_ctl,
+    select_all,
+    delete_btn,
+    prev,
+    next,
+    entries,
+    page_label,
+    select_toolbar,
+    feed_toolbar,
+    close,
+    full, start,
+    total,
+    current,
+    start_element,
+    last_element,
+    page_size,
+    selected_key = selected }).
