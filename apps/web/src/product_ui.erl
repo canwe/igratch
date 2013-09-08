@@ -120,5 +120,5 @@ to_price(Str)->
 
 to_date(undefined) -> to_date(now());
 to_date(Date)->
-  {{Y, M, D}, _} = calendar:now_to_datetime(Date),
-  io_lib:format(" ~p ~s ~p ", [D, element(M, {"Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"}), Y]).
+  {{Y, M, D}, {H,Mi,_}} = calendar:now_to_datetime(Date),
+  io_lib:format("~s ~p, ~p at ~p:~p", [element(M, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}), D, Y, H,Mi]).

@@ -13,12 +13,15 @@
 -include("records.hrl").
 
 %% todo: create element js base and wire the javascript postbacks for traverse and 
-render_element(#feed2{title=Title, icon=Icon, entry_type=Type, container=Container, container_id=ContainerId, page_size=PageSize, header=TableHeader}=F2) ->
+render_element(#feed2{title=Title, icon=Icon, entry_type=Type, container=Container, container_id=ContainerId, page_size=PageSize, header=TableHeader, entry_view=View, 
+    traverse_mode=TraverseMode, table_mode=TableMode}=F2) ->
+    error_logger:info_msg("Traverse mode: ~p", [TraverseMode]),
     FeedTitle = wf:temp_id(), SelectAllCtl = wf:temp_id(), SelectAll = wf:temp_id(),
     SelToolbar = wf:temp_id(), DeleteBtn = wf:temp_id(), ChangeFeed = wf:temp_id(),
     FeedToolbar = wf:temp_id(), PageLbl = wf:temp_id(), PrevId = wf:temp_id(), NextId = wf:temp_id(), Close = wf:temp_id(),
-    EntriesId = wf:temp_id(),
+    EntriesId = wf:temp_id(),MoreToolbar = wf:temp_id(),
 
+    error_logger:info_msg("Container: ~p ~p", [Container, ContainerId]),
     case kvs:get(Container, ContainerId) of {error, not_found} -> wf:render(dashboard:section([#h3{class=[blue], body= Title}, index:info("empty")], Icon));
     {ok, Feed} ->
     Entries = kvs:entries(Feed, Type, PageSize),
@@ -31,6 +34,7 @@ render_element(#feed2{title=Title, icon=Icon, entry_type=Type, container=Contain
     wf:session(SelectedKey,[]),
 
     State = #feed_state{
+        view = View,
         entry_type = Type,
         container = Container,
         container_id = ContainerId,
@@ -41,6 +45,7 @@ render_element(#feed2{title=Title, icon=Icon, entry_type=Type, container=Contain
         select_toolbar=SelToolbar,
         delete_btn = DeleteBtn,
         feed_toolbar=FeedToolbar,
+        more_toolbar = MoreToolbar,
         prev=PrevId,
         next=NextId,
         page_label=PageLbl,
@@ -69,20 +74,26 @@ render_element(#feed2{title=Title, icon=Icon, entry_type=Type, container=Contain
                     #link{id=DeleteBtn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed2 },
                     #link{id=ChangeFeed, class=[btn], body=[<<"archive">>]} ]},
 
-                #span{class=["pull-right"], body=[
+                if TraverseMode == true -> #span{class=["pull-right"], body=[
                     #panel{id=FeedToolbar, body=if Total > 0 -> [
                         #small{id=PageLbl, body=[integer_to_list(State#feed_state.start), "-", integer_to_list(Current), " of ", integer_to_list(Total)]},
                         #link{id=PrevId,class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
                             postback={traverse, #iterator.next, First, State}, delegate=feed2},
                         #link{id=NextId,class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
                             postback={traverse, #iterator.prev, Last, State}, delegate=feed2}]; true -> [] end},
-                    #link{id=Close, class=[close, "text-error"], postback={cancel_select, State}, delegate=feed2, body= <<"&times;">>} ]} ]}} ]},
+                    #link{id=Close, class=[close, "text-error"], postback={cancel_select, State}, delegate=feed2, body= <<"&times;">>} ]}; true -> [] end
+        ]}} ]},
 
-    Body = #table{id=EntriesId, class=[table, "table-hover"],
+    Body = if TableMode == true -> #table{id=EntriesId, class=[table, "table-hover"],
         header=[TableHeader],
-        body=[[#feed_entry2{entry=G, state=State} || G <- Entries]]},
+        body=[[#feed_entry2{entry=G, state=State, view=View} || G <- Entries]]};
+    true -> #panel{id=EntriesId, class=[feed], body=[
+        TableHeader,
+        [#feed_entry2{entry=G, state=State, view=View} || G <- Entries]]} end,
 
-    Footer = #panel{class=["btn-toolbar", "text-center"], body=[]},
+    Footer = if TraverseMode == false -> #panel{id=MoreToolbar, class=["btn-toolbar", "text-center"], body=[
+        if Current < PageSize -> []; true -> #link{class=?BTN_INFO, body= <<"more">>, delegate=feed2, postback = {check_more, Last, State}} end
+    ]}; true -> [] end,
 
     wf:render([Header, Body, Footer]) end;
 
@@ -124,10 +135,48 @@ render_element(#feed_entry2{entry=#acl_entry{id=Id, accessor={user, Accessor}, a
         #td{body= atom_to_list(Action)}]},
     element_tr:render_element(Tr);
 
+render_element(#feed_entry2{entry=#entry{entry_id=Id}=E, state=State, view=direct})->
+    User = wf:user(),
+    Id = E#entry.entry_id,
+    From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
+    error_logger:info_msg("Entry id: ~p", [Id]),
+    error_logger:info_msg("Entry type: ~p", [E#entry.type]),
+    IsAdmin = case User of undefined -> false; Us when Us#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
+
+    Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
+        if State#feed_state.selection == true ->
+            #checkbox{id=Id, postback={select, Id, State}, delegate=feed2, source=[Id], value=Id}; true -> [] end,
+        #panel{class=[], body=[
+            #p{body=[
+                #small{body=["[", product_ui:to_date(E#entry.created), "] "]},
+                #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
+                <<" ">>,
+                wf:js_escape(wf:to_list(E#entry.title)),
+                case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end
+            ]},
+            #p{body= wf:js_escape(E#entry.description)},
+            #panel{id=?ID_TOOL(Id), class=[], body= [
+                case E#entry.type of {feature, _} when IsAdmin ->
+                    #panel{class=["btn-toolbar"], body=[
+                        #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type, State}},
+                        #link{class=[btn, "btn-info"], body= <<"reject">>, postback={cancel, E#entry.from, E#entry.entry_id, E#entry.type, State}} ]};
+                direct -> [];
+                reply -> [];
+                product -> [
+                    #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
+                    #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
+                    #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, E#entry.entry_id}}];
+                 T -> [#link{body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, T, E#entry.entry_id}}] end
+            ]}
+        ]}
+    ]},
+    element_panel:render_element(Entry);
+
 render_element(_) -> error_logger:info_msg("[feed2]render_element(#unknown{})").
 
 % events
 
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Start, S);
 
 event({delete, #feed_state{selected_key=Key}=S}) ->
@@ -159,6 +208,10 @@ event({select, Sel, #feed_state{selected_key=Key}=S})->
             wf:wire(#jq{target=S#feed_state.select_all, method=["prop"], args=["'checked', false"]}) end
     end,
     wf:session(Key, sets:to_list(NewSel));
+
+event({check_more, Start, #feed_state{}=S}) ->
+    traverse_entries(S#feed_state.entry_type, element(#iterator.prev,Start), S#feed_state.page_size, S),
+    wf:update(S#feed_state.more_toolbar, []);
 
 event(E)-> error_logger:info_msg("[feed2] event: ~p", [E]).
 
@@ -211,6 +264,12 @@ traverse(Direction, Start, #feed_state{}=S)->
             style=if Total > 0 -> [] ; true-> "display:none;" end}); true -> [] end,
     wf:replace(State#feed_state.delete_btn, #link{id=State#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed2}).
 
+traverse_entries(_,undefined,_, #feed_state{more_toolbar=BtnId}) -> self() ! {delivery, [somepath, no_more], [BtnId]}, [];
+traverse_entries(_,_,0,_) -> [];
+traverse_entries(RecordName, Next, Count, S)->
+    case kvs:get(RecordName, Next) of {error, not_found} -> [];
+    {ok, R}-> self() ! {delivery, [somepath, show_entry], [R, S]}, [R | traverse_entries(RecordName, element(#iterator.prev, R), Count-1, S)] end.
+
 process_delivery([create], [{_Creator, _Id, _Name, _Desc, _Publicity}]) ->
     error_logger:info_msg("responce to create group");
 
@@ -233,4 +292,28 @@ process_delivery([Type, unregistered], {{ok, Id}, [S]})->
                 {error, not_found} ->  traverse(#iterator.next, Start, State);
                 _-> case kvs:get(S#feed_state.entry_type,N) of {error,_} -> ok; {ok, G} -> traverse(#iterator.prev, G, State) end end end;
 
+process_delivery([_,_,entry,_,add],
+                 [#entry{} = E, #input_state{}=I, #feed_state{}=S])->
+    error_logger:info_msg("[Feed2 - process_delivery] Add entry: ~p", [E]),
+%    wf:session(medias, []),
+%    wf:update(MsId, []),
+%    wf:wire(wf:f("$('#~s').val('');", [Tid])),
+%    wf:wire(#jq{target=Eid, method=[html], args="''"}),
+%    wf:wire(wf:f("$('#~s').trigger('Reset');", [Rid])),
+%    error_logger:info_msg("Render entry of type: ~p", [Entry#entry.type]),
+%    error_logger:info_msg("MODE: ~p", [Mode]),
+    error_logger:info_msg("insert top to ~p view: ~p", [S#feed_state.entries, S#feed_state.view]),
+    wf:insert_top(S#feed_state.entries, #feed_entry2{entry=E, state=S, view=S#feed_state.view}),
+    wf:wire("Holder.run();");
+
+process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
+    error_logger:info_msg("[feed2] show_entry ~p", [Entry]),
+    wf:insert_bottom(S#feed_state.entries, #feed_entry2{entry=Entry, state=S}),
+    wf:wire("Holder.run();"),
+    wf:update(S#feed_state.more_toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed2, postback={check_more, Entry, S}});
+
+process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
+
 process_delivery(R, M) -> error_logger:info_msg("[feed2] ~p:~p", [R,M]).
+
+

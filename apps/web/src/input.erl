@@ -21,11 +21,13 @@ render_element(#input{title=Title}=I) ->
     Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
     {FormStyle, ExpandStyle} = if I#input.collapsed==true -> {"display:none;",""}; true -> {"", "display:none;"} end,
 
-    wf:render(dashboard:section(wf:temp_id(), [
+    wf:render(
+%dashboard:section(wf:temp_id(), 
+    [
     case Title of undefined -> []; _ -> #h3{class=[blue], body= Title} end,
     #panel{id=AlertId},
     #panel{id=ToolbarId, class=["row-fluid"], body=[
-        #panel{class=["btn-toolbar"], style=ExpandStyle, body=[
+        #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
             #link{class=?BTN_INFO, body=I#input.expand_btn, postback={show_input, FormId, ToolbarId}, delegate=input} ]} ]},
 
     #panel{id=FormId, class=["row-fluid"], style=FormStyle, body=[#panel{class=[span9], body=[
@@ -35,11 +37,12 @@ render_element(#input{title=Title}=I) ->
         #panel{class=["btn-toolbar"], body=[
             #link{id=SaveId, class=?BTN_INFO, body= <<"Post">>, delegate=input,
                 postback={post_entry, RecipientsId, EditorId, TitleId, I#input.type, MsId, AlertId}, source=[TitleId, EditorId, RecipientsId] },
-            #link{class=[btn, "btn-large"], style=ExpandStyle, body= <<"Close">>, postback={hide_input, FormId, ToolbarId}, delegate=input}
+            #link{class=[btn], style=ExpandStyle, body= <<"Close">>, postback={hide_input, FormId, ToolbarId}, delegate=input}
         ]},
         #panel{id=MsId, body=preview_medias(MsId, Medias, input)}
       ]},
-      #panel{class=[span3]}]}], I#input.icon, I#input.class)).
+      #panel{class=[span3]}]}] ).
+    %, I#input.icon, I#input.class)).
 
 preview_medias(Id, Medias, Delegate)->
   L = length(Medias),
@@ -60,7 +63,7 @@ preview_medias(Id, Medias, Delegate)->
 control_event(Cid, Role) ->
     SearchTerm = wf:q(term),
     Entries = [{element(#iterator.id, E), case Role of user-> element(#user.display_name, E); product-> element(#product.title, E); _-> skip end}
-        || E <- kvs:entries(kvs:get(feed, ?FEED(Role)), Role)],
+        || E <- kvs:entries(kvs:get(feed, ?FEED(Role)), Role, undefined)],
 
     Data = [[list_to_binary(atom_to_list(Role)++Id++"="++wf:to_list(Name)), list_to_binary(wf:to_list(Name))]
         || {Id, Name} <- Entries, string:str(string:to_lower(wf:to_list(Name)), string:to_lower(SearchTerm)) > 0],
@@ -104,23 +107,22 @@ event({post_entry, RecipientsId, EditorId, TitleId, EntryType, MediasId, AlertId
         media=Medias,
         title=Title,
         description=Desc,
-        shared=""
+        shared="",
+        created = now()
     },
+    Is = #input_state{
+        recipients =RecipientsId, title= TitleId, body=EditorId, media=MediasId },
 
-    [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [#entry{
+    [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [E#entry{
         id={EntryId, FeedId},
-        entry_id=EntryId,
         feed_id=FeedId,
-        created = now(),
-        to = {RoutingType, To},
-        from=From,
-        type=EntryType,
-        media=Medias,
-        title=Title,
-        description=Desc,
-        shared=""}, RecipientsId, TitleId, EditorId, MediasId, R]) || {RoutingType, To, {_, FeedId}} = R <- Recipients],
+        to = {RoutingType, To}}, Is, #feed_state{}]) || {RoutingType, To, {_, FeedId}} = R <- Recipients],
 
-    msg:notify([kvs_feed, entry, register], [E, RecipientsId, TitleId, EditorId, MediasId, ok]);
+%    }, RecipientsId, TitleId, EditorId, MediasId, R]) || {RoutingType, To, {_, FeedId}} = R <- Recipients],
+
+    if EntryType == review ->
+        error_logger:info_msg("Put entry in general reviews feed ~p", [E]),
+        msg:notify([kvs_feed, entry, register], [E, RecipientsId, TitleId, EditorId, MediasId, ok]); true -> ok end;
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),

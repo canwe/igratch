@@ -16,6 +16,7 @@ body() ->
     What = case wf:qs(<<"id">>) of undefined -> Who;
         Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end end,
     Nav = {What, profile, []},
+    {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, What)),
 
     index:header() ++ dashboard:page(Nav, [
         if What#user.email == undefined -> index:error("There is no user "++wf:to_list(wf:qs(<<"id">>))++"!");
@@ -33,7 +34,9 @@ body() ->
                     collapsed=true,
                     expand_btn= <<"Write message">>,
                     recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
-                #feed_view{owner=What, feed=feed, title= <<"Recent activity">>, mode=review} ] end ] end ])  ++ index:footer().
+
+                #feed2{title= <<"Recent activity">>, icon="icon-list", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=review}
+    ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) ->
 %    error_logger:info_msg("What: ~p", [What]),
@@ -126,10 +129,10 @@ event({request, Feature}) ->
   error_logger:info_msg("request feature ~p", [Feature]),
   User =wf:user(),
   case kvs:get(acl, {feature, admin}) of {error, not_found} -> wf:update(alerts,index:error("system has no administrators yet"));
-    {ok,#acl{id=Id}} ->
+    {ok,#acl{}=Acl} ->
       Recipients = lists:flatten([
         case kvs:get(user, Accessor) of {error, not_found} -> []; {ok, U} -> {Type, Accessor, lists:keyfind(direct, 1, U#user.feeds)} end
-      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(acl, Id, acl_entry, undefined), Action =:= allow]),
+      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(Acl, acl_entry, undefined), Action =:= allow]),
 
       EntryId = kvs:uuid(),
       From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,

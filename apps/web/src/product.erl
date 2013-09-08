@@ -74,12 +74,15 @@ feed(Tab)->
     Subscriptions =  kvs_group:participate(P#product.id),
     Groups = lists:flatten([case kvs:get(group, Where) of {error, _}-> []; {ok, G} -> "group"++G#group.id++"="++G#group.name end || #group_subscription{where=Where} <- Subscriptions]),
     Recipients = string:join([Groups,
-        "product"++wf:to_list(P#product.id)++"="++wf:to_list(P#product.title), 
-        "user"++User#user.email++"="++wf:to_list(User#user.display_name)], ","),
+        "product"++wf:to_list(P#product.id)++"="++wf:to_list(P#product.title),
+        case User of undefined->[]; U -> "user"++U#user.email++"="++wf:to_list(U#user.display_name) end
+    ], ","),
     error_logger:info_msg("Recipients: ~p", [Recipients]),
-    [
-    #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", collapsed=true, role=product, type=Tab, recipients=[Recipients]},
-    #feed_view{owner=P, feed=Tab, title= wf:to_list(Tab), icon="icon-circle", mode=blog} ].
+    {_, Id} = lists:keyfind(Tab, 1, element(#iterator.feeds, P)),
+
+    #feed2{title=wf:to_list(Tab), icon="icon-circle", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=blog, table_mode=false, header=[
+        #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", collapsed=true, role=product, type=Tab, recipients=[Recipients]}
+    ]}.
 
 aside()-> [
     #aside{class=[sidebar], body=[

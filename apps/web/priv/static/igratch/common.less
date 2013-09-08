@@ -1,6 +1,6 @@
 body{
   padding-top:0;
-  @media (min-width: 767px) {padding-top:79px;}
+  @media (min-width: 767px) {padding-top:60px;}
 }
 
 a{&:hover {text-decoration:none;}}
@@ -8,6 +8,12 @@ a{&:hover {text-decoration:none;}}
 h1,h2,h3,h4,h5,h6,h7 {
   text-shadow:1px 1px white;
 }
+
+.container-fluid{&.featured{
+    background-color:black; margin-bottom: 30px;
+    border-bottom:2px solid @white;
+    border-bottom-style:groove;
+}}
 
 .blue {color:#048eb1;}
 
@@ -35,17 +41,17 @@ h1,h2,h3,h4,h5,h6,h7 {
   &.navbar{
     & .nav {margin-top:15px;}
     & .nav > li > a {
-      text-shadow:2px 2px black;
+      text-shadow:1px 1px black;
       color:#fffefe;
       font-family: 'Oswald', sans-serif;
-      font-size:13.5pt;
+      font-size:16px;
       font-weight:700;
-      padding: 15px;
-      &:hover{ color:#dcdee0; }
+      padding: 10px;
+      &:hover{color:#dcdee0;}
 
       &.profile-picture{
         padding: 0;
-        margin: -7px -5px 0 10px;
+        margin: -9px 0 0 10px;
         background-color:transparent !important;
         &:hover{background-color:transparent !important;}
       }
@@ -54,10 +60,11 @@ h1,h2,h3,h4,h5,h6,h7 {
 
   & .brand {
     font-family: 'Oswald', sans-serif;
-    font-size:20pt;
     font-weight:700;
     text-shadow:2px 2px black;
     padding: 3px 20px 3px;
+    height: 60px;
+
     @media(max-width: 320px){
       width:70%;
     }

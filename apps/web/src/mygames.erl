@@ -16,10 +16,15 @@ main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
 body()-> Nav = {wf:user(), mygames, []},
     InputId = wf:temp_id(),
+    User = wf:user(),
+    {_, Id} = lists:keyfind(products, 1, element(#iterator.feeds, User)),
+
     wf:session(game_input, InputId),
     index:header() ++ dashboard:page(Nav, [
         dashboard:section(InputId, input(#entry{}), "icon-edit"),
-        #feed_view{owner=wf:user(), feed=products, title= <<"My games">>, mode=review, icon="icon-gamepad"} ]) ++index:footer().
+        #feed2{title= <<"My games">>, icon="icon-gamepad", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=product, table_mode=false}
+        %#feed_view{owner=wf:user(), feed=products, title= <<"My games">>, mode=review, icon="icon-gamepad"} 
+    ]) ++index:footer().
 
 input(#entry{}=E) ->
     MsId        = wf:temp_id(),
@@ -215,7 +220,7 @@ process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->
   wf:update(?ID_TOOL(Id), controls(E)),
   product:process_delivery(R,E);
 process_delivery([user,_,entry,_,add]=R, [#entry{feed_id=Fid}=E|_]=M)->
-    feed:process_delivery(R,M),
+    feed2:process_delivery(R,M),
     wf:remove(?ID_FEED_TOOL(Fid)),
     wf:insert_top(?ID_FEED(Fid), #panel{id=?ID_FEED_TOOL(Fid), class=[step, toolbar], body=[
         #h3{class=[blue], body= [#span{class=["step-no"], body= <<"Step 2:" >>}, E#entry.title, <<" details">>]},

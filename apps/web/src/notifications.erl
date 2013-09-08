@@ -22,13 +22,26 @@ body()->
 
 subnav()-> [{sent, "sent"}, {archive, "archive"}].
 
-feed(notifications)-> [
-    #input{title= <<"Write message">>, placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, type=direct},
-    #feed_view{owner=wf:user(), feed=direct, title= <<"Notifications">>, icon="icon-envelope-alt", mode=direct}];
+feed(notifications)-> 
+    User = wf:user(),
+    {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
+
+    #feed2{title= <<"Notification ">>, icon="icon-envelope-alt", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=direct, table_mode=false, header=[
+        #input{placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, type=direct, collapsed=true, expand_btn= <<"compose">>, class=["feed-table-header"], icon=""}
+    ]};
+
 feed(sent)->
-    #feed_view{owner=wf:user(), feed=sent, title= <<"Sent Messages">>, icon="icon-signout", mode=direct};
+    User = wf:user(),
+    {_, Id} = lists:keyfind(sent, 1, element(#iterator.feeds, User)),
+    #feed2{title= <<"Sent Messages ">>, icon="icon-signout", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=direct,
+        header=[#tr{class=["feed-table-header"], cells=[]} ]};
+
 feed(archive)->
-    #feed_view{owner=wf:user(), feed=archive, title= <<"Archive">>, icon="icon-archive", mode=direct};
+    User = wf:user(),
+    {_, Id} = lists:keyfind(archive, 1, element(#iterator.feeds, User)),
+    #feed2{title= <<"Archive ">>, icon="icon-signout", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=direct,
+        header=[#tr{class=["feed-table-header"], cells=[]} ]};
+
 feed(_) -> [index:error("404")].
 
 control_event(_, _) -> ok.
@@ -39,7 +52,7 @@ api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({allow, Whom, Eid, Feature}) ->
+event({allow, Whom, Eid, Feature, #feed_state{}=S}) ->
   error_logger:info_msg("Allow ~p : ~p", [Whom, Feature]),
   kvs_acl:define_access({user, Whom}, Feature, allow),
   User = wf:user(),
@@ -60,13 +73,14 @@ event({allow, Whom, Eid, Feature}) ->
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You have been granted "++ io_lib:format("~p", [Feature])++"!",
-                          shared=""}, skip, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
+                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
 
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid},entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
-event({cancel, From, Eid, {feature, Feature}=Type}) ->
+event({cancel, From, Eid, {feature, Feature}=Type, #feed_state{}=S}) ->
+    error_logger:info_msg("Reject ~p", [Feature]),
   User = wf:user(),
   % send message to user
   case kvs:get(user, From) of {error, not_found} -> skip;
@@ -85,7 +99,7 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You request for "++ io_lib:format("~p", [Feature])++" has been rejected!",
-                          shared=""}, skip, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
+                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
 
   % delete message from feed
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
@@ -95,8 +109,9 @@ event({cancel, From, Eid, {feature, Feature}=Type}) ->
 event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
 
 process_delivery([user,_,entry,_,add]=R, M)->
+    error_logger:info_msg("[notification] => ~p", [R]),
     wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
-    feed:process_delivery(R,M);
+    feed2:process_delivery(R,M);
 
 process_delivery([_,_,entry,Fid,delete], [E,From]) -> 
   User = wf:user(),
@@ -106,4 +121,4 @@ process_delivery([_,_,entry,Fid,delete], [E,From]) ->
     wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()}));
   true -> ok end;
 
-process_delivery(R,M) -> feed:process_delivery(R,M).
+process_delivery(R,M) -> feed2:process_delivery(R,M).

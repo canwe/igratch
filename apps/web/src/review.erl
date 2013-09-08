@@ -52,7 +52,10 @@ body() ->
           dashboard:section(#feed_entry{entry=E, mode=detached}, "icon-file-text-alt"),
 
           [ case kvs:get(group, Group) of {error,_}->[];
-            {ok, G}-> #feed_view{owner=G, feed=feed, title= "More "++ G#group.name ++" reviews", mode=review, icon="icon-tags"} end
+            {ok, G}->
+                {_, Gid} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
+                #feed2{title= "More "++ G#group.name ++" reviews", icon="icon-tags", entry_type=entry, container=feed, container_id=Gid, selection=false, entry_view=review, table_mode=false}
+                end
             || #group_subscription{where=Group} <- kvs_group:participate(Product#product.id)]
         ]}
       ]};
@@ -120,9 +123,10 @@ event({comment_reply, {Cid, {Eid, Fid}}, CFid })->
   ]});
 event({comment_cancel, Id}) -> wf:remove(Id);
 event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, _, Id})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
 %process_delivery([_,_,comment,_,add], [#comment{feed_id=undefined},_,_]) -> skip;
-
-process_delivery(R,M) -> feed:process_delivery(R,M).
+%process_delivery([comment,registered],_) -> skip;
+process_delivery(R,M) -> error_logger:info_msg("[review] review -> feed | ~p", [R]),feed:process_delivery(R,M).

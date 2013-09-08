@@ -22,24 +22,46 @@ body() ->
     wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').addClass('text-warning').tab('show');});",[Tab])),
 
   header() ++ [
-  #section{id="slider-box", class=["row-fluid"], body=#panel{id=carousel, class=[container], body=featured()}},
+  #section{class=["container-fluid", featured], body=#panel{id=carousel, class=[container], body=featured()}},
 
   #section{class=["row-fluid"], body=[
     #panel{class=[container], body=[
       #panel{class=["row-fluid"], body=[
-        #panel{class=[span9, "tab-content"], body=[
-          #panel{id=all, class=["tab-pane"]},
-          [#panel{id=Id, class=["tab-pane"]} || #group{id=Id, scope=Scope} <- kvs:all(group), Scope==public]
+        #panel{class=[span8, "tab-content"], body=[
+          [#panel{id=Id, class=["tab-pane"]} || #group{id=Id, scope=Scope} <- [#group{id=all,scope=public}|kvs:all(group)], Scope==public]
         ]},
-        #aside{class=[span3], body=[
+        #aside{class=[span4], body=[
           #panel{class=[sidebar], body=[
             #panel{class=["row-fluid"], body=[
-              #h3{ class=[blue], body= #link{url="#all", body= <<"TAGS">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
+              #h4{ class=[blue], body= #link{url="#all", body= <<"TAGS">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
               #p{class=[inline, tagcloud], body=[
                 [#link{url="#"++Id, body=[<<" ">>,Name], data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
                 || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]}
             ]},
-            #panel{class=["row-fluid"], body=[#h3{ class=[blue], body= <<"MOST POPULAR">>}, popular_items()]}
+
+            #article{id=?ID_FEED(?FEED(comment)), class=["row"], style="
+                background:#ffffff;
+                box-shadow: 0px 2px 3px 0px rgba(0,0,0,0.1);
+                margin-left:0px;
+                ", body=[
+                #panel{class=[""], body=[
+                    #h4{body= <<"Active discussion">>, style="border-bottom: 1px solid #079ebd;padding:5px;"}
+                ]},
+                #panel{body=[
+                    #panel{style="background:#eeeeee; border:1px solid #efefef; padding:10px 10px; ", body=[
+                        #link{body= <<"The game is really cool ...">>}
+                    ]},
+                    #p{style="padding: 0 10px;", body=[
+                        #span{body= <<"Sep 2, 2013 at 2:44">>}, #span{body= <<" by ">>},
+                        #link{body= <<"Andrii Zadorozhnii">>},
+                        #span{body= <<" in ">>}, #link{body= <<"The cool review article">>}
+                    ]}
+                ]},
+                #panel{class=["btn-toolbar", "text-center"],body=[
+                    #link{class=[btn,"btn-info"], body= <<"more">>}
+                ]}
+            ]},
+            #feed2{title= <<"Active discussion">>, icon="icon-comments-alt", entry_type=comment, container=feed, container_id=feed=?FEED(comment), selection=false, entry_view=comment, table_mode=false}
           ]}
         ]}
       ]}
@@ -47,10 +69,12 @@ body() ->
   ]} ] ++ footer().
 
 feed("all")->
-    #feed_view{owner=any, feed=?FEED(entry), title= <<"">>, mode=review, icon="icon-tags"};
+    #feed2{title= <<"Reviews">>, icon="icon-tags", entry_type=entry, container=feed, container_id=?FEED(entry), selection=false, entry_view=review, table_mode=false};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
-    {ok, G}-> #feed_view{owner=G, feed=feed, title= <<"">>, mode=review, icon="icon-tags"} end.
+    {ok, G}-> 
+        {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
+        #feed2{title= G#group.name, icon="icon-tags", entry_type=entry, container=feed, container_id=Id, selection=false, entry_view=review, table_mode=false} end.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
@@ -64,7 +88,7 @@ featured() ->
             Ext = filename:extension(C),
             Name = filename:basename(C, Ext),
             Dir = filename:dirname(C),
-            {filename:join([Dir, "thumbnail", Name++"_1170x380"++Ext]),""}
+            {filename:join([Dir, "thumbnail", Name++"_1170x350"++Ext]),""}
         end,
         [
           #panel{id=P#product.id, class=["slide"], body=[
@@ -76,24 +100,18 @@ featured() ->
         ]
       end || P <- Ps]
   end, caption= #panel{class=["row-fluid"],body=[
-        box(50, 12.99, "btn-warning", "icon-windows"), box(50, 12.99, "btn-success", "icon-windows"),
-        box(50, 12.99, "btn-violet", "icon-windows"), box(50, 12.99, "btn-info", "icon-windows") ]}} .
-
-popular_items()-> [
-%  #panel{class=["popular-item"], body=[
-%  #panel{class=["popular-item-inner"], body=[
-%    #p{body= <<"Vivamus fermentum rutrum neque pellentesque tristique.">>},
-%      #i{ class=["icon-comment"]},#span{body= <<"25">>}
-%    ]}
-%  ]}
-  ].
+%        box(50, 12.99, "btn-warning", "icon-windows"), box(50, 12.99, "btn-success", "icon-windows"),
+%        box(50, 12.99, "btn-violet", "icon-windows"), box(50, 12.99, "btn-info", "icon-windows") 
+    ]}} .
 
 box(Discount, Price, ColorClass, IconClass)->
   #panel{class=[span3, box], body=#button{class=[btn, "btn-large", ColorClass], body=[
     #p{style="margin-left:-10px;margin-right:-10px;", body= <<"Lorem: Ipsum dolor sit amet">>},
     #p{class=[accent], body= list_to_binary(integer_to_list(Discount)++"% OFF")},
     #p{class=["row-fluid"], body=[
-      #span{class=[IconClass, "pull-left"]}, #span{class=["pull-right"], body=[#span{class=["icon-usd"]},list_to_binary(io_lib:format("~.2f", [Price]))]} ]} ]}}.
+      #span{class=[IconClass, "pull-left"]}, #span{class=["pull-right"], body=[#span{class=["icon-usd"]},
+        list_to_binary(io_lib:format("~.2f", [Price]))]} 
+    ]} ]}}.
 
 header() -> [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[
@@ -101,8 +119,7 @@ header() -> [
       #panel{class=["container"], body=[
         #button{class=[btn, "btn-navbar"], data_fields=[{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}], body=[#span{class=["icon-bar"]}||_<-lists:seq(1,3)]},
 
-        #link{url="/index", class=[brand], body= #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>}},
-%        #link{url="/index", class=[brand], body=[ #image{alt= <<"iGratch">>, image= <<"/static/img/brand.png">>}, #span{class=["brand-label"], body= <<" iGratch">>}] },
+        #link{url="/index", class=[brand], body=[ #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>, width= <<"235px">>, height= <<"60px">>} ]},
         #panel{class=["nav-collapse", collapse], body=[
           #list{class=[nav, "pull-right"], body=[
             #li{body=#link{body= <<"Home">>, url= <<"/index">>}},
@@ -114,11 +131,11 @@ header() -> [
                 #li{body=[
                   #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
                     body=#image{class=["img-circle", "img-polaroid"], image = case User#user.avatar of undefined -> "/holder.js/50x50";
-                      Img -> iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]) end, width= <<"50px">>, height= <<"50px">>}},
+                      Img -> iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]) end, width= <<"45px">>, height= <<"45px">>}},
                   #list{class=["dropdown-menu"], body=[
                     #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
                   ]}]},
-                #li{body=#link{body= <<"My Account">>, url= <<"/profile">>}}]
+                #li{body=#link{body= <<"Account">>, url= <<"/profile">>}}]
             end
           ]} ]} ]} ]} ]} ].
 
@@ -134,16 +151,15 @@ footer() -> [
         #li{body=#link{body= <<"Help">>}},
         #li{body=#link{body= <<"Terms of Use">>}},
         #li{body=#link{body= <<"Privacy">>}},
-        #li{body=#link{body= <<"RSS">>}},
         #li{body= <<"&copy; iGratch 2013">>}
       ]},
       #list{class=[icons, inline], body=[
-        #li{body=#link{body=#image{image= <<"/static/img/social1.png">>}}},
-        #li{body=#link{body=#image{image= <<"/static/img/social2.png">>}}},
-        #li{body=#link{body=#image{image= <<"/static/img/social3.png">>}}},
-        #li{body=#link{body=#image{image= <<"/static/img/social4.png">>}}},
-        #li{body=#link{body=#image{image= <<"/static/img/social5.png">>}}},
-        #li{body=#link{body=#image{image= <<"/static/img/social6.png">>}}} ]} ]} ]}}].
+        #li{body=#link{body=[#i{class=["icon-youtube",      "icon-2x"]}]}},
+        #li{body=#link{body=[#i{class=["icon-facebook",     "icon-2x"]}]}},
+        #li{body=#link{body=[#i{class=["icon-google-plus",  "icon-2x"]}]}},
+        #li{body=#link{body=[#i{class=["icon-twitter",      "icon-2x"]}]}},
+        #li{body=#link{body=[#i{class=["icon-pinterest",    "icon-2x"]}]}},
+        #li{body=#link{body=[#i{class=["icon-envelope-alt", "icon-2x"]}]}} ]} ]} ]}}].
 
 error(Msg)-> alert(Msg,"alert-danger").
 info(Msg) -> alert(Msg,"alert-info").
@@ -167,4 +183,4 @@ event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
-process_delivery(R,M) -> feed:process_delivery(R,M).
+process_delivery(R,M) -> error_logger:info_msg("[index] delivery -> feed | ~p", [R]),feed:process_delivery(R,M).

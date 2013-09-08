@@ -22,7 +22,9 @@ body() ->
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
             #panel{id=Id, class=["tab-pane"]} || Id <-[categories, acl, users, products] ]} ]) ++ index:footer().
 
-tab(categories) -> [
+tab(categories) -> 
+    error_logger:info_msg("Show categories"),
+    [
     dashboard:section(input(), "icon-tags"),
     #feed2{title= <<"Categories ">>, icon="icon-list", entry_type=group, container=feed, container_id=?GRP_FEED, selection=true,
         header=[#tr{class=["feed-table-header"], cells=[

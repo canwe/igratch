@@ -40,10 +40,12 @@ body()->
   ] ++ index:footer().
 
 feed("all") ->
-    #feed_view{owner=any, feed=?FEED(entry), title= <<"">>, mode=review, icon="icon-tags"};
+    #feed2{title= <<"">>, icon="icon-tags", entry_type=entry, container=feed, container_id=?FEED(entry), selection=false, entry_view=review, table_mode=false};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
-    {ok, G}-> #feed_view{owner=G, feed=feed, title= <<"">>, mode=review, icon="icon-tags"} end.
+    {ok, G}->
+        {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
+        #feed2{title= <<"">>, icon="icon-tags", entry_type=entry, container=feed, container_id=Id, selection=false, entry_view=review, table_mode=false} end.
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),

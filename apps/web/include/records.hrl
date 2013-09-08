@@ -10,8 +10,8 @@
 -define(ID_FEED_TOOL(Id),    wf:to_list(Id)++"est").
 -define(THUMB_SIZE,     [{139, 80}, {270, 124}, {200, 200}, {570, 570}, {1170, 350}]).
 -define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
--define(BTN_INFO,       [btn, "btn-large", "btn-info"]).
--define(BTN_SUCCESS,    [btn, "btn-large", "btn-success"]).
+-define(BTN_INFO,       [btn, "btn-info"]).
+-define(BTN_SUCCESS,    [btn, "btn-success"]).
 -define(STACK_BASE,     ["icon-stack-base", "icon-circle"]).
 -define(TOOLTIP,        [{<<"data-toggle">>,<<"tooltip">>}]).
 -define(URL_PRODUCT(Id),"/product?id="++Id).
@@ -38,15 +38,14 @@
                         expand_btn=""}).
 -record(ui_payload, {}).
 
--record(feed_view,      {?ELEMENT_BASE(feed), icon="icon-list", owner, feed, mode, page_size=?PAGE_SIZE, start=undefined}).
--record(feed_ctl,       {?ELEMENT_BASE(feed_ctl)}).
 -record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[], owner}).
 -record(entry_comment,  {?ELEMENT_BASE(feed), comment}).
 
--record(feed2, {?ELEMENT_BASE(feed2), icon="", entry_type, container, container_id, page_size=?PAGE_SIZE, header=[], selection=false}).
+-record(feed2, {?ELEMENT_BASE(feed2), icon="", entry_type, container, container_id, page_size=?PAGE_SIZE, header=[], selection=false, entry_view, traverse_mode=true, table_mode=true}).
 -record(feed_entry2, {?ELEMENT_BASE(feed2), entry, state, view}).
 
 -record(feed_state, {
+    view,
     entry_type,
     container,
     container_id,
@@ -61,6 +60,7 @@
     page_label,
     select_toolbar,
     feed_toolbar,
+    more_toolbar,
     close,
     full, start,
     total,
@@ -69,3 +69,10 @@
     last_element,
     page_size,
     selected_key = selected }).
+
+-record(input_state, {
+    recipients,
+    title,
+    body,
+    media
+    }).
