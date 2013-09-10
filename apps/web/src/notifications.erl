@@ -22,12 +22,15 @@ body()->
 
 subnav()-> [{sent, "sent"}, {archive, "archive"}].
 
-feed(notifications)-> 
+feed(notifications)->
     User = wf:user(),
     {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
     State = ?FD_STATE(Id)#feed_state{view=direct, entry_id = #entry.entry_id, mode=panel},
+    Is = #input_state{entry_type=direct},
+    error_logger:info_msg("Notification feed state: ~p", [State]),
     #feed2{title= <<"Notification ">>, icon="icon-envelope-alt", selection=true, state=State, header=[
-        #input{placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, collapsed=true, expand_btn= <<"compose">>, class=["feed-table-header"], icon=""}
+        #input{placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, collapsed=true, expand_btn= <<"compose">>, class=["feed-table-header"], icon="", 
+            state=Is, feed_state=State}
     ]};
 
 feed(sent)->
@@ -79,7 +82,7 @@ event({allow, Whom, Eid, Feature, #feed_state{}=S}) ->
 
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid},entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid},entry_id=Eid}, #input_state{}, S]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
 event({cancel, From, Eid, {feature, Feature}=Type, #feed_state{}=S}) ->
     error_logger:info_msg("Reject ~p", [Feature]),
@@ -106,21 +109,20 @@ event({cancel, From, Eid, {feature, Feature}=Type, #feed_state{}=S}) ->
   % delete message from feed
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid}, entry_id=Eid}, User#user.email]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid}, entry_id=Eid}, #input_state{}, S]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
 event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
 
 process_delivery([user,_,entry,_,add]=R, M)->
-    error_logger:info_msg("[notification] => ~p", [R]),
     wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
     feed2:process_delivery(R,M);
 
-process_delivery([_,_,entry,Fid,delete], [E,From]) -> 
-  User = wf:user(),
-  Direct = lists:keyfind(direct, 1, User#user.feeds),
-  if Direct == Fid ->
-    wf:remove(E#entry.entry_id),
-    wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()}));
-  true -> ok end;
+process_delivery([_,_,entry,_,delete]=R, M) -> 
+    wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
+    feed2:process_delivery(R,M);
+
+process_delivery([_,unregister]=R, M) ->
+    wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
+    feed2:process_delivery(R,M);
 
 process_delivery(R,M) -> feed2:process_delivery(R,M).

@@ -8,6 +8,7 @@
 -compile(export_all).
 
 render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
+    error_logger:info_msg("render input with feed state: ~p", [FS]),
     Source = [State#input_state.title_id, State#input_state.body_id, State#input_state.recipients_id],
     User = wf:user(),
     Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
@@ -93,9 +94,9 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
 
     msg:notify([kvs_feed, comment, register], [C, Is, ?FD_STATE(?FEED(comment))]);
 
-event({post, entry, #input_state{}=Is, #feed_state{}=Fs})->
+event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     error_logger:info_msg("Post entry: ~p", [Fs]),
-    EntryType = Is#input_state.entry_type,
+%    EntryType = Is#input_state.entry_type,
     User = wf:user(),
     Desc = wf:q(Is#input_state.body_id),
     Title = wf:q(Is#input_state.title_id),
@@ -136,7 +137,7 @@ event({post, entry, #input_state{}=Is, #feed_state{}=Fs})->
     [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [E#entry{
         id={EntryId, FeedId},
         feed_id=FeedId,
-        to = {RoutingType, To}}, Is, #feed_state{}]) || {RoutingType, To, {_, FeedId}} = R <- Recipients],
+        to = {RoutingType, To}}, Is, ?FD_STATE(FeedId)#feed_state{view=Fs#feed_state.view, entry_id =Fs#feed_state.entry_id, mode=Fs#feed_state.mode}]) || {RoutingType, To, {_, FeedId}} = R <- Recipients],
 
     if EntryType == review ->
         error_logger:info_msg("Put entry in general reviews feed ~p", [E]),

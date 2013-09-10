@@ -118,6 +118,8 @@ render_element(#feed_entry2{entry=#acl_entry{accessor={user, Accessor}, action=A
         #td{body= atom_to_list(Action)}]},
     element_tr:render_element(Tr);
 
+% Direct message
+
 render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=direct}=State})->
     User = wf:user(),
     Id = element(State#feed_state.entry_id, E),
@@ -392,7 +394,13 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Start, S);
 
 event({delete, #feed_state{selected_key=Key}=S}) ->
-    [begin {ok, Obj} = kvs:get(S#feed_state.entry_type, Id),
+    [begin
+        FullId = case S#feed_state.entry_type of
+            entry -> {Id, S#feed_state.container_id};
+            _ -> Id
+        end,
+        error_logger:info_msg("Remove: ~p ~p", [S#feed_state.entry_type, FullId]),
+        {ok, Obj} = kvs:get(S#feed_state.entry_type, FullId),
         msg:notify([kvs_feed, S#feed_state.entry_type, unregister], [Obj, S])
     end || Id <- wf:session(Key)];
 
@@ -528,8 +536,8 @@ process_delivery([_,_,Type,_,add],
     wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
     wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
     error_logger:info_msg("Render entry of type: ~p", [Type]),
-    wf:insert_top(S#feed_state.entries, #feed_entry2{entry=E, state=S}),
     error_logger:info_msg("Entries id: ~p", [S#feed_state.entries]),
+    wf:insert_top(S#feed_state.entries, #feed_entry2{entry=E, state=S}),
     wf:wire("Holder.run();");
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
@@ -543,7 +551,7 @@ process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([entry,registered], {{ok,E},_})->
     error_logger:info_msg("[feed2]ENTRY REGISTERED ~p", [E#entry.id]);
 
-process_delivery([_,_,entry,_,delete], [E,_]) -> wf:remove(E#entry.entry_id);
+process_delivery([_,_,entry,_,delete], [E,#input_state{}, #feed_state{}=S]) -> wf:remove(?EN_ROW(element(S#feed_state.entry_id, E)));
 process_delivery([comment,registered], {{ok,#comment{}=C}, [#input_state{}, #feed_state{}=S]})->
     error_logger:info_msg("COMMENT REGISTERED ~p", [C#comment.id]);
 %    wf:insert_top(S#feed_state.entries, #feed_entry2{entry=C, state=S});
