@@ -1,3 +1,5 @@
+-include_lib("kvs/include/kvs.hrl").
+
 -define(ROOT, code:priv_dir(web)).
 -define(PAGE_SIZE, 4).
 -define(ID_TITLE(Id),   Id++"t").
@@ -26,53 +28,101 @@
 -record(entry_media,    {?ELEMENT_BASE(product_ui), media, fid, cid, mode}).
 
 -record(input,          {?ELEMENT_BASE(input),
+                        state,
+                        feed_state,
                         icon="icon-edit",
                         collapsed=false,
-                        show_recipients=true,
                         feed,
-                        type,
                         recipients="",
                         placeholder_rcp="",
                         placeholder_ttl="Title",
                         placeholder_box="",
-                        expand_btn=""}).
--record(ui_payload, {}).
+                        expand_btn="",
+                        expand_class=?BTN_INFO}).
 
--record(feed_entry,     {?ELEMENT_BASE(feed), entry, mode, category, controls=[], owner}).
--record(entry_comment,  {?ELEMENT_BASE(feed), comment}).
 
--record(feed2, {?ELEMENT_BASE(feed2), icon="", entry_type, container, container_id, page_size=?PAGE_SIZE, header=[], selection=false, entry_view, traverse_mode=true, table_mode=true}).
--record(feed_entry2, {?ELEMENT_BASE(feed2), entry, state, view}).
+-record(feed2,          {?ELEMENT_BASE(feed2),
+                        state,
+                        icon = "",
+                        header = [],
+                        selection = false,
+                        traverse_mode = true }).
+
+-record(feed_entry2,    {?ELEMENT_BASE(feed2), entry, state}).
 
 -record(feed_state, {
     view,
-    entry_type,
-    container,
+    mode            = table,
+    entry_type      = entry,
+    entry_id        = #iterator.id,
+    container       = feed,
     container_id,
-    feed_title,
+    feed_title      = wf:temp_id(),
     selection,
-    selectall_ctl,
-    select_all,
-    delete_btn,
-    prev,
-    next,
-    entries,
-    page_label,
-    select_toolbar,
-    feed_toolbar,
-    more_toolbar,
-    close,
-    full, start,
+    selectall_ctl   = wf:temp_id(),
+    select_all      = wf:temp_id(),
+    delete_btn      = wf:temp_id(),
+    prev            = wf:temp_id(),
+    next            = wf:temp_id(),
+    entries         = wf:temp_id(),
+    page_label      = wf:temp_id(),
+    select_toolbar  = wf:temp_id(),
+    feed_toolbar    = wf:temp_id(),
+    more_toolbar    = wf:temp_id(),
+    close           = wf:temp_id(),
+    full,
+    start,
     total,
     current,
     start_element,
     last_element,
-    page_size,
-    selected_key = selected }).
+    page_size = ?PAGE_SIZE,
+    selected_key = selected,
+    recipients=[]}).
 
 -record(input_state, {
-    recipients,
-    title,
-    body,
-    media
+    id          = wf:temp_id(),
+    form_id     = wf:temp_id(),
+    toolbar_id  = wf:temp_id(),
+    recipients_id = wf:temp_id(),
+    title_id    = wf:temp_id(),
+    body_id     = wf:temp_id(),
+    media_id    = wf:temp_id(),
+    price_id    = wf:temp_id(),
+    currency_id = wf:temp_id(),
+    alert_id    = wf:temp_id(),
+    upload_id   = wf:temp_id(),
+    post_id     = wf:temp_id(),
+    entry_type  = entry,
+    show_recipients=true,
+    show_title = true,
+    show_media = true,
+    groups = [],
+    recipients = [] }).
+
+-define(FD_TITLE(Id),       wf:to_list(Id)++"ft").
+-define(FD_SELLALLCTL(Id),  wf:to_list(Id)++"sallctl").
+-define(FD_SELLALL(Id),     wf:to_list(Id)++"all").
+-define(FD_ENTRS(Id),       wf:to_list(Id)++"es").
+-define(FD_STATE(Id), #feed_state{
+        container_id    = Id,
+        feed_title      = ?FD_TITLE(Id),
+        selectall_ctl   = ?FD_SELLALLCTL(Id),
+        select_all      = ?FD_SELLALL(Id),
+        entries         = ?FD_ENTRS(Id)
     }).
+-define(FD_STATE(Id, S), S#feed_state{
+        container_id    = Id,
+        feed_title      = ?FD_TITLE(Id),
+        selectall_ctl   = ?FD_SELLALLCTL(Id),
+        select_all      = ?FD_SELLALL(Id),
+        entries         = ?FD_ENTRS(Id)
+    }).
+
+-define(EN_ROW(Id),     wf:to_list(Id)++"row").
+-define(EN_SEL(Id),     wf:to_list(Id)++"sel").
+-define(EN_MEDIA(Id),   wf:to_list(Id)++"media").
+-define(EN_TITLE(Id),   wf:to_list(Id)++"t").
+-define(EN_DESC(Id),    wf:to_list(Id)++"d").
+-define(EN_TOOL(Id),    wf:to_list(Id)++"tb").
+

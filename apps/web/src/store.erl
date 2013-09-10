@@ -50,13 +50,15 @@ body()->
   ] ++ index:footer().
 
 feed("all")->
-    #feed2{title= <<"">>, icon="icon-tags", entry_type=entry, container=feed, container_id=?FEED(product), selection=false, entry_view=review, table_mode=false};
+    State = ?FD_STATE(?FEED(product))#feed_state{view=product, mode=panel, entry_type=product},
+    #feed2{title= <<"">>, icon="icon-tags", selection=false, state=State};
 
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}->
         {_, Id} = lists:keyfind(products, 1, element(#iterator.feeds, G)),
-        #feed2{title= <<"">>, icon="icon-tags", entry_type=entry, container=feed, container_id=Id, selection=false, entry_view=review, table_mode=false}
+        State = ?FD_STATE(Id)#feed_state{view=review, mode=panel},
+        #feed2{title= <<"">>, icon="icon-tags", selection=false, state=State}
     end.
 
 api_event(tabshow,Args,_) ->
@@ -71,5 +73,5 @@ event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event(Event) -> error_logger:info_msg("[store]Page event: ~p", [Event]), ok.
 
-process_delivery(R,M) -> feed:process_delivery(R,M).
+process_delivery(R,M) -> feed2:process_delivery(R,M).
 

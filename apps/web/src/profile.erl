@@ -17,7 +17,7 @@ body() ->
         Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end end,
     Nav = {What, profile, []},
     {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, What)),
-
+    State = #feed_state{container_id=Id, view=review},
     index:header() ++ dashboard:page(Nav, [
         if What#user.email == undefined -> index:error("There is no user "++wf:to_list(wf:qs(<<"id">>))++"!");
         true -> [
@@ -29,13 +29,13 @@ body() ->
                     placeholder_ttl= <<"Subject">>,
                     class="alt",
                     role=user,
-                    type=direct,
-                    show_recipients=false,
+                    %type=direct,
+                    %show_recipients=false,
                     collapsed=true,
                     expand_btn= <<"Write message">>,
                     recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
 
-                #feed2{title= <<"Recent activity">>, icon="icon-list", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=review}
+                #feed2{title= <<"Recent activity">>, icon="icon-list", selection=true, state=State}
     ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) ->
@@ -160,5 +160,5 @@ event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 process_delivery([user,_,entry,_,add]=R, M)->
     error_logger:info_msg("=>message sent!"),
     wf:update(sidenav, dashboard:sidenav({wf:user(), profile, []})),
-    feed:process_delivery(R,M);
-process_delivery(R,M) -> feed:process_delivery(R,M).
+    feed2:process_delivery(R,M);
+process_delivery(R,M) -> feed2:process_delivery(R,M).

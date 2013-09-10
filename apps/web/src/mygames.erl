@@ -15,61 +15,51 @@
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
 body()-> Nav = {wf:user(), mygames, []},
-    InputId = wf:temp_id(),
-    User = wf:user(),
-    {_, Id} = lists:keyfind(products, 1, element(#iterator.feeds, User)),
-
-    wf:session(game_input, InputId),
+    Id = case lists:keyfind(products, 1, element(#iterator.feeds, case wf:user() of undefined-> #user{}; U->U end)) of {_, V} -> V; false -> undefined end,
+    Fs = ?FD_STATE(Id)#feed_state{view=product, mode=panel},
+    Is = #input_state{},
     index:header() ++ dashboard:page(Nav, [
-        dashboard:section(InputId, input(#entry{}), "icon-edit"),
-        #feed2{title= <<"My games">>, icon="icon-gamepad", entry_type=entry, container=feed, container_id=Id, selection=true, entry_view=product, table_mode=false}
-        %#feed_view{owner=wf:user(), feed=products, title= <<"My games">>, mode=review, icon="icon-gamepad"} 
+        #feed2{title= <<"My games">>, icon="icon-gamepad", state=Fs, header=[input(#entry{}, Is, Fs)]}
     ]) ++index:footer().
 
-input(#entry{}=E) ->
-    MsId        = wf:temp_id(),
-    TitleId     = wf:temp_id(),
-    EditorId    = wf:temp_id(),
-    RecipientsId= wf:temp_id(),
-    PriceId     = wf:temp_id(),
-    CurrencyId  = wf:temp_id(),
-    Sources = [TitleId, EditorId, PriceId, CurrencyId, RecipientsId],
+input(#entry{}=E, #input_state{}=Is, #feed_state{}=Fs) ->
     User = wf:user(),
     Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
     Medias = E#entry.media,
     Groups = [case kvs:get(group,  Where) of {ok,#group{name=T}}-> Where++"="++T; _-> [] end || #group_subscription{where=Where} <- kvs_group:participate(E#entry.entry_id)],
     P = case kvs:get(product, E#entry.entry_id) of {ok, #product{}=Pr} -> Pr; _-> #product{} end,
+    Sources = [Is#input_state.title_id, Is#input_state.body_id, Is#input_state.price_id, Is#input_state.currency_id, Is#input_state.recipients_id],
 
     case User of undefined ->[#h3{class=[blue], body= <<"">>}, index:info("Registered sellers can add the games.")]; _ ->[
     case E#entry.id of undefined -> #panel{class=["pull-left", step], body=[
-        #h3{class=[blue], body= [#span{class=["step-no"], body= <<"Step 1:">>}, <<"Add game">>]},
+        #h3{class=[blue], body= [#span{class=["step-no"], body= <<"">>}, <<"New game">>]},
         #p{class=["text-info"], body= <<"Select the product categories. Fill the product base information and set the price. Upload cover image.">>} ]};
     _-> [#h3{class=[blue], body= [<<"Edit game">>]}] end,
 
     #h3{body=[#span{class=["pull-right", span3, "hidden-phone"], style="color: #555555;",  body= <<"cover">>}] },
     #panel{id=input, body=[#panel{class=["row-fluid"], body=[
         #panel{class=[span9], body=[
-            #textboxlist{id=RecipientsId, placeholder= <<"Categories">>, values=string:join(Groups,",")},
-            #textbox{id=TitleId, class=[span12], placeholder="Game title", value = wf:js_escape(E#entry.title)},
-            #textarea{id=EditorId, class=[span12], rows="5", placeholder="Brief description", body = wf:js_escape(E#entry.description)},
+            #textboxlist{id=Is#input_state.recipients_id, placeholder= <<"Categories">>, values=string:join(Groups,",")},
+            #textbox{id=Is#input_state.title_id, class=[span12], placeholder="Game title", value = wf:js_escape(E#entry.title)},
+            #textarea{id=Is#input_state.body_id, class=[span12], rows="5", placeholder="Brief description", body = wf:js_escape(E#entry.description)},
 
         #panel{class=["input-append"], body=[
-            #textbox{id=PriceId,  value=float_to_list(P#product.price/100, [{decimals, 2}])},
-            #select{id=CurrencyId, class=[selectpicker], body=[#option{label= L, body = V, selected=binary_to_list(V)==P#product.currency} || {L,V} <- ?CURRENCY]}
+            #textbox{id=Is#input_state.price_id,  value=float_to_list(P#product.price/100, [{decimals, 2}])},
+            #select{id=Is#input_state.currency_id, class=[selectpicker], body=[#option{label= L, body = V, selected=binary_to_list(V)==P#product.currency} || {L,V} <- ?CURRENCY]}
         ]},
-        #panel{id=MsId, body=input:preview_medias(MsId, Medias, mygames)}
+        #panel{id=Is#input_state.media_id, body=input:preview_medias(Is#input_state.media_id, Medias, mygames)}
         ]},
         #panel{class=[span3], body=[
-            #upload{id=cover_upload,preview=true, root=?ROOT, dir=Dir, value=P#product.cover, delegate_query=?MODULE, post_write=attach_media, delegate_api=input, img_tool=gm, post_target=MsId, size=?THUMB_SIZE}]}
+            #upload{id=Is#input_state.upload_id, preview=true, root=?ROOT, dir=Dir, value=P#product.cover, delegate_query=?MODULE, post_write=attach_media, delegate_api=input, img_tool=gm, post_target=Is#input_state.media_id, size=?THUMB_SIZE}]}
     ]},
 
     #panel{class=["btn-toolbar"],body=[
         case P#product.id of undefined -> 
           #link{id=save_prod, class=?BTN_INFO, body=[<<"create">>],
-            postback={save, Sources}, source=Sources};
+            postback={save, Is, Fs}, source=Sources};
           _ -> [
             #link{class=?BTN_INFO, body=[#i{class=["icon-check", "icon-large"]}, <<" update">>],
-              postback={update, P, TitleId, EditorId, RecipientsId, PriceId, CurrencyId}, source=Sources},
+              postback={update, P, Is, Fs}, source=Sources},
             #link{class=?BTN_SUCCESS, body=[#i{class=["icon-retweet", "icon-large"]}, <<" cancel">>], postback={edit_product, #entry{}}}
             ]
         end
@@ -82,7 +72,7 @@ controls(#entry{type=Type} =  E) -> [
   #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
   #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
 
-control_event("cover_upload", {query_file, Root, Dir, File, MimeType, PostWrite, Target})->
+control_event(_, {query_file, Root, Dir, File, MimeType, PostWrite, Target})->
     error_logger:info_msg("Upload cover: ~p", [Target]),
   Name = binary_to_list(File),
   Size = case file:read_file_info(filename:join([Root,Dir,Name])) of 
@@ -106,12 +96,13 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[account]api_event: Name ~p, 
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({save, [TitleId, EditorId, PriceId, CurrencyId, RecipientsId] = Src}) ->
+event({save, #input_state{}=Is, #feed_state{}=S}) ->
+    error_logger:info_msg("Save product [I:~p, S:~p]", [Is, S]),
     User = wf:user(),
-    Title = wf:q(TitleId),
-    Descr = wf:q(EditorId),
-    Cats = wf:q(RecipientsId),
-    Currency = wf:q(CurrencyId),
+    Title = wf:q(Is#input_state.title_id),
+    Descr = wf:q(Is#input_state.body_id),
+    Cats = wf:q(Is#input_state.recipients_id),
+    Currency = wf:q(Is#input_state.currency_id),
     TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
     Product = #product{
         id = kvs:uuid(),
@@ -120,23 +111,27 @@ event({save, [TitleId, EditorId, PriceId, CurrencyId, RecipientsId] = Src}) ->
         title = list_to_binary(wf:js_escape(Title)),
         brief = list_to_binary(wf:js_escape(Descr)),
         cover = TitlePic,
-        price = product_ui:to_price(wf:q(PriceId)),
+        price = product_ui:to_price(wf:q(Is#input_state.price_id)),
         currency = Currency,
         feeds = ?PRD_CHUNK,
         created = now() },
 
-    Groups = [case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")],
+    Groups = [case kvs:get(group,Str) of {error,_}->[]; {ok,G} ->G end || Str<-string:tokens(Cats, ",")],
 
     Recipients = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)} |
         [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups]],
 
-    msg:notify([kvs_product, product, register], [Product, {Recipients, Groups, Src}]);
+    NewIs = Is#input_state{
+        groups = Groups,
+        recipients = Recipients},
 
-event({update, #product{}=P, [TitleId, EditorId, PriceId, CurrencyId, RecipientsId]}) ->
+    msg:notify([kvs_product, product, register], [Product, NewIs, S]);
+
+event({update, #product{}=P, #input_state{}=Is}) ->
   User = wf:user(),
-  Title = wf:q(TitleId),
-  Descr = wf:q(EditorId),
-  Currency = wf:q(CurrencyId),
+  Title = wf:q(Is#input_state.title_id),
+  Descr = wf:q(Is#input_state.body_id),
+  Currency = wf:q(Is#input_state.currency_id),
 
   TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
   Medias = case wf:session(medias) of undefined -> []; L -> L end,
@@ -145,7 +140,7 @@ event({update, #product{}=P, [TitleId, EditorId, PriceId, CurrencyId, Recipients
     title = list_to_binary(Title),
     brief = list_to_binary(Descr),
     cover = TitlePic,
-    price = product_ui:to_price(wf:q(PriceId)),
+    price = product_ui:to_price(wf:q(Is#input_state.price_id)),
     currency = Currency},
 
   Entry = #entry{
@@ -160,7 +155,7 @@ event({update, #product{}=P, [TitleId, EditorId, PriceId, CurrencyId, Recipients
 
   kvs:put(Product),
 
-  Cats = wf:q(RecipientsId),
+  Cats = wf:q(Is#input_state.recipients_id),
     error_logger:info_msg("Categories: ~p", [Cats]),
   Groups = ordsets:from_list([case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")]),
   Participate = ordsets:from_list([ case kvs:get(group, Where) of {ok, G}->G;_->[] end  || #group_subscription{where=Where} <- kvs_group:participate(P#product.id)]),
@@ -209,7 +204,7 @@ event({remove_product, E}) ->
   kvs_product:delete(E#entry.entry_id);
 event({edit_product, #entry{}=E})->
     wf:session(medias, E#entry.media),
-    wf:update(wf:session(game_input), input(E)),
+%    wf:update(wf:session(game_input), input(E)),
     wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
 event({remove_media, M, Id}) ->
   wf:wire("$('#cover_upload').trigger('reset');"),
@@ -220,6 +215,7 @@ process_delivery([_,_,entry,_,edit]=R, #entry{entry_id=Id}=E) ->
   wf:update(?ID_TOOL(Id), controls(E)),
   product:process_delivery(R,E);
 process_delivery([user,_,entry,_,add]=R, [#entry{feed_id=Fid}=E|_]=M)->
+    error_logger:info_msg("[mygames]USER ENTRY ADD:"),
     feed2:process_delivery(R,M),
     wf:remove(?ID_FEED_TOOL(Fid)),
     wf:insert_top(?ID_FEED(Fid), #panel{id=?ID_FEED_TOOL(Fid), class=[step, toolbar], body=[
@@ -231,16 +227,15 @@ process_delivery([user,_,entry,_,add]=R, [#entry{feed_id=Fid}=E|_]=M)->
 
 process_delivery([user, _,entry,_,delete]=R, [#entry{feed_id=Fid},_]=M) ->
     wf:remove(?ID_FEED_TOOL(Fid)),
-    feed:process_delivery(R,M);
+    feed2:process_delivery(R,M);
 process_delivery([group,_,entry,_,delete], [_,_]) -> skip;
 
-process_delivery([product, registered], {{ok, P}, {Recipients, Groups, Src}}) ->
+process_delivery([product, registered], {{ok, P}, [#input_state{}=Is, #feed_state{}=S]}) ->
     error_logger:info_msg("=>Product ~p added, notify recipients~n", [P#product.id]),
-    error_logger:info_msg("Message recipients: ~p", [Recipients]),
+    error_logger:info_msg("Message recipients: ~p", [Is#input_state.recipients]),
     Medias = case wf:session(medias) of undefined -> []; M -> M end,
-    [TitleId, EditorId, PriceId, CurrencyId, RecipientsId] = Src,
 
-    [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Groups],
+    [kvs_group:join(P#product.id, Id) || #group{id=Id} <- Is#input_state.groups],
 
     [msg:notify([kvs_feed, RoutingType, To, entry, P#product.id, add],
                 [#entry{id={P#product.id, Fid},
@@ -253,7 +248,7 @@ process_delivery([product, registered], {{ok, P}, {Recipients, Groups, Src}}) ->
                           media=Medias,
                           title=P#product.title,
                           description=P#product.brief,
-                          shared=""}, RecipientsId, TitleId, EditorId, ok, R]) || {RoutingType, To, {_, Fid}}=R <- Recipients];
-% Entry, Rid, Tid, Eid, MsId,_
-process_delivery([product, registered], {_Id, E}) -> error_logger:info_msg("Error adding product: ~p", [E]);
-process_delivery(R,M) -> feed:process_delivery(R,M).
+                          shared=""}, Is, ?FD_STATE(Fid, S)]) || {RoutingType, To, {_, Fid}} <- Is#input_state.recipients];
+
+process_delivery([product, registered], {Id, E}) -> error_logger:info_msg("Error adding product: ~p ~p", [Id, E]);
+process_delivery(R,M) -> feed2:process_delivery(R,M).

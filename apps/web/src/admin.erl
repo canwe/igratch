@@ -24,9 +24,10 @@ body() ->
 
 tab(categories) -> 
     error_logger:info_msg("Show categories"),
+    State = #feed_state{container_id=?GRP_FEED, entry_type=group},
     [
     dashboard:section(input(), "icon-tags"),
-    #feed2{title= <<"Categories ">>, icon="icon-list", entry_type=group, container=feed, container_id=?GRP_FEED, selection=true,
+    #feed2{title= <<"Categories ">>, icon="icon-list", selection=true, state=State,
         header=[#tr{class=["feed-table-header"], cells=[
             #th{body= <<"">>},
             #th{body= <<"id">>},
@@ -39,13 +40,15 @@ tab(acl)-> {AclEn, Acl} = acls(), [
     #panel{class=["tab-content"], body=[AclEn]}
     ];
 tab(users) ->
-    #feed2{title= <<"Users ">>, icon="icon-user", entry_type=user, container=feed, container_id=?USR_FEED, 
+    State = #feed_state{container_id=?USR_FEED, entry_type=user, entry_id=#user.username},
+    #feed2{title= <<"Users ">>, icon="icon-user", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
         #th{body= <<"email">>},
         #th{body= <<"roles">>},
         #th{body= <<"last login">>}]} ]};
 tab(products)->
-    #feed2{title= <<"Products">>, icon="icon-gamepad", entry_type=product, container=feed, container_id=?PRD_FEED, selection=true,
+    State = #feed_state{container_id=?PRD_FEED, entry_type=product},
+    #feed2{title= <<"Products">>, icon="icon-gamepad", selection=true, state=State,
         header=[#tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}]}]};
 
 tab(_)-> [].
@@ -88,8 +91,9 @@ acl(Rows)->[
 acls()->
   lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
     Id = io_lib:format("~p", [Aid]),
+    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry},
     B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
-        #feed2{title=Id++" entries", icon="icon-list", entry_type=acl_entry, container=acl, container_id=Aid, selection=false,
+        #feed2{title=Id++" entries", icon="icon-list", selection=false, state=State,
             header=[#tr{class=["feed-table-header"], cells=[
 %                #th{body= <<"">>},
                 #th{body= <<"id">>},
@@ -157,5 +161,4 @@ api_event(tabshow,Args,_) ->
 api_event(_,_,_) -> ok.
 
 process_delivery(R,M) ->
-    feed:process_delivery(R,M),
     feed2:process_delivery(R,M).

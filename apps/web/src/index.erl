@@ -20,7 +20,7 @@ body() ->
         "tabshow(id);});"),
     Tab = case wf:qs(<<"id">>) of undefined -> "all"; T ->  T end,
     wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').addClass('text-warning').tab('show');});",[Tab])),
-
+    State = ?FD_STATE(?FEED(comment))#feed_state{view=comment,  entry_type=comment, mode=panel},
   header() ++ [
   #section{class=["container-fluid", featured], body=#panel{id=carousel, class=[container], body=featured()}},
 
@@ -61,7 +61,7 @@ body() ->
                     #link{class=[btn,"btn-info"], body= <<"more">>}
                 ]}
             ]},
-            #feed2{title= <<"Active discussion">>, icon="icon-comments-alt", entry_type=comment, container=feed, container_id=feed=?FEED(comment), selection=false, entry_view=comment, table_mode=false}
+            #feed2{title= <<"Active discussion">>, icon="icon-comments-alt", selection=false, state=State}
           ]}
         ]}
       ]}
@@ -69,12 +69,14 @@ body() ->
   ]} ] ++ footer().
 
 feed("all")->
-    #feed2{title= <<"Reviews">>, icon="icon-tags", entry_type=entry, container=feed, container_id=?FEED(entry), selection=false, entry_view=review, table_mode=false};
+    State = ?FD_STATE(?FEED(entry))#feed_state{view=review, mode=panel},
+    #feed2{title= <<"Reviews">>, icon="icon-tags", selection=false, state=State};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}-> 
         {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
-        #feed2{title= G#group.name, icon="icon-tags", entry_type=entry, container=feed, container_id=Id, selection=false, entry_view=review, table_mode=false} end.
+        State = ?FD_STATE(Id)#feed_state{view=review, mode=panel},
+        #feed2{title= G#group.name, icon="icon-tags", selection=false, state=State} end.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
@@ -183,4 +185,4 @@ event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
-process_delivery(R,M) -> error_logger:info_msg("[index] delivery -> feed | ~p", [R]),feed:process_delivery(R,M).
+process_delivery(R,M) -> error_logger:info_msg("[index] delivery -> feed | ~p", [R]),feed2:process_delivery(R,M).
