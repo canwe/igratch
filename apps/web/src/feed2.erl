@@ -12,13 +12,10 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-%% todo: create element js base and wire the javascript postbacks for traverse and 
 render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, traverse_mode=TraverseMode, state=S}=F2) ->
-    error_logger:info_msg("Render feed ~p", [S#feed_state.container_id]),
     ChangeFeed = wf:temp_id(),
     Container = S#feed_state.container,
     ContainerId = S#feed_state.container_id,
-
     case kvs:get(Container, ContainerId) of {error, not_found} -> wf:render(dashboard:section([#h3{class=[blue], body= Title}, index:info("empty")], Icon));
     {ok, Feed} ->
     Entries = kvs:entries(Feed, S#feed_state.entry_type, S#feed_state.page_size),
@@ -156,46 +153,51 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=direct}=Sta
             ]}
         ]}
     ]},
-%    error_logger:info_msg("Render: ~p", [Entry]),
     element_panel:render_element(Entry);
 
 render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=product}=State})->
-    error_logger:info_msg("Product entry: ~p", [E]),
-    error_logger:info_msg("Entry: ~p", [E#entry.to]),
-    error_logger:info_msg("Entry: ~p", [E#entry.from]),
-  Id = E#entry.entry_id,
-  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+    Id = element(State#feed_state.entry_id, E),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
 
-  Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
-    #panel{class=[span3, "article-meta"], body=[
-      #h3{class=[blue], body= <<"">>},
-      #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
-      #p{class=[datestamp], body=[ #span{body= product_ui:to_date(E#entry.created)} ]},
-      #p{class=[statistics], body=[
-        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[], body= <<"...">>} ]},
-        #link{url="#",body=[ #i{class=["icon-comment-alt", "icon-large"]},
-             #span{class=[?ID_CM_COUNT(E#entry.entry_id)], body=integer_to_list(kvs_feed:comments_count(entry, E#entry.id))} ]}
-      ]} ]},
+    Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
+        #panel{class=[span3, "article-meta"], body=[
+            if State#feed_state.selection == true ->
+                SelId = ?EN_SEL(Id),
+                #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
+
+            #h3{class=[blue], body= <<"">>},
+            #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
+            #p{class=[datestamp], body=[ #span{body= product_ui:to_date(E#entry.created)} ]},
+            #p{class=[statistics], body=[
+                #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[], body= <<"...">>} ]},
+                #link{url="#",body=[ #i{class=["icon-comment-alt", "icon-large"]},
+                #span{class=[?ID_CM_COUNT(E#entry.entry_id)], body=integer_to_list(kvs_feed:comments_count(entry, E#entry.id))} ]}
+            ]} ]},
 
       #panel{id=?ID_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=E#entry.media, mode=reviews}},
 
       #panel{class=[span5, "article-text"], body=[
         #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
         #p{id = ?ID_DESC(Id), body=product_ui:shorten(E#entry.description)},
-        #panel{id=?ID_TOOL(Id), class=[more], body= []}
+        #panel{id=?ID_TOOL(Id), class=[more], body= [
+            #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
+            #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
+            #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, E#entry.entry_id}}
+        ]}
       ]}
   ]},
 
   element_panel:render_element(Entry);
 
 render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=review}=State})->
-    error_logger:info_msg("Entry: ~p", [E#entry.to]),
-    error_logger:info_msg("Entry: ~p", [E#entry.from]),
-  Id = E#entry.entry_id,
-  From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,%
+    Id = element(State#feed_state.entry_id, E),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,%
 
-  Entry = #panel{id=E#entry.entry_id, class=["row-fluid", article], body=[
+    Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
+        if State#feed_state.selection == true ->
+            SelId = ?EN_SEL(Id),
+            #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
       #h3{class=[blue], body= []},
       #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
       #p{class=[datestamp], body=[ #span{body= product_ui:to_date(E#entry.created)} ]},
@@ -227,6 +229,10 @@ render_element(#feed_entry2{entry=#product{}=P, state=#feed_state{view=product}=
 
     Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
+        if State#feed_state.selection == true ->
+            SelId = ?EN_SEL(Id),
+            #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
+
 %      #h3{class=[blue], body= Category},
       #p{class=[username], body= #link{body=From, url= "/profile?id="++P#product.owner}},
       #p{class=[datestamp], body=[ #span{body= product_ui:to_date(P#product.created)} ]},
@@ -251,7 +257,6 @@ render_element(#feed_entry2{entry=#product{}=P, state=#feed_state{view=product}=
 % Blog view
 
 render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=blog}=State})->
-%    ProdId = P#product.id,
     PostId = element(State#feed_state.entry_id, E),
     EntryId = ?ID_DESC(PostId),
     TitleId = ?ID_TITLE(PostId),
@@ -290,9 +295,7 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=blog}=State
 % Detached review
 
 render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=detached}=State})->
-    error_logger:info_msg("Detached entry: ~p", [E#entry.id]),
     Eid = element(State#feed_state.entry_id, E),
-    error_logger:info_msg("Entry id: ~p", [Eid]),
    {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
     Ms = E#entry.media,
     Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
@@ -330,8 +333,6 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=detached}=S
 
 render_element(#feed_entry2{entry=#comment{}=C, state=#feed_state{}=State})->
     Id = element(State#feed_state.entry_id, C),
-    error_logger:info_msg("RENDER COMMENT: ~p", [Id]),
-%    Eid = C#comment.entry_id,
     {Author, Avatar} = case kvs:get(user, C#comment.from) of 
       {ok, User} -> {User#user.display_name, case User#user.avatar of
         undefined-> #image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>};
@@ -394,15 +395,22 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Start, S);
 
 event({delete, #feed_state{selected_key=Key}=S}) ->
+    User = wf:user(),
     [begin
-        FullId = case S#feed_state.entry_type of
-            entry -> {Id, S#feed_state.container_id};
-            _ -> Id
-        end,
-        error_logger:info_msg("Remove: ~p ~p", [S#feed_state.entry_type, FullId]),
-        {ok, Obj} = kvs:get(S#feed_state.entry_type, FullId),
-        msg:notify([kvs_feed, S#feed_state.entry_type, unregister], [Obj, S])
-    end || Id <- wf:session(Key)];
+        Type = case S#feed_state.view of product -> product; _ -> S#feed_state.entry_type end,
+        FullId = case Type of entry -> {Id, S#feed_state.container_id}; _ -> Id end,
+
+        case kvs:get(Type, FullId) of {error,_} -> error_logger:info_msg("No object");
+        {ok, Obj} ->
+            Recipients = case Type of
+                product ->
+                    Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(FullId)],
+                    R1 = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)}],
+                    R2 = [{product, Id, {products, ?FEED(product)}}],
+                    R3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups],
+                    lists:flatten([R1,R2, R3]);
+                _ -> [] end,
+            msg:notify([kvs_feed, Type, unregister], [Obj, #input_state{recipients=Recipients}, S]) end end || Id <- wf:session(Key)];
 
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
@@ -445,7 +453,6 @@ event({check_more, Start, #feed_state{}=S}) ->
 event(E)-> error_logger:info_msg("[feed2] event: ~p", [E]).
 
 deselect(#feed_state{selected_key=Key}=S) ->
-    error_logger:info_msg("deselect ~p", [wf:session(Key)]),
     [wf:wire(#jq{target=C, method=["prop"], args=["'checked', false"]}) || C <- wf:session(Key)],
     [wf:wire(#jq{target=?EN_ROW(C), method=["removeClass"], args=["'warning'"]}) || C <- wf:session(Key)],
     wf:wire(#jq{target=S#feed_state.select_all, method=["prop"], args=["'checked', false"]}),
@@ -456,12 +463,12 @@ deselect(#feed_state{selected_key=Key}=S) ->
     wf:session(Key, []).
 
 traverse(Direction, Start, #feed_state{}=S)->
-    error_logger:info_msg("=> Traverse ~p from ~p~n", [Direction ,Start]),
+    error_logger:info_msg("=> Traverse ~p from ~p", [Direction ,Start]),
     Entries = case element(Direction, Start) of
         undefined  -> kvs:entries(kvs:get(S#feed_state.container, S#feed_state.container_id), S#feed_state.entry_type, S#feed_state.page_size);
         Prev -> kvs:entries(S#feed_state.entry_type, Prev, S#feed_state.page_size, Direction)
     end,
-    error_logger:info_msg("Traverse: ~p", [Entries]),
+%    error_logger:info_msg("Traverse: ~p", [Entries]),
     {NewLast, NewFirst} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
 
     Total = S#feed_state.total,
@@ -526,17 +533,15 @@ process_delivery([Type, unregistered], {{ok, Id}, [S]})->
 
 process_delivery([_,_,Type,_,add],
                  [E, #input_state{}=I, #feed_state{}=S])->
-    error_logger:info_msg("~n[Feed2 - process_delivery] Add entry: ~p", [element(#iterator.id, E)]),
+    error_logger:info_msg("[feed2] Add entry: ~p to <~p> ", [element(#iterator.id, E), S#feed_state.entries]),
     wf:session(medias, []),
     wf:update(I#input_state.media_id, []),
     wf:wire(wf:f("$('#~s').val('');", [I#input_state.title_id])),
     wf:wire(wf:f("$('#~s').val('');", [I#input_state.body_id])),
-    wf:wire(wf:f("$('#~s').val('');", [I#input_state.price_id])),
+    wf:wire(wf:f("$('#~s').val('0.00');", [I#input_state.price_id])),
     wf:wire(#jq{target=I#input_state.body_id, method=[html], args="''"}),
     wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
     wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
-    error_logger:info_msg("Render entry of type: ~p", [Type]),
-    error_logger:info_msg("Entries id: ~p", [S#feed_state.entries]),
     wf:insert_top(S#feed_state.entries, #feed_entry2{entry=E, state=S}),
     wf:wire("Holder.run();");
 
@@ -547,15 +552,9 @@ process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     wf:update(S#feed_state.more_toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed2, postback={check_more, Entry, S}});
 
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
+process_delivery([_,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
+    error_logger:info_msg("[feed2 - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
+    wf:remove(?EN_ROW(element(S#feed_state.entry_id, E))),
+    deselect(S);
 
-process_delivery([entry,registered], {{ok,E},_})->
-    error_logger:info_msg("[feed2]ENTRY REGISTERED ~p", [E#entry.id]);
-
-process_delivery([_,_,entry,_,delete], [E,#input_state{}, #feed_state{}=S]) -> wf:remove(?EN_ROW(element(S#feed_state.entry_id, E)));
-process_delivery([comment,registered], {{ok,#comment{}=C}, [#input_state{}, #feed_state{}=S]})->
-    error_logger:info_msg("COMMENT REGISTERED ~p", [C#comment.id]);
-%    wf:insert_top(S#feed_state.entries, #feed_entry2{entry=C, state=S});
-
-process_delivery(R, M) -> error_logger:info_msg("[feed2] ~p:~p", [R,M]).
-
-
+process_delivery(R, M) -> ok.
