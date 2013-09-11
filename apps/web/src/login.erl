@@ -82,15 +82,9 @@ login(Key, Args)-> case Args of [{error, E}|_Rest] -> error_logger:info_msg("oau
     _ -> case kvs:get(user,email_prop(Args,Key)) of
               {ok,Existed} -> RegData = registration_data(Args, Key, Existed), login_user(RegData);
               {error,_} -> RegData = registration_data(Args, Key, #user{feeds=?USR_CHUNK, username=wf:session(name)}),
-                  msg:notify([kvs_user, user, register], [RegData, {ok}]) end end.
-%                  case kvs_user:register(RegData) of
-%                      {ok, U} -> msg:notify([kvs_user, user, init], [U#user.email, U#user.feeds]), login_user(U);
-%                      {error, E} -> error_logger:info_msg("error: ~p", [E]) end end end.
+                  msg:notify([kvs_user, user, register], [RegData, #input_state{pid=pid_to_list(self())}, #feed_state{}]) end end.
 
-process_delivery([user, registered], {{ok,U},_}) -> login_user(U);
-process_delivery([user, registered], {{Id,E},_}) ->
-  Name = wf:session(name),
-  if Id == Name -> wf:update(wf:session(name), index:error(atom_to_list(E))); true-> ok end;
+process_delivery([user, login], {{ok,U},_,_}) -> login_user(U);
 process_delivery(_,_) -> skip.
 
 twitter_callback()->
