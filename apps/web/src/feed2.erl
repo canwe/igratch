@@ -1,6 +1,3 @@
-%%
-%% View feed element
-%%
 -module(feed2).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
@@ -12,7 +9,7 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, traverse_mode=TraverseMode, state=S}=F2) ->
+render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, state=S}=F2) ->
     ChangeFeed = wf:temp_id(),
     Container = S#feed_state.container,
     ContainerId = S#feed_state.container_id,
@@ -27,7 +24,6 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, t
     wf:session(SelectedKey,[]),
 
     State = S#feed_state{
-%        selection = F2#feed2.selection,
         start_element = First,
         last_element = Last,
         start = 1,
@@ -50,7 +46,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, t
                     #link{id=State#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed2 },
                     #link{id=ChangeFeed, class=[btn], body=[<<"archive">>]} ]},
 
-                if TraverseMode == true -> #span{class=["pull-right"], body=[
+                if State#feed_state.enable_traverse == true -> #span{class=["pull-right"], body=[
                     #panel{id=State#feed_state.feed_toolbar, body=if Total > 0 -> [
                         #small{id=State#feed_state.page_label, body=[integer_to_list(State#feed_state.start), "-", integer_to_list(Current), " of ", integer_to_list(Total)]},
                         #link{id=State#feed_state.prev, class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
@@ -67,7 +63,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, t
         #panel{id=State#feed_state.entries, class=[feed], body=[
         [#feed_entry2{entry=G, state=State} || G <- Entries]]}] end,
 
-    Footer = if TraverseMode == false -> #panel{id=State#feed_state.more_toolbar, class=["btn-toolbar", "text-center"], body=[
+    Footer = if State#feed_state.enable_traverse == false -> #panel{id=State#feed_state.more_toolbar, class=["btn-toolbar", "text-center"], body=[
         if Current < S#feed_state.page_size -> []; true -> #link{class=?BTN_INFO, body= <<"more">>, delegate=feed2, postback = {check_more, Last, State}} end
     ]}; true -> [] end,
 
@@ -76,13 +72,14 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, t
 % feed entry representation
 
 render_element(#feed_entry2{entry=#group{name=Name, description=Desc, scope=Scope}=E, state=State}) ->
+    error_logger:info_msg("G"),
     Id = element(State#feed_state.entry_id, E),
     Tr = #tr{id=?EN_ROW(Id), class=[case Scope of private -> "info"; _-> "" end], cells=[
         if State#feed_state.enable_selection == true ->
             #td{body= [#checkbox{id=?EN_SEL(Id), postback={select, ?EN_SEL(Id), State}, delegate=feed2, source=[?EN_SEL(Id)], value=Id}]}; true -> [] end,
         #td{body=Id},
-        #td{body=Name},
-        #td{body=Desc},
+        #td{body=wf:js_escape(Name)},
+        #td{body=wf:js_escape(Desc)},
         #td{body=atom_to_list(Scope)}]},
     element_tr:render_element(Tr);
 render_element(#feed_entry2{entry=#user{username=Id, email=Email}=U, state=State}) ->

@@ -43,8 +43,7 @@
 -record(feed2,          {?ELEMENT_BASE(feed2),
                         state,
                         icon = "",
-                        header = [],
-                        traverse_mode = true }).
+                        header = [] }).
 
 -record(feed_entry2,    {?ELEMENT_BASE(feed2), entry, state}).
 
@@ -54,4 +53,3 @@
 -define(EN_TITLE(Id),   wf:to_list(Id)++"t").
 -define(EN_DESC(Id),    wf:to_list(Id)++"d").
 -define(EN_TOOL(Id),    wf:to_list(Id)++"tb").
-

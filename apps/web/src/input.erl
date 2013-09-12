@@ -102,24 +102,9 @@ event({post, group, #input_state{}=Is, #feed_state{}=FS}) ->
     Desc = wf:q(Is#input_state.body_id),
     Publicity = case wf:q(Is#input_state.scope_id) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
     Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
-    RegData = #group{id=Id, name = Name, description = Desc, scope = Publicity, creator = From, owner = From, feeds = ?GRP_CHUNK, created = now()},
+    RegData = #group{id=Id, name = wf:js_escape(Name), description = wf:js_escape(Desc), scope = Publicity, creator = From, owner = From, feeds = ?GRP_CHUNK, created = now()},
 
     msg:notify([kvs_group, group, register], [RegData, Is, FS]);
-
-%    case kvs:add(RegData) of
-%    {ok, G} ->
-%      msg:notify([kvs_group, group, init], [G#group.id, G#group.feeds]),
-
-%      wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(
-%        #tr{class=[case G#group.scope of private -> "info"; _-> "" end], cells=[
-%            #td{body=#checkbox{id=G#group.id}},
-%            #td{body= G#group.id},
-%            #td{body=G#group.name},
-%            #td{body=G#group.description},
-%            #td{body=atom_to_list(G#group.scope)} ]} )])),
-%      wf:wire("$('#cat_name').val('');$('#cat_desc').val('')");
-%    {error, _} -> skip
-%  end;
 
 event({post, product, #input_state{}=Is, #feed_state{}=FS}) ->
     error_logger:info_msg("[input] => save product"),
