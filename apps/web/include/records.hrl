@@ -44,7 +44,6 @@
                         state,
                         icon = "",
                         header = [],
-                        selection = false,
                         traverse_mode = true }).
 
 -record(feed_entry2,    {?ELEMENT_BASE(feed2), entry, state}).

@@ -23,11 +23,11 @@ body() ->
             #panel{id=Id, class=["tab-pane"]} || Id <-[categories, acl, users, products] ]} ]) ++ index:footer().
 
 tab(categories) -> 
-    error_logger:info_msg("Show categories"),
-    State = #feed_state{container_id=?GRP_FEED, entry_type=group},
+    State = ?FD_STATE(?GRP_FEED)#feed_state{entry_type=group, enable_selection=true},
+    Is = #input_state{show_recipients=false, show_scope=true, show_media=false, entry_type=group},
     [
-    dashboard:section(input(), "icon-tags"),
-    #feed2{title= <<"Categories ">>, icon="icon-list", selection=true, state=State,
+    #input{state=Is, feed_state=State, title= <<"Add category">>, placeholder_ttl= <<"name">>, icon="icon-tags"},
+    #feed2{title= <<"Categories ">>, icon="icon-list", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
             #th{body= <<"">>},
             #th{body= <<"id">>},
@@ -40,15 +40,15 @@ tab(acl)-> {AclEn, Acl} = acls(), [
     #panel{class=["tab-content"], body=[AclEn]}
     ];
 tab(users) ->
-    State = #feed_state{container_id=?USR_FEED, entry_type=user, entry_id=#user.username},
+    State = ?FD_STATE(?USR_FEED)#feed_state{entry_type=user, entry_id=#user.username},
     #feed2{title= <<"Users ">>, icon="icon-user", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
         #th{body= <<"email">>},
         #th{body= <<"roles">>},
         #th{body= <<"last login">>}]} ]};
 tab(products)->
-    State = #feed_state{container_id=?PRD_FEED, entry_type=product},
-    #feed2{title= <<"Products">>, icon="icon-gamepad", selection=true, state=State,
+    State = ?FD_STATE(?PRD_FEED)#feed_state{entry_type=product, enable_selection=true},
+    #feed2{title= <<"Products">>, icon="icon-gamepad", state=State,
         header=[#tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}]}]};
 
 tab(_)-> [].
@@ -59,19 +59,6 @@ subnav() -> [
     {users, "users"},
     {products, "products"}
   ].
-
-input()-> [
-  #h3{body= <<"Add category">>},
-    #panel{class=["row-fluid"], body=[#panel{class=[span8], body=[
-    #textbox{id=cat_name, class=[span12], placeholder= <<"name">>},
-    #textarea{id=cat_desc, class=[span12], placeholder= <<"description">>},
-    #select{id=cat_scope, class=[], body=[
-      #option{label= <<"scope">>, body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
-      #option{label= <<"Public">>, value = public},
-      #option{label= <<"Private">>, value = private}
-    ]},
-    #link{id=save_cat, class=[btn, "btn-large"], body=[#i{class=["icon-tags"]}, <<" Create">>], postback=save_cat, source=[cat_name, cat_desc, cat_scope]} 
-    ]} ]} ].
 
 resources()->[
   #h3{class=[blue], body= <<"Resources">>},
@@ -91,9 +78,9 @@ acl(Rows)->[
 acls()->
   lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
     Id = io_lib:format("~p", [Aid]),
-    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry},
+    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry, enable_selection=true},
     B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
-        #feed2{title=Id++" entries", icon="icon-list", selection=false, state=State,
+        #feed2{title=Id++" entries", icon="icon-list", state=State,
             header=[#tr{class=["feed-table-header"], cells=[
 %                #th{body= <<"">>},
                 #th{body= <<"id">>},
@@ -106,28 +93,6 @@ acls()->
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event(save_cat) ->
-  Name = wf:q(cat_name),
-  Desc = wf:q(cat_desc),
-  Publicity = case wf:q(cat_scope) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
-  Creator = (wf:user())#user.email,
-  Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
-  RegData = #group{id=Id, name = Name, description = Desc, scope = Publicity, creator = Creator, owner = Creator, feeds = ?GRP_CHUNK, created = now()},
-
-  case kvs:add(RegData) of
-    {ok, G} ->
-      msg:notify([kvs_group, group, init], [G#group.id, G#group.feeds]),
-
-      wf:wire(wf:f("$('#cats > tbody:first').append('~s');", [wf:render(
-        #tr{class=[case G#group.scope of private -> "info"; _-> "" end], cells=[
-            #td{body=#checkbox{id=G#group.id}},
-            #td{body= G#group.id},
-            #td{body=G#group.name},
-            #td{body=G#group.description},
-            #td{body=atom_to_list(G#group.scope)} ]} )])),
-      wf:wire("$('#cat_name').val('');$('#cat_desc').val('')");
-    {error, _} -> skip
-  end;
 event({view, Id}) -> error_logger:info_msg("redirect"), wf:redirect("/profile?id="++Id);
 event({disable, What})-> error_logger:info_msg("ban user ~p", [What]);
 event({revoke, Feature, Whom})->

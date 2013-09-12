@@ -27,7 +27,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, t
     wf:session(SelectedKey,[]),
 
     State = S#feed_state{
-        selection = F2#feed2.selection,
+%        selection = F2#feed2.selection,
         start_element = First,
         last_element = Last,
         start = 1,
@@ -38,7 +38,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, t
     Header = #panel{id=State#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
         #panel{class=[span1], body=#h3{body=[
             #i{class=[Icon, blue]},
-            if F2#feed2.selection == true ->
+            if S#feed_state.enable_selection == true ->
                 #span{id=State#feed_state.selectall_ctl, body=#checkbox{id=State#feed_state.select_all, class=[checkbox, inline],
                     postback={select, State#feed_state.select_all, State}, delegate=feed2, source=[State#feed_state.select_all],
                     value= string:join([wf:to_list(element(State#feed_state.entry_id, E)) || E <- Entries], "|"),
@@ -78,7 +78,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, t
 render_element(#feed_entry2{entry=#group{name=Name, description=Desc, scope=Scope}=E, state=State}) ->
     Id = element(State#feed_state.entry_id, E),
     Tr = #tr{id=?EN_ROW(Id), class=[case Scope of private -> "info"; _-> "" end], cells=[
-        if State#feed_state.selection == true ->
+        if State#feed_state.enable_selection == true ->
             #td{body= [#checkbox{id=?EN_SEL(Id), postback={select, ?EN_SEL(Id), State}, delegate=feed2, source=[?EN_SEL(Id)], value=Id}]}; true -> [] end,
         #td{body=Id},
         #td{body=Name},
@@ -88,7 +88,7 @@ render_element(#feed_entry2{entry=#group{name=Name, description=Desc, scope=Scop
 render_element(#feed_entry2{entry=#user{username=Id, email=Email}=U, state=State}) ->
     Id = element(State#feed_state.entry_id, U),
     Tr = #tr{id=?EN_ROW(Id), cells=[
-        if State#feed_state.selection ->
+        if State#feed_state.enable_selection ->
             #td{body=#checkbox{id=?EN_SEL(Id), postback={select, ?EN_SEL(Id), State}, delegate=feed2, source=[?EN_SEL(Id)], value=Id}}; true -> [] end,
         #td{body=#link{body=Email, postback={view, Email}}},
         #td{body=[profile:features(wf:user(), U, "icon-2x")]},
@@ -98,7 +98,7 @@ render_element(#feed_entry2{entry=#user{username=Id, email=Email}=U, state=State
 render_element(#feed_entry2{entry=#product{title=Title}=P, state=#feed_state{view=undefined}=State})->
     Id = element(State#feed_state.entry_id, P),
     Tr = #tr{id=?EN_ROW(Id), cells=[
-        if State#feed_state.selection == true ->
+        if State#feed_state.enable_selection == true ->
             #td{body= [#checkbox{id=?EN_SEL(Id), postback={select, ?EN_SEL(Id), State}, delegate=feed2, source=[?EN_SEL(Id)], value=Id}]}; true -> [] end,
         #td{body=Title}
     ]},
@@ -108,7 +108,7 @@ render_element(#feed_entry2{entry=#acl_entry{accessor={user, Accessor}, action=A
     Id = element(State#feed_state.entry_id, A),
     Aid = io_lib:format("~p", [Id]),
     Tr = #tr{id=?EN_ROW(Id), cells=[
-        if State#feed_state.selection == true -> 
+        if State#feed_state.enable_selection == true -> 
             #td{body= [#checkbox{id=?EN_SEL(Aid), postback={select, ?EN_SEL(Aid), State}, delegate=feed2, source=[?EN_SEL(Aid)], value=Aid}]}; true -> [] end,
         #td{body= Aid},
         #td{body= Accessor},
@@ -124,7 +124,7 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=direct}=Sta
     IsAdmin = case User of undefined -> false; Us when Us#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
 
     Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
-        if State#feed_state.selection == true ->
+        if State#feed_state.enable_selection == true ->
             SelId = ?EN_SEL(Id),
             #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
         #panel{class=[], body=[
@@ -158,7 +158,7 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=product}=St
 
     Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
         #panel{class=[span3, "article-meta"], body=[
-            if State#feed_state.selection == true ->
+            if State#feed_state.enable_selection == true ->
                 SelId = ?EN_SEL(Id),
                 #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
 
@@ -191,7 +191,7 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=review}=Sta
 
     Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
-        if State#feed_state.selection == true ->
+        if State#feed_state.enable_selection == true ->
             SelId = ?EN_SEL(Id),
             #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
       #h3{class=[blue], body= []},
@@ -225,7 +225,7 @@ render_element(#feed_entry2{entry=#product{}=P, state=#feed_state{view=product}=
 
     Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
     #panel{class=[span3, "article-meta"], body=[
-        if State#feed_state.selection == true ->
+        if State#feed_state.enable_selection == true ->
             SelId = ?EN_SEL(Id),
             #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
 
@@ -407,13 +407,16 @@ event({delete, #feed_state{selected_key=Key}=S}) ->
                     R1 = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)}],
                     R2 = [{product, Id, {products, ?FEED(product)}}],
                     R3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups],
-                    msg:notify([kvs_feed, Type, unregister], [Obj, #input_state{recipients=lists:flatten([R1,R2,R3])}, S]);
+                    msg:notify([kvs_product, Type, unregister], [Obj, #input_state{recipients=lists:flatten([R1,R2,R3])}, S]);
 
                 entry ->
                     R1 = [{RoutingType, To, {somefeed, Fid}} || #entry{feed_id=Fid, to={RoutingType, To}} <-kvs:all_by_index(entry, entry_id, Id)],
+                    R2 = [{user, user, {feed, entries}}],
                     [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
                         [Obj#entry{id={Id, Fid}, entry_id=Id, feed_id=Fid}, #input_state{}, ?FD_STATE(Fid, S)#feed_state{}])
-                        || {RouteType, To, {_, Fid}} <- R1];
+                        || {RouteType, To, {_, Fid}} <- lists:flatten([R1,R2])];
+                group ->
+                    msg:notify([kvs_group, Type, unregister], [Obj, #input_state{recipients=[{group, FullId, {feed, ?GRP_FEED}}]}, S]);
                 _ -> error_logger:info_msg("delete ~p. no recipients", [Type]), [] end end
 
        end || Id <- wf:session(Key)];

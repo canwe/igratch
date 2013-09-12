@@ -35,7 +35,7 @@ body() ->
                     expand_btn= <<"Write message">>,
                     recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
 
-                #feed2{title= <<"Recent activity">>, icon="icon-list", selection=true, state=State}
+                #feed2{title= <<"Recent activity">>, icon="icon-list", state=State}
     ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) ->

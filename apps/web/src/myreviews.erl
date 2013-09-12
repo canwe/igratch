@@ -16,7 +16,7 @@ body()-> Nav = {wf:user(), myreviews, []},
     State = ?FD_STATE(Id)#feed_state{view=review, mode=panel, entry_id=#entry.entry_id},
     Is = #input_state{entry_type=review},
     index:header() ++ dashboard:page(Nav, [
-        #feed2{title=title(), icon="icon-list", selection=true, state=State, header=[
+        #feed2{title=title(), icon="icon-list", state=State, header=[
             #input{title= <<"Submit review">>, placeholder_rcp= <<"Games">>, role=product, state=Is, feed_state=State}
         ]}
     ]) ++ index:footer().

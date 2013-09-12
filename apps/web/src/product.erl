@@ -80,10 +80,10 @@ feed(Tab)->
     ], ","),
     error_logger:info_msg("Recipients: ~p", [Recipients]),
     {_, Id} = lists:keyfind(Tab, 1, element(#iterator.feeds, P)),
-    State = ?FD_STATE(Id)#feed_state{view=blog, mode=panel, entry_id=#entry.entry_id},
+    State = ?FD_STATE(Id)#feed_state{view=blog, mode=panel, entry_id=#entry.entry_id, enable_selection=true},
     Is = #input_state{entry_type=case Tab of reviews -> review; _->Tab end, show_recipients=false, recipients=Recipients},
 
-    #feed2{title=wf:to_list(Tab), icon="icon-circle", selection=true, state=State, header=[
+    #feed2{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
         #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", collapsed=true, role=product, state = Is, feed_state=State}
     ]}.
 

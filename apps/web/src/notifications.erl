@@ -25,10 +25,10 @@ subnav()-> [{sent, "sent"}, {archive, "archive"}].
 feed(notifications)->
     User = wf:user(),
     {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
-    State = ?FD_STATE(Id)#feed_state{view=direct, entry_id = #entry.entry_id, mode=panel},
+    State = ?FD_STATE(Id)#feed_state{view=direct, entry_id = #entry.entry_id, mode=panel, enable_selection=true},
     Is = #input_state{entry_type=direct},
     error_logger:info_msg("Notification feed state: ~p", [State]),
-    #feed2{title= <<"Notification ">>, icon="icon-envelope-alt", selection=true, state=State, header=[
+    #feed2{title= <<"Notification ">>, icon="icon-envelope-alt", state=State, header=[
         #input{placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, collapsed=true, expand_btn= <<"compose">>, class=["feed-table-header"], icon="", 
             state=Is, feed_state=State}
     ]};
@@ -36,15 +36,15 @@ feed(notifications)->
 feed(sent)->
     User = wf:user(),
     {_, Id} = lists:keyfind(sent, 1, element(#iterator.feeds, User)),
-    State = #feed_state{container_id=Id,view=direct},
-    #feed2{title= <<"Sent Messages ">>, icon="icon-signout", selection=true, state=State,
+    State = #feed_state{container_id=Id,view=direct, enable_selection=true},
+    #feed2{title= <<"Sent Messages ">>, icon="icon-signout", state=State,
         header=[#tr{class=["feed-table-header"], cells=[]} ]};
 
 feed(archive)->
     User = wf:user(),
     {_, Id} = lists:keyfind(archive, 1, element(#iterator.feeds, User)),
-    State = #feed_state{container_id=Id,view=direct},
-    #feed2{title= <<"Archive ">>, icon="icon-signout", selection=true, state=State,
+    State = #feed_state{container_id=Id,view=direct, enable_selection=true},
+    #feed2{title= <<"Archive ">>, icon="icon-signout", state=State,
         header=[#tr{class=["feed-table-header"], cells=[]} ]};
 
 feed(_) -> [index:error("404")].
