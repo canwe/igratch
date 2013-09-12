@@ -72,10 +72,11 @@ feed(Tab)->
     P = wf:session(product),
 
     Subscriptions =  kvs_group:participate(P#product.id),
-    Groups = lists:flatten([case kvs:get(group, Where) of {error, _}-> []; {ok, G} -> "group"++G#group.id++"="++G#group.name end || #group_subscription{where=Where} <- Subscriptions]),
-    Recipients = string:join([Groups,
-        "product"++wf:to_list(P#product.id)++"="++wf:to_list(P#product.title),
-        case User of undefined->[]; U -> "user"++U#user.email++"="++wf:to_list(U#user.display_name) end
+%    Groups = lists:flatten([case kvs:get(group, Where) of {error, _}-> []; {ok, G} -> "group"++G#group.id++"="++G#group.name end || #group_subscription{where=Where} <- Subscriptions]),
+    Recipients = string:join([
+        %Groups,
+        "product"++wf:to_list(P#product.id)++"="++wf:to_list(P#product.title)
+        %case User of undefined->[]; U -> "user"++U#user.email++"="++wf:to_list(U#user.display_name) end
     ], ","),
     error_logger:info_msg("Recipients: ~p", [Recipients]),
     {_, Id} = lists:keyfind(Tab, 1, element(#iterator.feeds, P)),
@@ -191,4 +192,4 @@ process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, descriptio
   wf:update(?ID_TOOL(Id), feed:controls(E)),
   wf:wire("Holder.run();");
 
-process_delivery(R,M) -> stop.
+process_delivery(R,M) -> feed2:process_delivery(R,M).

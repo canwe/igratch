@@ -166,23 +166,35 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     User = wf:user(),
     Desc = wf:q(Is#input_state.body_id),
     Title = wf:q(Is#input_state.title_id),
+    error_logger:info_msg("Show recipients: ~p", [Is#input_state.show_recipients]),
     RawRecipients = if Is#input_state.show_recipients == true -> wf:q(Is#input_state.recipients_id); true -> Is#input_state.recipients end,
-
+    error_logger:info_msg("Entry type: ~p", [EntryType]),
+    error_logger:info_msg("Raw: ~p", [RawRecipients]),
     R1 = lists:flatmap(fun(S) -> [begin
+        error_logger:info_msg("s:~p a:~p ", [S, A]),
         Type = list_to_atom(A),
         Feed = case EntryType of review -> reviews; _ -> EntryType end,
-        case kvs:get(Type, string:substr(S, length(A)+Pos)) of {error,_}-> [];
+        ObjId = string:tokens(string:substr(S, length(A)+Pos), "="),
+        case kvs:get(Type, lists:nth(1,ObjId)) of {error,_}-> [];
         {ok, E} -> {Type, element(#iterator.id, E), lists:keyfind(Feed, 1, element(#iterator.feeds, E))} end end
+
         || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(RawRecipients, ",")),
+    error_logger:info_msg("R1: ~p", [R1]),
 
     R2 = [[ {group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-
         lists:flatten([case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(To)])]
         || {RouteType, To, _} <- R1, RouteType==product],
+    error_logger:info_msg("R2: ~p", [R2]),
 
-    UsrFeed = lists:keyfind(case EntryType of review -> feed; direct -> sent; reviews -> feed; _-> EntryType  end, 1, User#user.feeds),
-    R3 = case User of undefined -> []; _ when UsrFeed /=false -> [{user, User#user.email, UsrFeed}]; _-> [] end,
-    Recipients = lists:flatten([R1,R2,R3]),
-
+    R3 = case User of undefined -> [];
+        _ -> Feed = lists:keyfind(case EntryType of review -> feed; direct -> sent; reviews -> feed; _-> EntryType  end, 1, User#user.feeds),
+            if  Feed == false -> []; true -> [{user, User#user.email, Feed}] end end,
+    error_logger:info_msg("R3: ~p", [R3]),
+    R4 = case EntryType of
+        review -> [ {user, User#user.email, {feed, ?FEED(entry)}}];
+        _-> [] end,
+    Recipients = lists:flatten([R1,R2,R3,R4]),
+    error_logger:info_msg("Recipients: ~p", [Recipients]),
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
@@ -204,11 +216,12 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [E#entry{
         id={EntryId, FeedId},
         feed_id=FeedId,
-        to = {RoutingType, To}}, Is, ?FD_STATE(FeedId)#feed_state{view=Fs#feed_state.view, entry_id =Fs#feed_state.entry_id, mode=Fs#feed_state.mode}]) || {RoutingType, To, {_, FeedId}} = R <- Recipients],
+        to = {RoutingType, To}}, Is, ?FD_STATE(FeedId, Fs)])
+    || {RoutingType, To, {_, FeedId}} <- Recipients];
 
-    if EntryType == review ->
-        error_logger:info_msg("Put entry in general reviews feed ~p", [E]),
-        msg:notify([kvs_feed, entry, register], [E, Is, Fs]); true -> ok end;
+%    if EntryType == review ->
+%        error_logger:info_msg("Put entry in general reviews feed ~p", [E]),
+%        msg:notify([kvs_feed, entry, register], [E, Is, ?FD_STATE(?FEED(entry), Fs)]); true -> ok end;
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),

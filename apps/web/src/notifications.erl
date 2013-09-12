@@ -52,6 +52,7 @@ feed(_) -> [index:error("404")].
 control_event(_, _) -> ok.
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
+    error_logger:info_msg(""),
     wf:update(list_to_atom(Id), feed(list_to_atom(Id)));
 api_event(_,_,_) -> ok.
 
@@ -109,7 +110,7 @@ event({cancel, From, Eid, {feature, Feature}=Type, #feed_state{}=S}) ->
   % delete message from feed
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid}, entry_id=Eid}, #input_state{}, S]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
+  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Fid}, entry_id=Eid}, #input_state{}, S]) || {RouteType, To, {_, Fid}} <- Recipients];
 
 event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
 

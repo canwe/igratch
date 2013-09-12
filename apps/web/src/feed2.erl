@@ -121,8 +121,6 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=direct}=Sta
     User = wf:user(),
     Id = element(State#feed_state.entry_id, E),
     From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
-    error_logger:info_msg("Entry id: ~p", [Id]),
-    error_logger:info_msg("Entry type: ~p", [E#entry.type]),
     IsAdmin = case User of undefined -> false; Us when Us#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
 
     Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
@@ -147,7 +145,6 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=direct}=Sta
                 reply -> [];
                 product -> [
                     #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
-                    #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
                     #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, E#entry.entry_id}}];
                  T -> [#link{body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, T, E#entry.entry_id}}] end
             ]}
@@ -181,7 +178,6 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=product}=St
         #p{id = ?ID_DESC(Id), body=product_ui:shorten(E#entry.description)},
         #panel{id=?ID_TOOL(Id), class=[more], body= [
             #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
-            #link{body=[#i{class=["icon-remove", "icon-large"]}, <<"remove">>], postback={remove_product, E}},
             #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, E#entry.entry_id}}
         ]}
       ]}
@@ -397,20 +393,30 @@ event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Star
 event({delete, #feed_state{selected_key=Key}=S}) ->
     User = wf:user(),
     [begin
+        error_logger:info_msg("Session key: ~p", [Id]),
         Type = case S#feed_state.view of product -> product; _ -> S#feed_state.entry_type end,
         FullId = case Type of entry -> {Id, S#feed_state.container_id}; _ -> Id end,
 
+        error_logger:info_msg("Delete ~p", [FullId]),
+
         case kvs:get(Type, FullId) of {error,_} -> error_logger:info_msg("No object");
         {ok, Obj} ->
-            Recipients = case Type of
+            case Type of
                 product ->
                     Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(FullId)],
                     R1 = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)}],
                     R2 = [{product, Id, {products, ?FEED(product)}}],
                     R3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups],
-                    lists:flatten([R1,R2, R3]);
-                _ -> [] end,
-            msg:notify([kvs_feed, Type, unregister], [Obj, #input_state{recipients=Recipients}, S]) end end || Id <- wf:session(Key)];
+                    msg:notify([kvs_feed, Type, unregister], [Obj, #input_state{recipients=lists:flatten([R1,R2,R3])}, S]);
+
+                entry ->
+                    R1 = [{RoutingType, To, {somefeed, Fid}} || #entry{feed_id=Fid, to={RoutingType, To}} <-kvs:all_by_index(entry, entry_id, Id)],
+                    [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
+                        [Obj#entry{id={Id, Fid}, entry_id=Id, feed_id=Fid}, #input_state{}, ?FD_STATE(Fid, S)#feed_state{}])
+                        || {RouteType, To, {_, Fid}} <- R1];
+                _ -> error_logger:info_msg("delete ~p. no recipients", [Type]), [] end end
+
+       end || Id <- wf:session(Key)];
 
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
@@ -509,27 +515,24 @@ traverse_entries(RecordName, Next, Count, S)->
     case kvs:get(RecordName, Next) of {error, not_found} -> [];
     {ok, R}-> self() ! {delivery, [somepath, show_entry], [R, S]}, [R | traverse_entries(RecordName, element(#iterator.prev, R), Count-1, S)] end.
 
-process_delivery([create], [{_Creator, _Id, _Name, _Desc, _Publicity}]) ->
-    error_logger:info_msg("responce to create group");
+%process_delivery([Type, unregistered], {{ok, Id}, [S]})->
+%    error_logger:info_msg("=>>~p unregistered: ~p", [Type, Id]),
+%    deselect(S),
 
-process_delivery([Type, unregistered], {{ok, Id}, [S]})->
-    error_logger:info_msg("=>>~p unregistered: ~p", [Type, Id]),
-    deselect(S),
+%    Start = S#feed_state.start_element,
+%    State = S#feed_state{total=S#feed_state.total-1},
 
-    Start = S#feed_state.start_element,
-    State = S#feed_state{total=S#feed_state.total-1},
+%    case element(#iterator.next, Start) of
+%        undefined -> traverse(#iterator.next, #iterator{}, State);
 
-    case element(#iterator.next, Start) of
-        undefined -> traverse(#iterator.next, #iterator{}, State);
+%        N when Id == element(#iterator.id, Start) ->
+%            case element(#iterator.prev, Start) of
+%                undefined -> traverse(#iterator.next, Start, State);
+%                _ -> case kvs:get(S#feed_state.entry_type,N) of {error,_} -> ok; {ok, G} -> traverse(#iterator.prev, G, State) end end;
 
-        N when Id == element(#iterator.id, Start) ->
-            case element(#iterator.prev, Start) of
-                undefined -> traverse(#iterator.next, Start, State);
-                _ -> case kvs:get(S#feed_state.entry_type,N) of {error,_} -> ok; {ok, G} -> traverse(#iterator.prev, G, State) end end;
-
-        N -> case kvs:get(S#feed_state.entry_type, element(#iterator.id, Start)) of 
-                {error, not_found} ->  traverse(#iterator.next, Start, State);
-                _-> case kvs:get(S#feed_state.entry_type,N) of {error,_} -> ok; {ok, G} -> traverse(#iterator.prev, G, State) end end end;
+%        N -> case kvs:get(S#feed_state.entry_type, element(#iterator.id, Start)) of 
+%                {error, not_found} ->  traverse(#iterator.next, Start, State);
+%                _-> case kvs:get(S#feed_state.entry_type,N) of {error,_} -> ok; {ok, G} -> traverse(#iterator.prev, G, State) end end end;
 
 process_delivery([_,_,Type,_,add],
                  [E, #input_state{}=I, #feed_state{}=S])->
