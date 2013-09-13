@@ -23,7 +23,7 @@ body() ->
             #panel{id=Id, class=["tab-pane"]} || Id <-[categories, acl, users, products] ]} ]) ++ index:footer().
 
 tab(categories) ->
-    State = ?FD_STATE(?GRP_FEED)#feed_state{entry_type=group, enable_selection=true, enable_traverse=true},
+    State = ?FD_STATE(?GRP_FEED)#feed_state{entry_type=group, enable_selection=true, enable_traverse=true, html_tag=table},
     Is = #input_state{show_recipients=false, show_scope=true, show_media=false, entry_type=group},
     [
     #input{state=Is, feed_state=State, title= <<"Add category">>, placeholder_ttl= <<"name">>, icon="icon-tags"},
@@ -45,16 +45,16 @@ tab(acl)-> {AclEn, Acl} = acls(), [
     #panel{class=["tab-content"], body=[AclEn]}
     ];
 tab(users) ->
-    State = ?FD_STATE(?USR_FEED)#feed_state{entry_type=user, entry_id=#user.username},
+    State = ?FD_STATE(?USR_FEED)#feed_state{entry_type=user, entry_id=#user.username, html_tag=table},
     #feed_ui{title= <<"Users ">>, icon="icon-user", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
         #th{body= <<"email">>},
         #th{body= <<"roles">>},
         #th{body= <<"last login">>}]} ]};
 tab(products)->
-    State = ?FD_STATE(?PRD_FEED)#feed_state{entry_type=product, enable_selection=true},
+    State = ?FD_STATE(?PRD_FEED)#feed_state{entry_type=product, enable_selection=true, html_tag=table},
     #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State,
-        header=[#tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}]}]};
+        header=[#tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}, #th{}]}]};
 
 tab(_)-> [].
 
@@ -83,7 +83,7 @@ acl(Rows)->[
 acls()->
   lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
     Id = io_lib:format("~p", [Aid]),
-    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry},
+    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry, html_tag=table},
     B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
         #feed_ui{title=wf:to_list(Aid)++" entries", icon="icon-list", state=State,
             header=[#tr{class=["feed-table-header"], cells=[
