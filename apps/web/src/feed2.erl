@@ -9,278 +9,186 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, state=S}=F2) ->
-    ChangeFeed = wf:temp_id(),
-    Container = S#feed_state.container,
-    ContainerId = S#feed_state.container_id,
-    case kvs:get(Container, ContainerId) of {error, not_found} -> wf:render(dashboard:section([#h3{class=[blue], body= Title}, index:info("empty")], Icon));
-    {ok, Feed} ->
-    Entries = kvs:entries(Feed, S#feed_state.entry_type, S#feed_state.page_size),
-    Total = element(#container.entries_count, Feed),
-    Current = length(Entries),
-    {Last, First} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
+render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, state=S, selection_ctl=SelectionCtl}) ->
+    wf:render(#section{class=[feed, Class], body=[
+        case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_}->
+            #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
+                #panel{class=[span1],  body=#h4{body=[#i{class=[Icon]}]}},
+                #panel{class=[span11], body=#h4{body=[wf:to_list(Title), #span{class=["text-warning"], body= <<" [no feed]">>}]}}]};
+        {ok, Feed} ->
+            wf:session(S#feed_state.selected_key,[]),
+            Entries = kvs:entries(Feed, S#feed_state.entry_type, S#feed_state.page_size),
+            Total = element(#container.entries_count, Feed),
+            Current = length(Entries),
+            {Last, First} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
+            State = S#feed_state{start_element = First, last_element = Last, start = 1, total = Total, current = Current},
+            [
 
-    SelectedKey = wf:temp_id(),
-    wf:session(SelectedKey,[]),
+            %% header
 
-    State = S#feed_state{
-        start_element = First,
-        last_element = Last,
-        start = 1,
-        total = Total,
-        current = Current,
-        selected_key=SelectedKey},
+            #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
+                #panel{class=[span1], body=#h4{body=[
+                    #i{class=[Icon, blue]},
 
-    Header = #panel{id=State#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
-        #panel{class=[span1], body=#h3{body=[
-            #i{class=[Icon, blue]},
-            if S#feed_state.enable_selection == true ->
-                #span{id=State#feed_state.selectall_ctl, body=#checkbox{id=State#feed_state.select_all, class=[checkbox, inline],
-                    postback={select, State#feed_state.select_all, State}, delegate=feed2, source=[State#feed_state.select_all],
-                    value= string:join([wf:to_list(element(State#feed_state.entry_id, E)) || E <- Entries], "|"),
-                    style= if Total > 0 -> [] ; true-> "display:none;" end}}; true -> [] end ]}},
+                    % select all element control
+                    if S#feed_state.enable_selection == true ->
+                        #span{id=S#feed_state.selectall_ctl, body=[
+                            #checkbox{id=S#feed_state.select_all, class=[checkbox, inline], postback={select, S#feed_state.select_all, State},
+                                delegate=feed2, source=[S#feed_state.select_all],
+                                value= string:join([wf:to_list(element(S#feed_state.entry_id, E)) || E <- Entries], "|"),
+                                style= if Total > 0 -> [] ; true-> "display:none;" end}]}; true -> [] end]}},
 
-        #panel{class=[span11], body=#h3{body=[
-                case Title of undefined -> <<"">>; T -> T end,
-                #span {id=State#feed_state.select_toolbar, style="display:none;", body=[
-                    #link{id=State#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed2 },
-                    #link{id=ChangeFeed, class=[btn], body=[<<"archive">>]} ]},
+                #panel{class=[span11], body=#h4{body=[
+                    wf:to_list(Title),
+                    #span{class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>; true -> [] end},
 
-                if State#feed_state.enable_traverse == true -> #span{class=["pull-right"], body=[
-                    #panel{id=State#feed_state.feed_toolbar, body=if Total > 0 -> [
-                        #small{id=State#feed_state.page_label, body=[integer_to_list(State#feed_state.start), "-", integer_to_list(Current), " of ", integer_to_list(Total)]},
-                        #link{id=State#feed_state.prev, class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
-                            postback={traverse, #iterator.next, First, State}, delegate=feed2},
-                        #link{id=State#feed_state.next, class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
-                            postback={traverse, #iterator.prev, Last, State}, delegate=feed2}]; true -> [] end},
-                    #link{id=State#feed_state.close, class=[close, "text-error"], postback={cancel_select, State}, delegate=feed2, body= <<"&times;">>} ]}; true -> [] end
-        ]}} ]},
+                    #span{id=S#feed_state.select_toolbar, style="display:none;", class=["selection-ctl"], body=[
+                        #link{id=S#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed2},
+                        SelectionCtl]},
 
-    Body = if State#feed_state.mode==table -> #table{id=State#feed_state.entries, class=[table, "table-hover"],
-        header=[TableHeader],
-        body=[[#feed_entry2{entry=G, state=State} || G <- Entries]]};
-    true -> [TableHeader,
-        #panel{id=State#feed_state.entries, class=[feed], body=[
-        [#feed_entry2{entry=G, state=State} || G <- Entries]]}] end,
+                    if S#feed_state.enable_traverse == true ->
+                        #span{class=["pull-right", "traverse-ctl"], body=[
+                            #span{id=S#feed_state.feed_toolbar, body=if Total > 0 -> [
+                                #small{id=S#feed_state.page_label, body=[
+                                    integer_to_list(State#feed_state.start), "-", integer_to_list(Current), " of ", integer_to_list(Total)]},
+                                #link{id=S#feed_state.prev, class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
+                                    postback={traverse, #iterator.next, First, State}, delegate=feed2},
+                                #link{id=S#feed_state.next, class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
+                                    postback={traverse, #iterator.prev, Last, State}, delegate=feed2}]; true-> [] end} ]}; true -> [] end,
 
-    Footer = if State#feed_state.enable_traverse == false -> #panel{id=State#feed_state.more_toolbar, class=["btn-toolbar", "text-center"], body=[
-        if Current < S#feed_state.page_size -> []; true -> #link{class=?BTN_INFO, body= <<"more">>, delegate=feed2, postback = {check_more, Last, State}} end
-    ]}; true -> [] end,
+                    #span{class=["pull-right"], body=[
+                        #link{id=S#feed_state.close, class=[close, "text-error"], postback={cancel_select, State}, delegate=feed2, body= <<"&times;">>}
+                    ]}
+                ]}}
+            ]},
 
-    wf:render([Header, Body, Footer]) end;
+            %% feed body
+
+            if S#feed_state.html_tag == table ->
+                #table{class=[table, "table-hover"], header=[TableHeader], body=
+                    #tbody{id=S#feed_state.entries, class=["feed-body"], body=[#feed_entry2{entry=G, state=State} || G <- Entries]}};
+                true -> [TableHeader, #panel{id=S#feed_state.entries, body=[#feed_entry2{entry=G, state=State} || G <- Entries]}] end,
+
+            %% footer
+
+            if S#feed_state.enable_traverse == false ->
+                #panel{id=S#feed_state.more_toolbar, class=["btn-toolbar", "text-center"], body=
+                    if Current < S#feed_state.page_size -> []; 
+                    true -> #link{class=?BTN_INFO, body= <<"more">>, delegate=feed2, postback = {check_more, Last, State}} end}; true -> [] end
+            ]
+        end ]});
 
 % feed entry representation
 
-render_element(#feed_entry2{entry=#group{name=Name, description=Desc, scope=Scope}=E, state=State}) ->
-    error_logger:info_msg("G"),
-    Id = element(State#feed_state.entry_id, E),
-    Tr = #tr{id=?EN_ROW(Id), class=[case Scope of private -> "info"; _-> "" end], cells=[
-        if State#feed_state.enable_selection == true ->
-            #td{body= [#checkbox{id=?EN_SEL(Id), postback={select, ?EN_SEL(Id), State}, delegate=feed2, source=[?EN_SEL(Id)], value=Id}]}; true -> [] end,
-        #td{body=Id},
+render_element(#feed_entry2{entry=E, state=S})->
+    Id = wf:to_list(element(S#feed_state.entry_id, E)),
+    SelId = ?EN_SEL(Id),
+    wf:render(if S#feed_state.html_tag == table ->
+        #tr{id=?EN_ROW(Id), cells=[
+            if S#feed_state.enable_selection == true ->
+                #td{body= [#checkbox{id=SelId, postback={select, SelId, S}, delegate=feed2, source=[SelId], value=Id}]}; true -> [] end,
+            #row_entry{entry=E, state=S}
+        ]};
+        true -> #panel{id=?EN_ROW(wf:to_list(Id)), class=["row-fluid", article], body=[
+            if S#feed_state.enable_selection == true -> [
+                #panel{class=[span1], body=#checkbox{id=SelId, class=["text-center"], postback={select, SelId, S}, delegate=feed2, source=[SelId], value=Id}},
+                #panel{class=[span11, "row-fluid"], body= #div_entry{entry=E, state=S}}];
+            true -> #div_entry{entry=E, state=S} end
+        ]} end);
+
+% table rows
+
+render_element(#row_entry{entry=#group{name=Name, description=Desc, scope=Scope}=E, state=#feed_state{}=S}) -> wf:render([
+        #td{body=wf:to_list(element(S#feed_state.entry_id, E))},
         #td{body=wf:js_escape(Name)},
         #td{body=wf:js_escape(Desc)},
-        #td{body=atom_to_list(Scope)}]},
-    element_tr:render_element(Tr);
-render_element(#feed_entry2{entry=#user{username=Id, email=Email}=U, state=State}) ->
-    Id = element(State#feed_state.entry_id, U),
-    Tr = #tr{id=?EN_ROW(Id), cells=[
-        if State#feed_state.enable_selection ->
-            #td{body=#checkbox{id=?EN_SEL(Id), postback={select, ?EN_SEL(Id), State}, delegate=feed2, source=[?EN_SEL(Id)], value=Id}}; true -> [] end,
-        #td{body=#link{body=Email, postback={view, Email}}},
-        #td{body=[profile:features(wf:user(), U, "icon-2x")]},
-        #td{body=case kvs:get(user_status, Email) of {ok,Status} -> product_ui:to_date(Status#user_status.last_login); {error, not_found}-> "" end} ]},
-    element_tr:render_element(Tr);
+        #td{body=atom_to_list(Scope)}]);
 
-render_element(#feed_entry2{entry=#product{title=Title}=P, state=#feed_state{view=undefined}=State})->
+render_element(#row_entry{entry=#user{email=Email}=U, state=S}) -> wf:render([
+    #td{body=#link{body=Email, postback={view, Email}}},
+    #td{body=[profile:features(wf:user(), U, "icon-2x")]},
+    #td{body=case kvs:get(user_status, Email) of {ok,Status} -> product_ui:to_date(Status#user_status.last_login); {error,_}-> "" end}]);
+
+render_element(#row_entry{entry=#product{title=Title, brief=Description}, state=S}) -> wf:render([
+    #td{body=Title},
+    #td{body=Description}]);
+
+render_element(#row_entry{entry=#acl_entry{accessor={user, Accessor}, action=Action}=E, state=S})-> wf:render([
+    #td{body= wf:to_list(element(S#feed_state.entry_id, E))},
+    #td{body= Accessor},
+    #td{body= atom_to_list(Action)}]);
+
+% divs
+
+% product
+
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=State}) ->
+    Id = element(State#feed_state.entry_id, E),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+%    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
+    wf:render(article(Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
+render_element(#div_entry{entry=#product{}=P, state=#feed_state{}=State}) ->
     Id = element(State#feed_state.entry_id, P),
-    Tr = #tr{id=?EN_ROW(Id), cells=[
-        if State#feed_state.enable_selection == true ->
-            #td{body= [#checkbox{id=?EN_SEL(Id), postback={select, ?EN_SEL(Id), State}, delegate=feed2, source=[?EN_SEL(Id)], value=Id}]}; true -> [] end,
-        #td{body=Title}
-    ]},
-    element_tr:render_element(Tr);
+    From = case kvs:get(user, P#product.owner) of {ok, U} -> U#user.display_name; {error, _} -> P#product.owner end,
+    Media = case P#product.cover of undefined -> #media{};
+    File -> #media{url = File, thumbnail_url = filename:join([filename:dirname(File), "thumbnail", filename:basename(File)])} end,
+    wf:render(article(Id, From, P#product.created, [Media], P#product.title, P#product.brief));
 
-render_element(#feed_entry2{entry=#acl_entry{accessor={user, Accessor}, action=Action}=A, state=State}) ->
-    Id = element(State#feed_state.entry_id, A),
-    Aid = io_lib:format("~p", [Id]),
-    Tr = #tr{id=?EN_ROW(Id), cells=[
-        if State#feed_state.enable_selection == true -> 
-            #td{body= [#checkbox{id=?EN_SEL(Aid), postback={select, ?EN_SEL(Aid), State}, delegate=feed2, source=[?EN_SEL(Aid)], value=Aid}]}; true -> [] end,
-        #td{body= Aid},
-        #td{body= Accessor},
-        #td{body= atom_to_list(Action)}]},
-    element_tr:render_element(Tr);
+% review
 
-% Direct message
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State})->
+    Id = element(State#feed_state.entry_id, E),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+    wf:render(article(Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 
-render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=direct}=State})->
+% direct message
+
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State})->
     User = wf:user(),
     Id = element(State#feed_state.entry_id, E),
     From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
     IsAdmin = case User of undefined -> false; Us when Us#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
 
-    Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
-        if State#feed_state.enable_selection == true ->
-            SelId = ?EN_SEL(Id),
-            #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
-        #panel{class=[], body=[
-            #p{body=[
-                #small{body=["[", product_ui:to_date(E#entry.created), "] "]},
-                #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
-                <<" ">>,
-                wf:js_escape(wf:to_list(E#entry.title)),
-                case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end
-            ]},
-            #p{body= wf:js_escape(E#entry.description)},
-            #panel{id=?ID_TOOL(Id), class=[], body= [
-                case E#entry.type of {feature, _} when IsAdmin ->
-                    #panel{class=["btn-toolbar"], body=[
-                        #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type, State}},
-                        #link{class=[btn, "btn-info"], body= <<"reject">>, postback={cancel, E#entry.from, E#entry.entry_id, E#entry.type, State}} ]};
-                direct -> [];
-                reply -> [];
-                product -> [
-                    #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
-                    #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, E#entry.entry_id}}];
-                 T -> [#link{body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, T, E#entry.entry_id}}] end
-            ]}
-        ]}
-    ]},
-    element_panel:render_element(Entry);
+    wf:render([
+        #p{body=[#small{body=["[", product_ui:to_date(E#entry.created), "] "]},
+            #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
+            <<" ">>,
+            wf:js_escape(wf:to_list(E#entry.title)),
+            case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end ]},
+        #p{body= wf:js_escape(E#entry.description)},
+        #panel{id=?ID_TOOL(Id), body= case E#entry.type of {feature, _} when IsAdmin ->
+            #panel{class=["btn-toolbar"], body=[
+                #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type, State}},
+                #link{class=[btn, "btn-info"], body= <<"reject">>, postback={cancel, E#entry.from, E#entry.entry_id, E#entry.type, State}} ]};
+        _ -> [] end }]);
 
-render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=product}=State})->
-    Id = element(State#feed_state.entry_id, E),
-    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-
-    Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
-        #panel{class=[span3, "article-meta"], body=[
-            if State#feed_state.enable_selection == true ->
-                SelId = ?EN_SEL(Id),
-                #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
-
-            #h3{class=[blue], body= <<"">>},
-            #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
-            #p{class=[datestamp], body=[ #span{body= product_ui:to_date(E#entry.created)} ]},
-            #p{class=[statistics], body=[
-                #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[], body= <<"...">>} ]},
-                #link{url="#",body=[ #i{class=["icon-comment-alt", "icon-large"]},
-                #span{class=[?ID_CM_COUNT(E#entry.entry_id)], body=integer_to_list(kvs_feed:comments_count(entry, E#entry.id))} ]}
-            ]} ]},
-
-      #panel{id=?ID_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=E#entry.media, mode=reviews}},
-
-      #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
-        #p{id = ?ID_DESC(Id), body=product_ui:shorten(E#entry.description)},
-        #panel{id=?ID_TOOL(Id), class=[more], body= [
-            #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, E}},
-            #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, E#entry.entry_id}}
-        ]}
-      ]}
-  ]},
-
-  element_panel:render_element(Entry);
-
-render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=review}=State})->
-    Id = element(State#feed_state.entry_id, E),
-    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,%
-
-    Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
-    #panel{class=[span3, "article-meta"], body=[
-        if State#feed_state.enable_selection == true ->
-            SelId = ?EN_SEL(Id),
-            #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
-      #h3{class=[blue], body= []},
-      #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
-      #p{class=[datestamp], body=[ #span{body= product_ui:to_date(E#entry.created)} ]},
-      #p{class=[statistics], body=[
-        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[], body= <<"...">>} ]},
-        #link{url="#",body=[ #i{class=["icon-comment-alt", "icon-large"]}, #span{class=[?ID_CM_COUNT(E#entry.entry_id)], body=integer_to_list(kvs_feed:comments_count(entry, E#entry.id))} ]}
-      ]} ]},
-
-      #panel{id=?ID_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=E#entry.media, mode=reviews}},
-      #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?ID_TITLE(Id), class=[title], body= E#entry.title}},
-        #p{id = ?ID_DESC(Id), body=product_ui:shorten(E#entry.description)},
-        #panel{id=?ID_TOOL(Id), class=[more], body=[]}
-      ]}
-  ]},
-
-  element_panel:render_element(Entry);
-
-%% Product as entry
-
-render_element(#feed_entry2{entry=#product{}=P, state=#feed_state{view=product}=State})->
-    User = wf:user(),
-    IsAdmin = case User of undefined -> false; Us when Us#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
-    Id = P#product.id,
-    From = case kvs:get(user, P#product.owner) of {ok, U} -> U#user.display_name; {error, _} -> P#product.owner end,%
-
-    Media = case P#product.cover of undefined -> #media{};
-    File -> #media{url = File, thumbnail_url = filename:join([filename:dirname(File), "thumbnail", filename:basename(File)])} end,%
-
-    Entry = #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
-    #panel{class=[span3, "article-meta"], body=[
-        if State#feed_state.enable_selection == true ->
-            SelId = ?EN_SEL(Id),
-            #checkbox{id=SelId, postback={select, SelId, State}, delegate=feed2, source=[SelId], value=Id}; true -> [] end,
-
-%      #h3{class=[blue], body= Category},
-      #p{class=[username], body= #link{body=From, url= "/profile?id="++P#product.owner}},
-      #p{class=[datestamp], body=[ #span{body= product_ui:to_date(P#product.created)} ]},
-      #p{class=[statistics], body=[
-        #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ]},
-        #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ]}
-      ]} ]},
-
-     #panel{id=?EN_MEDIA(Id), class=[span4, "media-pic"], body =#entry_media{media=[Media], title="", mode=reviews}},
-
-      #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?EN_TITLE(Id), class=[title], body= P#product.title}},
-        #p{id = ?EN_DESC(Id), body=product_ui:shorten(P#product.brief)},
-        #panel{id=?EN_TOOL(Id), class=[more], body=[
-            #link{body=[<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, Id}}
-        ]}
-      ]}
-  ]},
-
-    element_panel:render_element(Entry);
 
 % Blog view
 
-render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=blog}=State})->
-    PostId = element(State#feed_state.entry_id, E),
-    EntryId = ?ID_DESC(PostId),
-    TitleId = ?ID_TITLE(PostId),
-    Ms = E#entry.media,
-    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-    EntryActionsLine = [
-%        #link{body= [#i{class=["icon-edit", "icon-large"]}, <<" edit">>], postback={edit_entry, E, ProdId, wf:temp_id()}, source=[TitleId, EntryId]},
-%        #link{body= [#i{class=["icon-remove", "icon-large"]},<<" remove">>], postback={remove_entry, E, ProdId}}
-    ],
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})->
+    Id = element(State#feed_state.entry_id, E),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error,_} -> E#entry.from end,
 
-    Date = product_ui:to_date(E#entry.created),%
+    Entry = #panel{class=["blog-post"], body=[
+        #header{class=["blog-header"], body=[
+            #h2{body=[#span{id=?EN_TITLE(Id), body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, 
+            #small{body=[<<" by ">>, #link{body=From}, product_ui:to_date(E#entry.created)]}]}
+        ]},
+        #figure{class=["thumbnail-figure"], body=[
+            #carousel{items=[#entry_media{media=Media, mode=blog} || Media <- E#entry.media]},
+            if length(E#entry.media) > 1 ->
+                #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=E#entry.title}}]}; true -> [] end
+        ]},
+        #panel{id=?EN_DESC(Id), body=product_ui:shorten(E#entry.description), data_fields=[{<<"data-html">>, true}]},
 
-    Entry = #panel{id=PostId, class=["blog-post"], body=[
-    #header{class=["blog-header"], body=[
-      #h2{body=[#span{id=TitleId, body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, #small{body=[<<" by ">>, #link{body=From}, Date]}]}
-    ]},
-    #figure{class=["thumbnail-figure"], body=[
-      [#entry_media{media=Me, fid=E#entry.entry_id} || Me <- Ms],
-      #figcaption{class=["thumbnail-title"], body=[
-            #h3{body=#span{body= E#entry.title}}
-      ]}
-    ]},
-    #panel{id=EntryId, body=wf:js_escape(E#entry.description), data_fields=[{<<"data-html">>, true}]},
-    #panel{id=?ID_TOOL(PostId)},
-
-    #footer{class=["blog-footer", "row-fluid"], body=[
-      #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ], postback={read, entry, E#entry.id}},
-      #link{body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"...">>} ], postback={read, entry, E#entry.id}},
-      EntryActionsLine,
-      #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, E#entry.id}}
-    ]}
+        #footer{class=["blog-footer", "row-fluid"], body=[
+            #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, 
+                #span{class=[badge, "badge-info"], body= <<"...">>} ], postback={read, entry, Id}},
+            #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
+                #span{class=[?ID_CM_COUNT(Id)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
+                postback={read, entry, Id}},
+            #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, Id}}
+        ]}
     ]},
     element_panel:render_element(Entry);
 
@@ -305,13 +213,15 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=detached}=S
         show_title = false,
         show_media = false},
 
-    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, mode=panel, entry_id=#comment.comment_id, recipients=Recipients},
+    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id, recipients=Recipients},
 
     error_logger:info_msg("Detached view recippients: ~p", [Is#input_state.recipients]),
     Entry = #panel{id=?EN_ROW(Eid), class=["blog-post"], body=[
         #h3{class=[blue], body=[#span{id=?EN_TITLE(Eid), body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
+
+%        #panel{id=?EN_MEDIA(Eid), class=[span4, "media-pic"], body = #entry_media{media=Media, mode=reviews}},
         #figure{class=["thumbnail-figure"], body=[
-          [#entry_media{media=M, fid=E#entry.entry_id} || M <- Ms]
+          [#entry_media{media=M} || M <- Ms]
         ]},
         #panel{id=?EN_DESC(Eid), body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
 
@@ -352,7 +262,7 @@ render_element(#feed_entry2{entry=#comment{}=C, state=#feed_state{}=State})->
         end ||{R,T,{E,F,Ci}}<-State#feed_state.recipients]),
     error_logger:info_msg("New recipients ~p", [Recipients]),
 
-    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, mode=panel, entry_id=#comment.comment_id},
+    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id},
 
     Is = #input_state{
         recipients= Recipients,
@@ -379,8 +289,50 @@ render_element(#feed_entry2{entry=#comment{}=C, state=#feed_state{}=State})->
     ]},
     element_panel:render_element(Comment);
 
+% Media elements
 
-render_element(_) -> error_logger:info_msg("[feed2]render_element(#unknown{})").
+render_element(#entry_media{media=undefined, mode=reviews}) ->
+  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}], alt="no media", class=[]});
+render_element(#entry_media{media=[], mode=reviews}) ->
+  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt="no media", class=[]});
+render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], mode=reviews}) ->
+  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt=T, class=[]});
+render_element(#entry_media{media=[#media{title=Title, thumbnail_url=Thumb}|_], mode=reviews}) ->
+  Ext = filename:extension(Thumb),
+  Name = filename:basename(Thumb, Ext),
+  Dir = filename:dirname(Thumb),
+  element_image:render_element(#image{alt=Title, image=filename:join([Dir, Name++"_270x124"++Ext])});
+render_element(#entry_media{media=#media{}=Media, mode=blog}) ->
+    Thumb = Media#media.thumbnail_url,
+    Ext = filename:extension(Thumb),
+    Name = filename:basename(Thumb, Ext),
+    Dir = filename:dirname(Thumb),
+    element_image:render_element(#image{alt=Media#media.title, image=filename:join([Dir, Name++"_716x480"++Ext])});
+render_element(#entry_media{media=Media}) ->
+  element_panel:render_element(#panel{body=[]});
+
+render_element(E) -> error_logger:info_msg("[feed2]render_element(#unknown{}) ~p", [E]).
+
+% product entry components
+
+article(Id, From, Date, Media, Title, Description)-> [
+    #panel{class=[span3, "article-meta"], body=[
+        #h3{class=[blue], body= <<"">>},
+        #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(From)}},
+        #p{class=[datestamp], body=[ #span{body= product_ui:to_date(Date)} ]},
+        #p{class=[statistics], body=[
+            #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[], body= <<"...">>} ]},
+            #link{url="#",body=[ #i{class=["icon-comment-alt", "icon-large"]},
+                #span{class=[?ID_CM_COUNT(Id)], body=integer_to_list(kvs_feed:comments_count(entry, Id))} ]} ]} ]},
+
+    #panel{id=?EN_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=Media, mode=reviews}},
+
+    #panel{class=[span5, "article-text"], body=[
+        #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=Title}},
+        #p{id=?EN_DESC(Id), body=product_ui:shorten(Description)},
+        #panel{id=?ID_TOOL(Id), class=[more], body= [
+            #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, Id}},
+            #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, Id}} ]} ]}].
 
 % events
 

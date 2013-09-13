@@ -13,7 +13,7 @@ main()-> #dtl{file="prod", bindings=[{title, title()},{body, body()}]}.
 body()-> Nav = {wf:user(), myreviews, []},
     User = wf:user(),
     {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, User)),
-    State = ?FD_STATE(Id)#feed_state{view=review, mode=panel, entry_id=#entry.entry_id},
+    State = ?FD_STATE(Id)#feed_state{view=review, html_tag=panel, entry_id=#entry.entry_id, enable_selection=true},
     Is = #input_state{entry_type=review},
     index:header() ++ dashboard:page(Nav, [
         #feed2{title=title(), icon="icon-list", state=State, header=[

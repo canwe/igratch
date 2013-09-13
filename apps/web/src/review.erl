@@ -50,7 +50,7 @@ body() ->
 
                         [case kvs:get(group, Group) of {error,_}->[]; {ok, G}->
                             {_, Gid} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
-                            State = ?FD_STATE(Gid)#feed_state{view=review, mode=panel},
+                            State = ?FD_STATE(Gid)#feed_state{view=review, html_tag=panel},
                             #feed2{title= "More "++ G#group.name ++" reviews", icon="icon-tags", state=State} end
                         || #group_subscription{where=Group} <- kvs_group:participate(Product#product.id)] ]} ]}; [] -> index:error(<<"not_found">>) end }},
         #section{class=[section], body=#panel{class=[container, "text-center"], body=[]}} ]++index:footer().

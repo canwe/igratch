@@ -22,18 +22,23 @@ body() ->
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
             #panel{id=Id, class=["tab-pane"]} || Id <-[categories, acl, users, products] ]} ]) ++ index:footer().
 
-tab(categories) -> 
-    State = ?FD_STATE(?GRP_FEED)#feed_state{entry_type=group, enable_selection=true},
+tab(categories) ->
+    State = ?FD_STATE(?GRP_FEED)#feed_state{entry_type=group, enable_selection=true, enable_traverse=true},
     Is = #input_state{show_recipients=false, show_scope=true, show_media=false, entry_type=group},
     [
     #input{state=Is, feed_state=State, title= <<"Add category">>, placeholder_ttl= <<"name">>, icon="icon-tags"},
-    #feed2{title= <<"Categories ">>, icon="icon-list", state=State,
+    #feed2{
+        title= <<"Categories ">>,
+        icon="icon-list", state=State,
+
         header=[#tr{class=["feed-table-header"], cells=[
             #th{body= <<"">>},
             #th{body= <<"id">>},
             #th{body= <<"name">>},
             #th{body= <<"description">>},
-            #th{body= <<"scope">>} ]} ]} ];
+            #th{body= <<"scope">>} ]} 
+        ]} 
+    ];
 
 tab(acl)-> {AclEn, Acl} = acls(), [
     dashboard:section(acl(Acl), "icon-male"),
@@ -78,11 +83,10 @@ acl(Rows)->[
 acls()->
   lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
     Id = io_lib:format("~p", [Aid]),
-    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry, enable_selection=true},
+    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry},
     B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
-        #feed2{title=Id++" entries", icon="icon-list", state=State,
+        #feed2{title=wf:to_list(Aid)++" entries", icon="icon-list", state=State,
             header=[#tr{class=["feed-table-header"], cells=[
-%                #th{body= <<"">>},
                 #th{body= <<"id">>},
                 #th{body= <<"accessor">>},
                 #th{body= <<"action">>}]} ]}

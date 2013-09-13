@@ -20,7 +20,8 @@ body() ->
         "tabshow(id);});"),
     Tab = case wf:qs(<<"id">>) of undefined -> "all"; T ->  T end,
     wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').addClass('text-warning').tab('show');});",[Tab])),
-    State = ?FD_STATE(?FEED(comment))#feed_state{view=comment,  entry_type=comment, mode=panel},
+
+    State = ?FD_STATE(?FEED(comment))#feed_state{view=comment,  entry_type=comment, html_tag=panel},
   header() ++ [
   #section{class=["container-fluid", featured], body=#panel{id=carousel, class=[container], body=featured()}},
 
@@ -38,30 +39,18 @@ body() ->
                 [#link{url="#"++Id, body=[<<" ">>,Name], data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
                 || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]}
             ]},
+%                #panel{body=[
+%                    #panel{style="background:#eeeeee; border:1px solid #efefef; padding:10px 10px; ", body=[
+%                        #link{body= <<"The game is really cool ...">>}
+%                    ]},
+%                    #p{style="padding: 0 10px;", body=[
+%                        #span{body= <<"Sep 2, 2013 at 2:44">>}, #span{body= <<" by ">>},
+%                        #link{body= <<"Andrii Zadorozhnii">>},
+%                        #span{body= <<" in ">>}, #link{body= <<"The cool review article">>}
+%                    ]}
+%                ]}
 
-            #article{id=?ID_FEED(?FEED(comment)), class=["row"], style="
-                background:#ffffff;
-                box-shadow: 0px 2px 3px 0px rgba(0,0,0,0.1);
-                margin-left:0px;
-                ", body=[
-                #panel{class=[""], body=[
-                    #h4{body= <<"Active discussion">>, style="border-bottom: 1px solid #079ebd;padding:5px;"}
-                ]},
-                #panel{body=[
-                    #panel{style="background:#eeeeee; border:1px solid #efefef; padding:10px 10px; ", body=[
-                        #link{body= <<"The game is really cool ...">>}
-                    ]},
-                    #p{style="padding: 0 10px;", body=[
-                        #span{body= <<"Sep 2, 2013 at 2:44">>}, #span{body= <<" by ">>},
-                        #link{body= <<"Andrii Zadorozhnii">>},
-                        #span{body= <<" in ">>}, #link{body= <<"The cool review article">>}
-                    ]}
-                ]},
-                #panel{class=["btn-toolbar", "text-center"],body=[
-                    #link{class=[btn,"btn-info"], body= <<"more">>}
-                ]}
-            ]},
-            #feed2{title= <<"Active discussion">>, icon="icon-comments-alt", state=State}
+            #feed2{title= <<"Active discussion">>, icon="icon-comments-alt", state=State, class="comments-flat"}
           ]}
         ]}
       ]}
@@ -69,13 +58,13 @@ body() ->
   ]} ] ++ footer().
 
 feed("all")->
-    State = ?FD_STATE(?FEED(entry))#feed_state{view=review, mode=panel, entry_id=#entry.entry_id},
+    State = ?FD_STATE(?FEED(entry))#feed_state{view=review, html_tag=panel, entry_id=#entry.entry_id},
     #feed2{title= <<"Reviews">>, icon="icon-tags", state=State};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}-> 
         {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
-        State = ?FD_STATE(Id)#feed_state{view=review, mode=panel, entry_id=#entry.entry_id},
+        State = ?FD_STATE(Id)#feed_state{view=review, html_tag=panel, entry_id=#entry.entry_id},
         #feed2{title= G#group.name, icon="icon-tags", state=State} end.
 
 featured() ->

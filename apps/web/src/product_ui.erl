@@ -75,21 +75,7 @@ render_element(#product_hero{product=P}) ->
       #image{image=P#product.cover}
     ]}
   ]},
-  element_panel:render_element(Hero);
-
-render_element(#entry_media{media=undefined, mode=reviews}) -> 
-  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}], alt="no media", class=[]});
-render_element(#entry_media{media=[], mode=reviews}) -> 
-  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt="no media", class=[]});
-render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], mode=reviews}) ->
-  element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt=T, class=[]});
-render_element(#entry_media{media=[#media{title=Title, thumbnail_url=Thumb}|_], mode=reviews}) ->
-  Ext = filename:extension(Thumb),
-  Name = filename:basename(Thumb, Ext),
-  Dir = filename:dirname(Thumb),
-  element_image:render_element(#image{alt=Title, image=filename:join([Dir, Name++"_270x124"++Ext])});
-render_element(#entry_media{media=Media, fid=Fid}) ->
-  element_panel:render_element(#panel{body=[]}).
+  element_panel:render_element(Hero).
 
 timestamp_label({0, _}, Time) ->
   {_, H} = calendar:now_to_local_time(Time),

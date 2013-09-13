@@ -10,7 +10,7 @@
 -define(ID_CM_COUNT(Id),Id++"cc").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(ID_FEED_TOOL(Id),    wf:to_list(Id)++"est").
--define(THUMB_SIZE,     [{139, 80}, {270, 124}, {200, 200}, {570, 570}, {1170, 350}]).
+-define(THUMB_SIZE,     [{139, 80}, {270, 124}, {200, 200}, {570, 570}, {716, 480}, {1170, 350}]).
 -define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
 -define(BTN_INFO,       [btn, "btn-info"]).
 -define(BTN_SUCCESS,    [btn, "btn-success"]).
@@ -25,7 +25,6 @@
 -record(product_cart,   {?ELEMENT_BASE(product_ui), product}).
 -record(product_line,   {?ELEMENT_BASE(product_ui), product, meta, controls}).
 -record(product_hero,   {?ELEMENT_BASE(product_ui), product}).
--record(entry_media,    {?ELEMENT_BASE(product_ui), media, fid, cid, mode}).
 
 -record(input,          {?ELEMENT_BASE(input),
                         state,
@@ -40,12 +39,13 @@
                         expand_btn="",
                         expand_class=?BTN_INFO}).
 
--record(feed2,          {?ELEMENT_BASE(feed2),
-                        state,
-                        icon = "",
-                        header = [] }).
+-record(feed2,          {?ELEMENT_BASE(feed2), state, icon="", header=[], selection_ctl=[]}).
 
 -record(feed_entry2,    {?ELEMENT_BASE(feed2), entry, state}).
+-record(row_entry,      {?ELEMENT_BASE(feed2), entry, state}).
+-record(div_entry,      {?ELEMENT_BASE(feed2), entry, state}).
+-record(entry_media,    {?ELEMENT_BASE(feed2), media, mode}).
+
 
 -define(EN_ROW(Id),     wf:to_list(Id)++"row").
 -define(EN_SEL(Id),     wf:to_list(Id)++"sel").

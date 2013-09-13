@@ -171,7 +171,7 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
         [C#comment{id= {Cid, {EntryId, EntryFid}},
             entry_id = {EntryId,EntryFid},
             feed_id = CommentsFid, 
-            feeds=[{comments, kvs_feed:create()}]}, Is, ?FD_STATE(CommentsFid)#feed_state{view=comment,  entry_type=comment, mode=panel, entry_id=#comment.comment_id}])
+            feeds=[{comments, kvs_feed:create()}]}, Is, ?FD_STATE(CommentsFid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id}])
         || {RoutingType, To, {EntryId, EntryFid, {_,CommentsFid}}} <- Recipients],
 
     msg:notify([kvs_feed, comment, register], [C, Is, ?FD_STATE(?FEED(comment))]);
@@ -209,7 +209,7 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
         review -> [ {user, User#user.email, {feed, ?FEED(entry)}}];
         _-> [] end,
     Recipients = lists:flatten([R1,R2,R3,R4]),
-    error_logger:info_msg("Recipients: ~p", [Recipients]),
+    error_logger:info_msg("[input]Recipients: ~p", [Recipients]),
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
@@ -233,10 +233,6 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
         feed_id=FeedId,
         to = {RoutingType, To}}, Is, ?FD_STATE(FeedId, Fs)])
     || {RoutingType, To, {_, FeedId}} <- Recipients];
-
-%    if EntryType == review ->
-%        error_logger:info_msg("Put entry in general reviews feed ~p", [E]),
-%        msg:notify([kvs_feed, entry, register], [E, Is, ?FD_STATE(?FEED(entry), Fs)]); true -> ok end;
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),

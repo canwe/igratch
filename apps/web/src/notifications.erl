@@ -25,7 +25,7 @@ subnav()-> [{sent, "sent"}, {archive, "archive"}].
 feed(notifications)->
     User = wf:user(),
     {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
-    State = ?FD_STATE(Id)#feed_state{view=direct, entry_id = #entry.entry_id, mode=panel, enable_selection=true},
+    State = ?FD_STATE(Id)#feed_state{view=direct, entry_id = #entry.entry_id, html_tag=panel, enable_selection=true, enable_traverse=true},
     Is = #input_state{entry_type=direct},
     error_logger:info_msg("Notification feed state: ~p", [State]),
     #feed2{title= <<"Notification ">>, icon="icon-envelope-alt", state=State, header=[

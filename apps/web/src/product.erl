@@ -44,7 +44,7 @@ body() ->
           essential(P)
         ]}},
         #section{class=[section], body=#panel{class=[container], body=#panel{class=["row-fluid"], body=[
-          #panel{class=[span9], body= #panel{class=["tab-content", dashboard], body=[
+          #panel{class=[span9], body= #panel{class=["tab-content"], body=[
             #panel{id=Feed, class=["tab-pane"], body=[]} || {Feed, _} <- P#product.feeds]}},
           #panel{class=[span3], body=aside()}
         ]}}} ];
@@ -80,7 +80,7 @@ feed(Tab)->
     ], ","),
     error_logger:info_msg("Recipients: ~p", [Recipients]),
     {_, Id} = lists:keyfind(Tab, 1, element(#iterator.feeds, P)),
-    State = ?FD_STATE(Id)#feed_state{view=blog, mode=panel, entry_id=#entry.entry_id, enable_selection=true},
+    State = ?FD_STATE(Id)#feed_state{view=blog, html_tag=panel, entry_id=#entry.entry_id, enable_selection=true},
     Is = #input_state{entry_type=case Tab of reviews -> review; _->Tab end, show_recipients=false, recipients=Recipients},
 
     #feed2{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
