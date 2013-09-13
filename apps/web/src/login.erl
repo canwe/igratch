@@ -11,7 +11,6 @@ main() ->
   [#dtl{file = "prod", ext="dtl", bindings=[{title,<<"Login">>},{body, body()}]} ].
 
 body() ->
-    wf:session(name, kvs:uuname()),
     index:header() ++ [
     #panel{id="content", role="main", class=["theme-pattern-lightmesh", alt], body=[
     #section{class=[section], id=promo, body=[
