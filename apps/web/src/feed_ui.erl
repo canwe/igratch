@@ -30,13 +30,16 @@ render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader,
             #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
                 #panel{class=[span1], body=#h4{body=[
                     #i{class=[Icon, blue]},
-
                     % select all element control
                     if S#feed_state.enable_selection == true ->
-                        #span{id=S#feed_state.selectall_ctl, body=[
-                            #checkbox{id=S#feed_state.select_all, class=[checkbox, inline], postback={select, S#feed_state.select_all, State},
-                                delegate=feed_ui, source=[S#feed_state.select_all],
-                                value= string:join([wf:to_list(element(S#feed_state.entry_id, E)) || E <- Entries], "|"),
+                        SACtl = if is_tuple(S#feed_state.container_id) -> ?FD_SELALLCTL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.selectall_ctl end,
+                        SA = if is_tuple(S#feed_state.container_id) -> ?FD_SELALL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.select_all end,
+                        error_logger:info_msg("CTL: ~p ALL: ~p", [SACtl, SA]),
+                        #span{id=SACtl, body=[
+                            #checkbox{id=SA, class=[checkbox, inline], postback={select, SA, State},
+                                delegate=feed_ui, source=[SA],
+                                value= string:join([wf:to_list(
+                                    case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T);R -> R end) || E <- Entries], "|"),
                                 style= if Total > 0 -> [] ; true-> "display:none;" end}]}; true -> [] end]}},
 
                 #panel{class=[span11], body=#h4{body=[
@@ -83,7 +86,7 @@ render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader,
 % feed entry representation
 
 render_element(#feed_entry{entry=E, state=S})->
-    Id = wf:to_list(element(S#feed_state.entry_id, E)),
+    Id = wf:to_list(case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T); R -> R end),
     SelId = ?EN_SEL(Id),
     wf:render(if S#feed_state.html_tag == table ->
         #tr{id=?EN_ROW(Id), cells=[
@@ -91,7 +94,7 @@ render_element(#feed_entry{entry=E, state=S})->
                 #td{body= [#checkbox{id=SelId, postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}]}; true -> [] end,
             #row_entry{entry=E, state=S}
         ]};
-        true -> #panel{id=?EN_ROW(wf:to_list(Id)), class=["row-fluid", article], body=[
+        true -> #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
             if S#feed_state.enable_selection == true -> [
                 #panel{class=[span1], body=#checkbox{id=SelId, class=["text-center"], postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}},
                 #panel{class=[span11, "row-fluid"], body= #div_entry{entry=E, state=S}}];
@@ -351,34 +354,27 @@ event({delete, #feed_state{selected_key=Key}=S}) ->
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
 event({select, Sel, #feed_state{selected_key=Key}=S})->
-    error_logger:info_msg("Select ~p, select all: ~p", [Sel, S#feed_state.select_all]),
+    SA = if is_tuple(S#feed_state.container_id) -> ?FD_SELALL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.select_all end,
     Selection = wf:session(Key),
-    error_logger:info_msg("Current selection: ~p", [Selection]),
-    NewSel = case wf:q(Sel) of "undefined" -> if Sel == S#feed_state.select_all -> sets:new(); true ->
-        PrevSel = lists:sublist(Sel,1, length(Sel)-3), % fixme:
-        error_logger:info_msg("Deselect: ~p", [PrevSel]),
+    NewSel = case wf:q(Sel) of "undefined" -> if Sel == SA -> sets:new(); true ->
+        PrevSel = lists:sublist(Sel,1, length(Sel) - length("sel")), %?EN_SEL() ++ "sel"
         wf:wire(#jq{target=?EN_ROW(PrevSel), method=["removeClass"], args=["'warning'"]}),
         sets:from_list(Selection--[PrevSel]) end;
     Val -> Vals = string:tokens(Val,"|"),
-        error_logger:info_msg("select: ~p", [Vals]),
         [begin
-            wf:wire(#jq{target=C, method=["prop"], args=["'checked', 'checked'"]}),
+            wf:wire(#jq{target=?EN_SEL(C), method=["prop"], args=["'checked', 'checked'"]}),
             wf:wire(#jq{target=?EN_ROW(C), method=["addClass"], args=["'warning'"]})
         end || C <- Vals],
-        sets:from_list(Vals++Selection)
-    end,
+        sets:from_list(Vals++Selection) end,
+
     case sets:size(NewSel) of 0 -> deselect(S);
     Size ->
         wf:wire(#jq{target=S#feed_state.select_toolbar, method=["show"]}),
         wf:wire(#jq{target=S#feed_state.close, method=["show"]}),
         wf:wire(#jq{target=S#feed_state.feed_title, method=["attr"], args=["'style', 'background-color:lightblue'"]}),
         wf:wire(#jq{target=S#feed_state.feed_toolbar, method=["hide"]}),
-        if Size == S#feed_state.page_size orelse Size == S#feed_state.current ->
-            error_logger:info_msg("Check select all"),
-            wf:wire(#jq{target=S#feed_state.select_all, method=["prop"], args=["'checked', 'checked'"]});
-        true ->
-            error_logger:info_msg("Uncheck select all"),
-            wf:wire(#jq{target=S#feed_state.select_all, method=["prop"], args=["'checked', false"]}) end
+        wf:wire(#jq{target=SA, method=["prop"], args=["'checked'," ++
+            if Size == S#feed_state.page_size orelse Size == S#feed_state.current -> "'checked'"; true -> "false" end]})
     end,
     wf:session(Key, sets:to_list(NewSel));
 
@@ -389,9 +385,12 @@ event({check_more, Start, #feed_state{}=S}) ->
 event(E)-> error_logger:info_msg("[feed] event: ~p", [E]).
 
 deselect(#feed_state{selected_key=Key}=S) ->
-    [wf:wire(#jq{target=C, method=["prop"], args=["'checked', false"]}) || C <- wf:session(Key)],
-    [wf:wire(#jq{target=?EN_ROW(C), method=["removeClass"], args=["'warning'"]}) || C <- wf:session(Key)],
-    wf:wire(#jq{target=S#feed_state.select_all, method=["prop"], args=["'checked', false"]}),
+    [begin 
+        wf:wire(#jq{target=?EN_SEL(C), method=["prop"], args=["'checked', false"]}),
+        wf:wire(#jq{target=?EN_ROW(C), method=["removeClass"], args=["'warning'"]})
+     end|| C <- wf:session(Key)],
+    SA = if is_tuple(S#feed_state.container_id) -> ?FD_SELALL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.select_all end,
+    wf:wire(#jq{target=SA, method=["prop"], args=["'checked', false"]}),
     wf:wire(#jq{target=S#feed_state.select_toolbar, method=["hide"]}),
     wf:wire(#jq{target=S#feed_state.feed_toolbar, method=["show"]}),
     wf:wire(#jq{target=S#feed_state.close, method=["hide"]}),
@@ -472,7 +471,7 @@ process_delivery([_,_,Type,_,add],
     wf:wire("Holder.run();");
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
-    error_logger:info_msg("[feed] show_entry ~p", [Entry]),
+    error_logger:info_msg("[feed] show_entry ~p", [element(#iterator.id, Entry)]),
     wf:insert_bottom(S#feed_state.entries, #feed_entry{entry=Entry, state=S}),
     wf:wire("Holder.run();"),
     wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback={check_more, Entry, S}});
