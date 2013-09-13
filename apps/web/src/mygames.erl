@@ -18,7 +18,7 @@ body()-> Nav = {wf:user(), mygames, []},
     Fs = ?FD_STATE(Id)#feed_state{view=product, html_tag=panel, entry_id=#entry.entry_id, enable_selection=true},
     Is = #input_state{show_upload=true, entry_type=product, show_price=true},
     index:header() ++ dashboard:page(Nav, [
-        #feed2{title= <<"My games">>, icon="icon-gamepad", state=Fs,
+        #feed_ui{title= <<"My games">>, icon="icon-gamepad", state=Fs,
             header=[
             #input{title= <<"New Game">>,placeholder_rcp= <<"Categories">>, placeholder_ttl= <<"Game title">>, role=group, state=Is, feed_state=Fs, class=["feed-table-header"]}
         ]}
@@ -95,4 +95,4 @@ event({edit_product, #entry{}=E})->
     wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
-process_delivery(R,M) -> feed2:process_delivery(R,M).
+process_delivery(R,M) -> feed_ui:process_delivery(R,M).

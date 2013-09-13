@@ -68,10 +68,8 @@ essential(P)->[
   ]} ].
 
 feed(Tab)->
-    User = wf:user(),
     P = wf:session(product),
-
-    Subscriptions =  kvs_group:participate(P#product.id),
+%    Subscriptions =  kvs_group:participate(P#product.id),
 %    Groups = lists:flatten([case kvs:get(group, Where) of {error, _}-> []; {ok, G} -> "group"++G#group.id++"="++G#group.name end || #group_subscription{where=Where} <- Subscriptions]),
     Recipients = string:join([
         %Groups,
@@ -81,10 +79,10 @@ feed(Tab)->
     error_logger:info_msg("Recipients: ~p", [Recipients]),
     {_, Id} = lists:keyfind(Tab, 1, element(#iterator.feeds, P)),
     State = ?FD_STATE(Id)#feed_state{view=blog, html_tag=panel, entry_id=#entry.entry_id, enable_selection=true},
-    Is = #input_state{entry_type=case Tab of reviews -> review; _->Tab end, show_recipients=false, recipients=Recipients},
+    Is = #input_state{entry_type=case Tab of reviews -> review; _->Tab end, show_recipients=false, recipients=Recipients, collapsed=true},
 
-    #feed2{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
-        #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", collapsed=true, role=product, state = Is, feed_state=State}
+    #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
+        #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", role=product, state = Is, feed_state=State}
     ]}.
 
 aside()-> [
@@ -125,7 +123,7 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 
 event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
-  Tid = ?ID_TITLE(E#entry.entry_id), Did = ?ID_DESC(E#entry.entry_id), Toid = ?ID_TOOL(E#entry.entry_id),
+  Tid = ?EN_TITLE(E#entry.entry_id), Did = ?EN_DESC(E#entry.entry_id), Toid = ?EN_TOOL(E#entry.entry_id),
   Dir = "static/"++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
   wf:replace(Tid, #textbox{id=Tid, value=wf:js_escape(Title)}),
   wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=wf:js_escape(Desc), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE}]}),
@@ -134,8 +132,8 @@ event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
     #link{postback={cancel_entry, E#entry{title=wf:js_escape(Title), description=wf:js_escape(Desc)}}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
   ]});
 event({save_entry, #entry{}=E, ProductId})->
-  Title = wf:q(?ID_TITLE(E#entry.entry_id)),
-  Description = wf:q(?ID_DESC(E#entry.entry_id)),
+  Title = wf:q(?EN_TITLE(E#entry.entry_id)),
+  Description = wf:q(?EN_DESC(E#entry.entry_id)),
   User = wf:user(),
 
   Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
@@ -149,10 +147,10 @@ event({save_entry, #entry{}=E, ProductId})->
   [ msg:notify([kvs_feed, RouteType, To, entry, Fid, edit], E#entry{title=Title, description=Description}) || {RouteType, To, Fid} <- Recipients];
 
 event({cancel_entry, E=#entry{title=Title, description=Desc}}) ->
-  Tid = ?ID_TITLE(E#entry.entry_id), Did = ?ID_DESC(E#entry.entry_id),
+  Tid = ?EN_TITLE(E#entry.entry_id), Did = ?EN_DESC(E#entry.entry_id),
   wf:replace(Tid, #span{id=Tid, body=Title}),
   wf:replace(Did, #panel{id=Did, body=Desc, data_fields=[{<<"data-html">>, true}]}),
-  wf:update(?ID_TOOL(E#entry.entry_id), []);
+  wf:update(?EN_TOOL(E#entry.entry_id), []);
 
 event({remove_entry, E=#entry{}, ProductId}) ->
   User = wf:user(),
@@ -185,11 +183,11 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p
 
 process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc, media=Media}=E) ->
   wf:session(medias, []),
-  Tid = ?ID_TITLE(Id), Did = ?ID_DESC(Id),
+  Tid = ?EN_TITLE(Id), Did = ?EN_DESC(Id),
   wf:replace(Tid, #span{id =Tid, body=wf:js_escape(Title)}),
   wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
-  wf:update(?ID_MEDIA(Id), #entry_media{media=Media, mode=reviews}),
-  wf:update(?ID_TOOL(Id), feed:controls(E)),
+  wf:update(?EN_MEDIA(Id), #entry_media{media=Media, mode=reviews}),
+  wf:update(?EN_TOOL(Id), feed:controls(E)),
   wf:wire("Holder.run();");
 
-process_delivery(R,M) -> feed2:process_delivery(R,M).
+process_delivery(R,M) -> feed_ui:process_delivery(R,M).

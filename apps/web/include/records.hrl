@@ -2,14 +2,10 @@
 
 -define(ROOT, code:priv_dir(web)).
 -define(PAGE_SIZE, 4).
--define(ID_TITLE(Id),   Id++"t").
--define(ID_DESC(Id),    Id++"d").
--define(ID_TOOL(Id),    Id++"e").
--define(ID_MEDIA(Id),   Id++"m").
 -define(ID_COMMENTS(Id),Id++"c").
 -define(ID_CM_COUNT(Id),Id++"cc").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
--define(ID_FEED_TOOL(Id),    wf:to_list(Id)++"est").
+-define(ID_FEED_TOOL(Id),wf:to_list(Id)++"est").
 -define(THUMB_SIZE,     [{139, 80}, {270, 124}, {200, 200}, {570, 570}, {716, 480}, {1170, 350}]).
 -define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
 -define(BTN_INFO,       [btn, "btn-info"]).
@@ -30,7 +26,7 @@
                         state,
                         feed_state,
                         icon="icon-edit",
-                        collapsed=false,
+%                        collapsed=false,
                         feed,
                         recipients="",
                         placeholder_rcp="",
@@ -39,12 +35,11 @@
                         expand_btn="",
                         expand_class=?BTN_INFO}).
 
--record(feed2,          {?ELEMENT_BASE(feed2), state, icon="", header=[], selection_ctl=[]}).
-
--record(feed_entry2,    {?ELEMENT_BASE(feed2), entry, state}).
--record(row_entry,      {?ELEMENT_BASE(feed2), entry, state}).
--record(div_entry,      {?ELEMENT_BASE(feed2), entry, state}).
--record(entry_media,    {?ELEMENT_BASE(feed2), media, mode}).
+-record(feed_ui,        {?ELEMENT_BASE(feed_ui), state, icon="", header=[], selection_ctl=[]}).
+-record(feed_entry,     {?ELEMENT_BASE(feed_ui), entry, state}).
+-record(row_entry,      {?ELEMENT_BASE(feed_ui), entry, state}).
+-record(div_entry,      {?ELEMENT_BASE(feed_ui), entry, state}).
+-record(entry_media,    {?ELEMENT_BASE(feed_ui), media, mode}).
 
 
 -define(EN_ROW(Id),     wf:to_list(Id)++"row").

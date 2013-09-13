@@ -41,13 +41,13 @@ body()->
 
 feed("all") ->
     State = ?FD_STATE(?FEED(entry))#feed_state{view=review, html_tag=panel, entry_id=#entry.entry_id},
-    #feed2{title= <<"">>, icon="icon-tags", state=State};
+    #feed_ui{title= <<"">>, icon="icon-tags", state=State};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}->
         {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
         State = ?FD_STATE(Id)#feed_state{view=review, html_tag=panel, entry_id=#entry.entry_id},
-        #feed2{title= <<"">>, icon="icon-tags", state=State} end.
+        #feed_ui{title= <<"">>, icon="icon-tags", state=State} end.
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
@@ -60,4 +60,4 @@ event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({read, _, Id})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
 
-process_delivery(R,M) -> feed2:process_delivery(R,M).
+process_delivery(R,M) -> feed_ui:process_delivery(R,M).

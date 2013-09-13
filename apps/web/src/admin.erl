@@ -27,7 +27,7 @@ tab(categories) ->
     Is = #input_state{show_recipients=false, show_scope=true, show_media=false, entry_type=group},
     [
     #input{state=Is, feed_state=State, title= <<"Add category">>, placeholder_ttl= <<"name">>, icon="icon-tags"},
-    #feed2{
+    #feed_ui{
         title= <<"Categories ">>,
         icon="icon-list", state=State,
 
@@ -46,14 +46,14 @@ tab(acl)-> {AclEn, Acl} = acls(), [
     ];
 tab(users) ->
     State = ?FD_STATE(?USR_FEED)#feed_state{entry_type=user, entry_id=#user.username},
-    #feed2{title= <<"Users ">>, icon="icon-user", state=State,
+    #feed_ui{title= <<"Users ">>, icon="icon-user", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
         #th{body= <<"email">>},
         #th{body= <<"roles">>},
         #th{body= <<"last login">>}]} ]};
 tab(products)->
     State = ?FD_STATE(?PRD_FEED)#feed_state{entry_type=product, enable_selection=true},
-    #feed2{title= <<"Products">>, icon="icon-gamepad", state=State,
+    #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State,
         header=[#tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}]}]};
 
 tab(_)-> [].
@@ -85,7 +85,7 @@ acls()->
     Id = io_lib:format("~p", [Aid]),
     State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry},
     B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
-        #feed2{title=wf:to_list(Aid)++" entries", icon="icon-list", state=State,
+        #feed_ui{title=wf:to_list(Aid)++" entries", icon="icon-list", state=State,
             header=[#tr{class=["feed-table-header"], cells=[
                 #th{body= <<"id">>},
                 #th{body= <<"accessor">>},
@@ -130,4 +130,4 @@ api_event(tabshow,Args,_) ->
 api_event(_,_,_) -> ok.
 
 process_delivery(R,M) ->
-    feed2:process_delivery(R,M).
+    feed_ui:process_delivery(R,M).

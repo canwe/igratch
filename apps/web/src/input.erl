@@ -14,7 +14,7 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
     User = wf:user(),
     Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
     Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
-    {FormStyle, ExpandStyle} = if I#input.collapsed==true -> {"display:none;",""}; true -> {"", "display:none;"} end,
+    {FormStyle, ExpandStyle} = if State#input_state.collapsed==true -> {"display:none;",""}; true -> {"", "display:none;"} end,
 
     wf:render(
     [
@@ -72,7 +72,7 @@ preview_medias(Id, Medias, Delegate)->
           ]} ]} || M <- lists:sublist(Medias, I, 4) ]} || I <- lists:seq(1, L, 4) ],
       caption=#panel{body= <<"Message will be sent with this medias.">>}}; true-> [] end.
 
-control_event(_, {query_file, Root, Dir, File, MimeType, PostWrite, Target})->
+control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
   Name = binary_to_list(File),
   Size = case file:read_file_info(filename:join([Root,Dir,Name])) of 
     {ok, FileInfo} ->
@@ -157,7 +157,7 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
     R2 = [ {user, From, {Eid, ?FEED(entry), {feed, ?FEED(comment)}}}],
 
     Recipients = lists:flatten([R1,R2]),
-%    error_logger:info_msg("[input] -> Recipients: ~p", [Recipients]),
+    error_logger:info_msg("[input] -> Recipients: ~p", [Recipients]),
     Created = now(),
     Cid = kvs:uuid(),
     C = #comment{id = {Cid, {Eid, ?FEED(entry)}},
@@ -165,17 +165,17 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
                 comment_id = Cid,
                 entry_id = {Eid, ?FEED(entry)},
                 feed_id = ?FEED(comment),
-                content = wf:js_escape(Comment),
+                content = Comment,
                 media = Medias,
                 feeds=[{comments, kvs_feed:create()}],
                 created = now() },
-
+    
     [msg:notify([kvs_feed, RoutingType, To, comment, Cid, add],
         [C#comment{id= {Cid, {EntryId, EntryFid}},
             entry_id = {EntryId,EntryFid},
             feed_id = CommentsFid, 
             feeds=[{comments, kvs_feed:create()}]}, Is,
-            ?FD_STATE(CommentsFid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id, recipients=Recipients}])
+            ?FD_STATE(CommentsFid, Fs)#feed_state{recipients=Recipients}])
         || {RoutingType, To, {EntryId, EntryFid, {_,CommentsFid}}} <- Recipients];
 
 %    msg:notify([kvs_feed, comment, register], [C, Is, ?FD_STATE(?FEED(comment))]);

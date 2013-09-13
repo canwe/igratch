@@ -25,17 +25,15 @@ body() ->
             if Who == What -> payments(What);
             true -> [
                 #input{%title= <<"Write message">>,
+                    state=#input_state{collapsed=true, post_collapse= true, show_recipients=false},
                     placeholder_rcp= <<"E-mail/User">>,
                     placeholder_ttl= <<"Subject">>,
                     class="alt",
                     role=user,
-                    %type=direct,
-                    %show_recipients=false,
-                    collapsed=true,
                     expand_btn= <<"Write message">>,
                     recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
 
-                #feed2{title= <<"Recent activity">>, icon="icon-list", state=State}
+                #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=State}
     ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) ->
@@ -160,5 +158,5 @@ event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 process_delivery([user,_,entry,_,add]=R, M)->
     error_logger:info_msg("=>message sent!"),
     wf:update(sidenav, dashboard:sidenav({wf:user(), profile, []})),
-    feed2:process_delivery(R,M);
-process_delivery(R,M) -> feed2:process_delivery(R,M).
+    feed_ui:process_delivery(R,M);
+process_delivery(R,M) -> feed_ui:process_delivery(R,M).

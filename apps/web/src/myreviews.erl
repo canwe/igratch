@@ -16,13 +16,13 @@ body()->
     State = case lists:keyfind(feed, 1, case User of undefined -> []; _-> element(#iterator.feeds, User) end) of false -> #feed_state{};
         {_, Id} -> ?FD_STATE(Id)#feed_state{view=review, html_tag=panel, entry_id=#entry.entry_id, enable_selection=true} end,
     index:header() ++ dashboard:page(Nav, [
-        #feed2{title=title(), icon="icon-list", state=State, header=[
+        #feed_ui{title=title(), icon="icon-list", state=State, header=[
             #input{title= <<"Submit review">>, placeholder_rcp= <<"Games">>, role=product, state=#input_state{entry_type=review}, feed_state=State, class=["feed-table-header"]}
         ]}
     ]) ++ index:footer().
 
 event(init) -> wf:reg(?MAIN_CH), [];
-event({delivery, [_|Route], Msg}) -> feed2:process_delivery(Route, Msg);
+event({delivery, [_|Route], Msg}) -> feed_ui:process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id="++Id);
 event({read, review, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({read, review, Id})-> wf:redirect("/review?id="++Id);

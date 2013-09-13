@@ -26,10 +26,10 @@ feed(notifications)->
     User = wf:user(),
     {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
     State = ?FD_STATE(Id)#feed_state{view=direct, entry_id = #entry.entry_id, html_tag=panel, enable_selection=true, enable_traverse=true},
-    Is = #input_state{entry_type=direct},
+    Is = #input_state{entry_type=direct,collapsed=true},
     error_logger:info_msg("Notification feed state: ~p", [State]),
-    #feed2{title= <<"Notification ">>, icon="icon-envelope-alt", state=State, header=[
-        #input{placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, collapsed=true, expand_btn= <<"compose">>, class=["feed-table-header"], icon="", 
+    #feed_ui{title= <<"Notification ">>, icon="icon-envelope-alt", state=State, header=[
+        #input{placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, expand_btn= <<"compose">>, class=["feed-table-header"], icon="", 
             state=Is, feed_state=State}
     ]};
 
@@ -37,14 +37,14 @@ feed(sent)->
     User = wf:user(),
     {_, Id} = lists:keyfind(sent, 1, element(#iterator.feeds, User)),
     State = ?FD_STATE(Id)#feed_state{view=direct, enable_selection=true, html_tag=panel, enable_traverse=true, entry_id=#entry.entry_id},
-    #feed2{title= <<"Sent Messages ">>, icon="icon-signout", state=State,
+    #feed_ui{title= <<"Sent Messages ">>, icon="icon-signout", state=State,
         header=[#tr{class=["feed-table-header"], cells=[]} ]};
 
 feed(archive)->
     User = wf:user(),
     {_, Id} = lists:keyfind(archive, 1, element(#iterator.feeds, User)),
     State = #feed_state{container_id=Id,view=direct, enable_selection=true},
-    #feed2{title= <<"Archive ">>, icon="icon-signout", state=State,
+    #feed_ui{title= <<"Archive ">>, icon="icon-signout", state=State,
         header=[#tr{class=["feed-table-header"], cells=[]} ]};
 
 feed(_) -> [index:error("404")].
@@ -79,13 +79,13 @@ event({allow, Whom, Eid, Feature, #feed_state{}=S}) ->
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You have been granted "++ io_lib:format("~p", [Feature])++"!",
-                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
+                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
 
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
   error_logger:info_msg("Remove recipients: ~p", [Recipients]),
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid},entry_id=Eid}, #input_state{}, S]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
 
-event({cancel, From, Eid, {feature, Feature}=Type, #feed_state{}=S}) ->
+event({cancel, From, Eid, {feature, Feature}, #feed_state{}=S}) ->
     error_logger:info_msg("Reject ~p", [Feature]),
   User = wf:user(),
   % send message to user
@@ -105,7 +105,7 @@ event({cancel, From, Eid, {feature, Feature}=Type, #feed_state{}=S}) ->
                           media=[],
                           title= <<"Re: Feature request">>,
                           description= "You request for "++ io_lib:format("~p", [Feature])++" has been rejected!",
-                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}}=R <- ReplyRecipients] end,
+                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
 
   % delete message from feed
   Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
@@ -116,14 +116,14 @@ event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
 
 process_delivery([user,_,entry,_,add]=R, M)->
     wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
-    feed2:process_delivery(R,M);
+    feed_ui:process_delivery(R,M);
 
 process_delivery([_,_,entry,_,delete]=R, M) -> 
     wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
-    feed2:process_delivery(R,M);
+    feed_ui:process_delivery(R,M);
 
 process_delivery([_,unregister]=R, M) ->
     wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
-    feed2:process_delivery(R,M);
+    feed_ui:process_delivery(R,M);
 
-process_delivery(R,M) -> feed2:process_delivery(R,M).
+process_delivery(R,M) -> feed_ui:process_delivery(R,M).

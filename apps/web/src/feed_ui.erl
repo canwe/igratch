@@ -1,4 +1,4 @@
--module(feed2).
+-module(feed_ui).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
@@ -9,7 +9,7 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, state=S, selection_ctl=SelectionCtl}) ->
+render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader, state=S, selection_ctl=SelectionCtl}) ->
     wf:render(#section{class=[feed, Class], body=[
         case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_}->
             #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
@@ -26,6 +26,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, s
 
             %% header
 
+            if S#feed_state.show_title == true ->
             #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
                 #panel{class=[span1], body=#h4{body=[
                     #i{class=[Icon, blue]},
@@ -34,7 +35,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, s
                     if S#feed_state.enable_selection == true ->
                         #span{id=S#feed_state.selectall_ctl, body=[
                             #checkbox{id=S#feed_state.select_all, class=[checkbox, inline], postback={select, S#feed_state.select_all, State},
-                                delegate=feed2, source=[S#feed_state.select_all],
+                                delegate=feed_ui, source=[S#feed_state.select_all],
                                 value= string:join([wf:to_list(element(S#feed_state.entry_id, E)) || E <- Entries], "|"),
                                 style= if Total > 0 -> [] ; true-> "display:none;" end}]}; true -> [] end]}},
 
@@ -43,7 +44,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, s
                     #span{class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>; true -> [] end},
 
                     #span{id=S#feed_state.select_toolbar, style="display:none;", class=["selection-ctl"], body=[
-                        #link{id=S#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed2},
+                        #link{id=S#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed_ui},
                         SelectionCtl]},
 
                     if S#feed_state.enable_traverse == true ->
@@ -52,46 +53,47 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, s
                                 #small{id=S#feed_state.page_label, body=[
                                     integer_to_list(State#feed_state.start), "-", integer_to_list(Current), " of ", integer_to_list(Total)]},
                                 #link{id=S#feed_state.prev, class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
-                                    postback={traverse, #iterator.next, First, State}, delegate=feed2},
+                                    postback={traverse, #iterator.next, First, State}, delegate=feed_ui},
                                 #link{id=S#feed_state.next, class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
-                                    postback={traverse, #iterator.prev, Last, State}, delegate=feed2}]; true-> [] end} ]}; true -> [] end,
+                                    postback={traverse, #iterator.prev, Last, State}, delegate=feed_ui}]; true-> [] end} ]}; true -> [] end,
 
                     #span{class=["pull-right"], body=[
-                        #link{id=S#feed_state.close, class=[close, "text-error"], postback={cancel_select, State}, delegate=feed2, body= <<"&times;">>}
+                        #link{id=S#feed_state.close, class=[close, "text-error"], postback={cancel_select, State}, delegate=feed_ui, body= <<"&times;">>}
                     ]}
                 ]}}
-            ]},
+            ]}; true -> [] end,
 
             %% feed body
 
             if S#feed_state.html_tag == table ->
-                #table{class=[table, "table-hover"], header=[TableHeader], body=
-                    #tbody{id=S#feed_state.entries, class=["feed-body"], body=[#feed_entry2{entry=G, state=State} || G <- Entries]}};
-                true -> [TableHeader, #panel{id=S#feed_state.entries, body=[#feed_entry2{entry=G, state=State} || G <- Entries]}] end,
+                #table{class=[table, "table-hover"], header=if S#feed_state.show_header == true -> [TableHeader]; true -> [] end,
+                    body=#tbody{id=S#feed_state.entries, class=["feed-body"], body=[#feed_entry{entry=G, state=State} || G <- Entries]}};
+                true -> [if S#feed_state.show_header == true -> TableHeader; true -> [] end,
+                    #panel{id=S#feed_state.entries, body=[#feed_entry{entry=G, state=State} || G <- Entries]}] end,
 
             %% footer
 
             if S#feed_state.enable_traverse == false ->
                 #panel{id=S#feed_state.more_toolbar, class=["btn-toolbar", "text-center"], body=
                     if Current < S#feed_state.page_size -> []; 
-                    true -> #link{class=?BTN_INFO, body= <<"more">>, delegate=feed2, postback = {check_more, Last, State}} end}; true -> [] end
+                    true -> #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback = {check_more, Last, State}} end}; true -> [] end
             ]
         end ]});
 
 % feed entry representation
 
-render_element(#feed_entry2{entry=E, state=S})->
+render_element(#feed_entry{entry=E, state=S})->
     Id = wf:to_list(element(S#feed_state.entry_id, E)),
     SelId = ?EN_SEL(Id),
     wf:render(if S#feed_state.html_tag == table ->
         #tr{id=?EN_ROW(Id), cells=[
             if S#feed_state.enable_selection == true ->
-                #td{body= [#checkbox{id=SelId, postback={select, SelId, S}, delegate=feed2, source=[SelId], value=Id}]}; true -> [] end,
+                #td{body= [#checkbox{id=SelId, postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}]}; true -> [] end,
             #row_entry{entry=E, state=S}
         ]};
         true -> #panel{id=?EN_ROW(wf:to_list(Id)), class=["row-fluid", article], body=[
             if S#feed_state.enable_selection == true -> [
-                #panel{class=[span1], body=#checkbox{id=SelId, class=["text-center"], postback={select, SelId, S}, delegate=feed2, source=[SelId], value=Id}},
+                #panel{class=[span1], body=#checkbox{id=SelId, class=["text-center"], postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}},
                 #panel{class=[span11, "row-fluid"], body= #div_entry{entry=E, state=S}}];
             true -> #div_entry{entry=E, state=S} end
         ]} end);
@@ -104,12 +106,12 @@ render_element(#row_entry{entry=#group{name=Name, description=Desc, scope=Scope}
         #td{body=wf:js_escape(Desc)},
         #td{body=atom_to_list(Scope)}]);
 
-render_element(#row_entry{entry=#user{email=Email}=U, state=S}) -> wf:render([
+render_element(#row_entry{entry=#user{email=Email}=U}) -> wf:render([
     #td{body=#link{body=Email, postback={view, Email}}},
     #td{body=[profile:features(wf:user(), U, "icon-2x")]},
     #td{body=case kvs:get(user_status, Email) of {ok,Status} -> product_ui:to_date(Status#user_status.last_login); {error,_}-> "" end}]);
 
-render_element(#row_entry{entry=#product{title=Title, brief=Description}, state=S}) -> wf:render([
+render_element(#row_entry{entry=#product{title=Title, brief=Description}}) -> wf:render([
     #td{body=Title},
     #td{body=Description}]);
 
@@ -119,7 +121,6 @@ render_element(#row_entry{entry=#acl_entry{accessor={user, Accessor}, action=Act
     #td{body= atom_to_list(Action)}]);
 
 % divs
-
 % product
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=State}) ->
@@ -156,7 +157,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State
             wf:js_escape(wf:to_list(E#entry.title)),
             case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end ]},
         #p{body= wf:js_escape(E#entry.description)},
-        #panel{id=?ID_TOOL(Id), body= case E#entry.type of {feature, _} when IsAdmin ->
+        #panel{id=?EN_TOOL(Id), body= case E#entry.type of {feature, _} when IsAdmin ->
             #panel{class=["btn-toolbar"], body=[
                 #link{class=[btn, "btn-success"], body= <<"allow">>, postback={allow, E#entry.from, E#entry.entry_id, E#entry.type, State}},
                 #link{class=[btn, "btn-info"], body= <<"reject">>, postback={cancel, E#entry.from, E#entry.entry_id, E#entry.type, State}} ]};
@@ -195,11 +196,8 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=detached}=State})->
     Eid = element(State#feed_state.entry_id, E),
    {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
-    Ms = E#entry.media,
-    Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
     Recipients = [{RoutingType, To, {Eid, FeedId, lists:keyfind(comments, 1, Feeds)}}
         || #entry{to={RoutingType, To}, feed_id=FeedId, feeds=Feeds} <- kvs:all_by_index(entry,entry_id, Eid)],
-    error_logger:info_msg("ALL BY INDEX!"),
 
     Is = #input_state{
         recipients=Recipients,
@@ -208,14 +206,14 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=detached}=Sta
         show_title = false,
         show_media = false},
 
-    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id, recipients=Recipients},
+    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, entry_id=#comment.comment_id, recipients=Recipients, show_title=false},
 
     Entry = #panel{class=["blog-post"], body=[
         #h3{class=[blue], body=[#span{id=?EN_TITLE(Eid), body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
         #panel{id=?EN_DESC(Eid), body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
 
         #panel{class=[comments, "row-fluid"], body=[
-            #feed2{icon="icon-comments-alt",
+            #feed_ui{icon="icon-comments-alt",
                 title=[#span{class=[?ID_CM_COUNT(Eid)], body=[integer_to_list(kvs_feed:comments_count(entry, Eid))]}, <<" comments">>],
                 state=CmState},
             #input{title= <<"Add your comment">>, class=["comments-form"], state=Is, feed_state=CmState}
@@ -237,37 +235,41 @@ render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
     {_, Fid} = lists:keyfind(comments, 1, C#comment.feeds),
 
     Recipients = lists:flatten([case kvs:get(comment, {Id, {E,F}}) of {error,_}-> [];
-        {ok, #comment{feeds=Feeds}=PC} -> 
+        {ok, #comment{feeds=Feeds}} ->
             Cs = lists:keyfind(comments, 1, Feeds),
-            {R, T, {E, F, Cs}} end ||{R,T,{E,F,Ci}}<-State#feed_state.recipients]),
-%    error_logger:info_msg("[feed state recipients]New recipients ~p", [Recipients]),
+            {R, T, {E, F, Cs}} end ||{R,T,{E,F,_}}<-State#feed_state.recipients]),
 
-    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id, recipients=Recipients},
+    CmState = ?FD_STATE(Fid, State)#feed_state{recipients=Recipients,
+        show_title=State#feed_state.show_title andalso not State#feed_state.flat_mode,
+        show_header=State#feed_state.show_header andalso not State#feed_state.flat_mode},
 
     Is = #input_state{
         recipients= Recipients,
         entry_type = comment,
         show_recipients = false,
         show_title = false,
-        show_media = false},
+        show_media = false,
+        collapsed = true,
+        post_collapse = true},
+% #panel{style="background:#eeeeee; border:1px solid #efefef; padding:10px 10px; ", body=[
+%   #link{body= <<"The game is ...">>}
+% ]},
+% #p{style="padding: 0 10px;", body=[
+%   #span{body= <<"Sep 2, 2013 at 2:44">>}, #span{body= <<" by ">>},
+%   #link{body= <<"Andrii Zadorozhnii">>},
+%   #span{body= <<" in ">>}, #link{body= <<"The cool review article">>}
+% ]}
+    InnerFeed = #feed_ui{state=CmState, class="comments",  header=[
+        #input{state=Is, feed_state=CmState, role=comment, class=["comment-reply"], expand_btn= [<<"reply">>, #i{class=["icon-reply"]}], expand_class=[]}]},
 
-    Comment = #panel{class=[media, "media-comment"], body=[
-        #link{class=["pull-left"], body=[Avatar]},
-        #panel{class=["media-body"], body=[
-            #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
-            #p{body= C#comment.content},
-%            #p{body= [#entry_media{media=M, fid=Fid, cid = Cid} ||  M <- C#comment.media]},
-            #p{class=["media-heading"], body=[
-                #feed2{state=CmState, class="comments",  header=[
-                    #input{state=Is,
-                        feed_state=CmState,
-                        collapsed=true,
-                        role=comment, class=["comment-reply"], expand_btn= [<<"reply">>, #i{class=["icon-reply"]}], expand_class=[]}
-                ]}
-            ]}
-        ]}
-    ]},
-    element_panel:render_element(Comment);
+    wf:render([
+        #panel{class=[media, "media-comment"], body=[
+            #link{class=["pull-left"], body=[Avatar]},
+            #panel{class=["media-body"], body=[
+                #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
+                #p{body= wf:js_escape(C#comment.content)},
+                if State#feed_state.flat_mode == true -> []; true -> #p{class=["media-heading"], body=[InnerFeed]} end ]} ]},
+        if State#feed_state.flat_mode == true -> InnerFeed; true -> [] end]);
 
 % Media elements
 
@@ -279,10 +281,9 @@ render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], 
   element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt=T, class=[]});
 render_element(#entry_media{media=[#media{}=Media|_], mode=reviews}) -> element_image:render_element(image(Media, "270x124"));
 render_element(#entry_media{media=#media{}=Media, mode=blog}) -> element_image:render_element(image(Media, "716x480"));
-render_element(#entry_media{media=Media}) ->
-  element_panel:render_element(#panel{body=[]});
+render_element(#entry_media{}) -> element_panel:render_element(#panel{body=[]});
 
-render_element(E) -> error_logger:info_msg("[feed2]render_element(#unknown{}) ~p", [E]).
+render_element(E) -> error_logger:info_msg("[feed]render_element(#unknown{}) ~p", [E]).
 
 % product entry components
 
@@ -301,7 +302,7 @@ article(Type, Id, From, Date, Media, Title, Description)-> [
     #panel{class=[span5, "article-text"], body=[
         #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=wf:js_escape(Title)}},
         #p{id=?EN_DESC(Id), body=product_ui:shorten(wf:js_escape(Description))},
-        #panel{id=?ID_TOOL(Id), class=[more], body=[
+        #panel{id=?EN_TOOL(Id), class=[more], body=[
             #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, Id}} ]} ]}].
 
 image(#media{}=Media, Size) ->
@@ -385,7 +386,7 @@ event({check_more, Start, #feed_state{}=S}) ->
     traverse_entries(S#feed_state.entry_type, element(#iterator.prev,Start), S#feed_state.page_size, S),
     wf:update(S#feed_state.more_toolbar, []);
 
-event(E)-> error_logger:info_msg("[feed2] event: ~p", [E]).
+event(E)-> error_logger:info_msg("[feed] event: ~p", [E]).
 
 deselect(#feed_state{selected_key=Key}=S) ->
     [wf:wire(#jq{target=C, method=["prop"], args=["'checked', false"]}) || C <- wf:session(Key)],
@@ -403,7 +404,6 @@ traverse(Direction, Start, #feed_state{}=S)->
         undefined  -> kvs:entries(kvs:get(S#feed_state.container, S#feed_state.container_id), S#feed_state.entry_type, S#feed_state.page_size);
         Prev -> kvs:entries(S#feed_state.entry_type, Prev, S#feed_state.page_size, Direction)
     end,
-%    error_logger:info_msg("Traverse: ~p", [Entries]),
     {NewLast, NewFirst} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
 
     Total = S#feed_state.total,
@@ -411,31 +411,22 @@ traverse(Direction, Start, #feed_state{}=S)->
     NewStart = case Direction of #iterator.prev -> S#feed_state.start+S#feed_state.page_size; #iterator.next -> S#feed_state.start-S#feed_state.page_size end,
 
     State = S#feed_state{start=NewStart, start_element=NewFirst, last_element=NewLast, current=Current},
-    error_logger:info_msg("Entries: ~p", [S#feed_state.entries]),
-    wf:update(S#feed_state.entries,
-%        wf_tags:emit_tag(<<"thead">>, wf:render([#tr{class=["feed-table-header"], cells=[
-%            #th{body= <<"">>},
-%            #th{body= <<"id">>},
-%            #th{body= <<"name">>},
-%            #th{body= <<"description">>},
-%            #th{body= <<"scope">>}]}]), []),
-
-        [#feed_entry2{entry=G, state=State} || G <- Entries]),
+    wf:update(S#feed_state.entries, [#feed_entry{entry=G, state=State} || G <- Entries]),
 
     wf:replace(S#feed_state.prev, #link{id=State#feed_state.prev, class=[btn, case element(#iterator.next, NewFirst) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>], 
-        postback={traverse, #iterator.next, NewFirst, State}, delegate=feed2}),
+        postback={traverse, #iterator.next, NewFirst, State}, delegate=feed_ui}),
     wf:replace(S#feed_state.next, #link{id=State#feed_state.next, class=[btn, case element(#iterator.prev, NewLast) of undefined -> "disabled"; _ -> "" end], body=[<<">">>], 
-        postback={traverse, #iterator.prev, NewLast, State}, delegate=feed2}),
+        postback={traverse, #iterator.prev, NewLast, State}, delegate=feed_ui}),
 
     wf:update(S#feed_state.page_label, [integer_to_list(NewStart), "-", integer_to_list(NewStart+Current-1), " of ", integer_to_list(Total)]),
 
     if State#feed_state.selection == true ->
         wf:update(S#feed_state.selectall_ctl,
-        #checkbox{id=State#feed_state.select_all, class=[checkbox, inline], postback={select, State#feed_state.select_all, State}, delegate=feed2,
+        #checkbox{id=State#feed_state.select_all, class=[checkbox, inline], postback={select, State#feed_state.select_all, State}, delegate=feed_ui,
             source=[State#feed_state.select_all], 
             value = string:join([wf:to_list(element(State#feed_state.entry_id, E)) || E <- Entries], "|"),
             style=if Total > 0 -> [] ; true-> "display:none;" end}); true -> [] end,
-    wf:replace(State#feed_state.delete_btn, #link{id=State#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed2}),
+    wf:replace(State#feed_state.delete_btn, #link{id=State#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed_ui}),
     wf:wire("Holder.run();").
 
 traverse_entries(_,undefined,_, #feed_state{more_toolbar=BtnId}) -> self() ! {delivery, [somepath, no_more], [BtnId]}, [];
@@ -465,7 +456,7 @@ traverse_entries(RecordName, Next, Count, S)->
 
 process_delivery([_,_,Type,_,add],
                  [E, #input_state{}=I, #feed_state{}=S])->
-    error_logger:info_msg("[feed2] Add entry: ~p to <~p> ", [element(#iterator.id, E), S#feed_state.entries]),
+    error_logger:info_msg("[feed] Add entry: ~p ~p to <~p> ", [Type, element(#iterator.id, E), S#feed_state.entries]),
     wf:session(medias, []),
     wf:update(I#input_state.media_id, []),
     wf:wire(wf:f("$('#~s').val('');", [I#input_state.title_id])),
@@ -474,19 +465,22 @@ process_delivery([_,_,Type,_,add],
     wf:wire(#jq{target=I#input_state.body_id, method=[html], args="''"}),
     wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
     wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
-    wf:insert_top(S#feed_state.entries, #feed_entry2{entry=E, state=S}),
+    wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}),
+    if I#input_state.collapsed andalso I#input_state.post_collapse ->
+        wf:wire(#jq{target=I#input_state.form_id,   method=[hide]}),
+        wf:wire(#jq{target=I#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
     wf:wire("Holder.run();");
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
-    error_logger:info_msg("[feed2] show_entry ~p", [Entry]),
-    wf:insert_bottom(S#feed_state.entries, #feed_entry2{entry=Entry, state=S}),
+    error_logger:info_msg("[feed] show_entry ~p", [Entry]),
+    wf:insert_bottom(S#feed_state.entries, #feed_entry{entry=Entry, state=S}),
     wf:wire("Holder.run();"),
-    wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed2, postback={check_more, Entry, S}});
+    wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback={check_more, Entry, S}});
 
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([_,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
-    error_logger:info_msg("[feed2 - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
+    error_logger:info_msg("[feed - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
     wf:remove(?EN_ROW(element(S#feed_state.entry_id, E))),
     deselect(S);
 
-process_delivery(R, M) -> ok.
+process_delivery(R,M) -> error_logger:info_msg("AAAA:~p ~p", [R, M]),ok.
