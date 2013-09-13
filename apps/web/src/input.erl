@@ -25,7 +25,7 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
         #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
             #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, State}, delegate=input} ]} ]},
 
-    #panel{id=State#input_state.form_id, class=["row-fluid"], style=FormStyle, body=[#panel{class=[span9], body=[
+    #panel{id=State#input_state.form_id, class=["row-fluid", I#input.class], style=FormStyle, body=[#panel{class=[span9], body=[
         if State#input_state.show_recipients == true ->
             #textboxlist{id=State#input_state.recipients_id, placeholder=I#input.placeholder_rcp, delegate=input, values=I#input.recipients, role=I#input.role};true -> [] end,
         if State#input_state.show_title == true ->
@@ -151,10 +151,13 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
-    Recipients = Is#input_state.recipients,
-    {_,_,{Eid,_,_}} = lists:nth(1,Recipients),
-    error_logger:info_msg("Recipients: ~p", [Recipients]),
+    R1 = Is#input_state.recipients,
+    {_,_,{Eid,_,_}} = lists:nth(1,R1),
+%    error_logger:info_msg("[input]Recipients: ~p", [R1]),
+    R2 = [ {user, From, {Eid, ?FEED(entry), {feed, ?FEED(comment)}}}],
 
+    Recipients = lists:flatten([R1,R2]),
+%    error_logger:info_msg("[input] -> Recipients: ~p", [Recipients]),
     Created = now(),
     Cid = kvs:uuid(),
     C = #comment{id = {Cid, {Eid, ?FEED(entry)}},
@@ -171,10 +174,11 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
         [C#comment{id= {Cid, {EntryId, EntryFid}},
             entry_id = {EntryId,EntryFid},
             feed_id = CommentsFid, 
-            feeds=[{comments, kvs_feed:create()}]}, Is, ?FD_STATE(CommentsFid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id}])
-        || {RoutingType, To, {EntryId, EntryFid, {_,CommentsFid}}} <- Recipients],
+            feeds=[{comments, kvs_feed:create()}]}, Is,
+            ?FD_STATE(CommentsFid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id, recipients=Recipients}])
+        || {RoutingType, To, {EntryId, EntryFid, {_,CommentsFid}}} <- Recipients];
 
-    msg:notify([kvs_feed, comment, register], [C, Is, ?FD_STATE(?FEED(comment))]);
+%    msg:notify([kvs_feed, comment, register], [C, Is, ?FD_STATE(?FEED(comment))]);
 
 event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     error_logger:info_msg("=>post entry: ~p", [Fs]),

@@ -13,12 +13,12 @@ main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
 body() ->
     Entries = lists:filter(fun(#entry{to=To})-> case To of {product, _}-> true; _-> false end end,
         kvs:all_by_index(entry, entry_id, case wf:qs(<<"id">>) of undefined -> -1; Id -> binary_to_list(Id) end)),
-
+    error_logger:info_msg("E: ~p", [Entries]),
     index:header()++[
         #section{class=[section], body=#panel{class=[container], body=
             case Entries of [E=#entry{id=Eid, feed_id=Fid, to={product, Prid}}|_] ->
                 Product = case kvs:get(product, Prid) of {error,_}-> #product{}; {ok, P}-> P end,
-                FeedState = ?FD_STATE(Fid)#feed_state{view=detached, entry_id=#entry.entry_id, entry_type=comment},
+                FeedState = ?FD_STATE(Fid)#feed_state{view=detached, entry_id=#entry.entry_id, html_tag=panel},
 %               error_logger:info_msg("Product review: ~p", [Product]),
                 #panel{class=["row-fluid", dashboard], body=[
                     #panel{class=[span2], body=[
@@ -46,13 +46,15 @@ body() ->
                         ], "icon-gamepad") ]},
 
                     #panel{class=[span10], body=[
-                        dashboard:section(#feed_entry2{entry=E, state=FeedState}, "icon-file-text-alt"),
+                        dashboard:section(#feed_entry2{entry=E, state=FeedState}, "icon-file-text-alt")
 
-                        [case kvs:get(group, Group) of {error,_}->[]; {ok, G}->
-                            {_, Gid} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
-                            State = ?FD_STATE(Gid)#feed_state{view=review, html_tag=panel},
-                            #feed2{title= "More "++ G#group.name ++" reviews", icon="icon-tags", state=State} end
-                        || #group_subscription{where=Group} <- kvs_group:participate(Product#product.id)] ]} ]}; [] -> index:error(<<"not_found">>) end }},
+%                        [case kvs:get(group, Group) of {error,_}->[]; {ok, G}->
+%                            {_, Gid} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
+%                            State = ?FD_STATE(Gid)#feed_state{view=review, html_tag=panel},
+%                            #feed2{title= "More "++ G#group.name ++" reviews", icon="icon-tags", state=State} end
+%                        || #group_subscription{where=Group} <- kvs_group:participate(Product#product.id)] 
+    ]} 
+            ]}; [] -> index:error(<<"not_found">>) end }},
         #section{class=[section], body=#panel{class=[container, "text-center"], body=[]}} ]++index:footer().
 
 event(init) -> wf:reg(?MAIN_CH),[];

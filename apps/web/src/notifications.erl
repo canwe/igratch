@@ -36,7 +36,7 @@ feed(notifications)->
 feed(sent)->
     User = wf:user(),
     {_, Id} = lists:keyfind(sent, 1, element(#iterator.feeds, User)),
-    State = #feed_state{container_id=Id,view=direct, enable_selection=true},
+    State = ?FD_STATE(Id)#feed_state{view=direct, enable_selection=true, html_tag=panel, enable_traverse=true, entry_id=#entry.entry_id},
     #feed2{title= <<"Sent Messages ">>, icon="icon-signout", state=State,
         header=[#tr{class=["feed-table-header"], cells=[]} ]};
 

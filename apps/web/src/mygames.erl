@@ -20,7 +20,7 @@ body()-> Nav = {wf:user(), mygames, []},
     index:header() ++ dashboard:page(Nav, [
         #feed2{title= <<"My games">>, icon="icon-gamepad", state=Fs,
             header=[
-            #input{title= <<"New Game">>,placeholder_rcp= <<"Categories">>, placeholder_ttl= <<"Game title">>, role=group, state=Is, feed_state=Fs}
+            #input{title= <<"New Game">>,placeholder_rcp= <<"Categories">>, placeholder_ttl= <<"Game title">>, role=group, state=Is, feed_state=Fs, class=["feed-table-header"]}
         ]}
     ]) ++index:footer().
 

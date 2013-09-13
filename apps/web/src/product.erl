@@ -165,7 +165,7 @@ event({remove_entry, E=#entry{}, ProductId}) ->
 
   [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email]) || {RouteType, To, Fid} <- Recipients];
 
-event({read, entry, {Id,_}})-> wf:redirect("/review?id="++Id);
+event({read, entry, Id})-> wf:redirect("/review?id="++Id);
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event({add_cart, #product{}=P}) ->
   error_logger:info_msg("Add to cart: ~p", [P]),

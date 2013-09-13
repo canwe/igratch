@@ -39,7 +39,7 @@ render_element(#feed2{title=Title, icon=Icon, class=Class, header=TableHeader, s
                                 style= if Total > 0 -> [] ; true-> "display:none;" end}]}; true -> [] end]}},
 
                 #panel{class=[span11], body=#h4{body=[
-                    wf:to_list(Title),
+                    if is_atom(Title) == true -> wf:to_list(Title); true -> Title end,
                     #span{class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>; true -> [] end},
 
                     #span{id=S#feed_state.select_toolbar, style="display:none;", class=["selection-ctl"], body=[
@@ -126,20 +126,20 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=Stat
     Id = element(State#feed_state.entry_id, E),
     From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
 %    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
-    wf:render(article(Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
+    wf:render(article(product, Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{}=State}) ->
     Id = element(State#feed_state.entry_id, P),
     From = case kvs:get(user, P#product.owner) of {ok, U} -> U#user.display_name; {error, _} -> P#product.owner end,
     Media = case P#product.cover of undefined -> #media{};
     File -> #media{url = File, thumbnail_url = filename:join([filename:dirname(File), "thumbnail", filename:basename(File)])} end,
-    wf:render(article(Id, From, P#product.created, [Media], P#product.title, P#product.brief));
+    wf:render(article(product, Id, From, P#product.created, [Media], P#product.title, P#product.brief));
 
 % review
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State})->
     Id = element(State#feed_state.entry_id, E),
     From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-    wf:render(article(Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
+    wf:render(article(review, Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 
 % direct message
 
@@ -172,14 +172,14 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
     Entry = #panel{class=["blog-post"], body=[
         #header{class=["blog-header"], body=[
             #h2{body=[#span{id=?EN_TITLE(Id), body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, 
-            #small{body=[<<" by ">>, #link{body=From}, product_ui:to_date(E#entry.created)]}]}
-        ]},
+            #small{body=[<<" by ">>, #link{body=From}, product_ui:to_date(E#entry.created)]}]}]},
+
         #figure{class=["thumbnail-figure"], body=[
             #carousel{items=[#entry_media{media=Media, mode=blog} || Media <- E#entry.media]},
             if length(E#entry.media) > 1 ->
-                #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=E#entry.title}}]}; true -> [] end
-        ]},
-        #panel{id=?EN_DESC(Id), body=product_ui:shorten(E#entry.description), data_fields=[{<<"data-html">>, true}]},
+                #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=wf:js_escape(E#entry.title)}}]}; true -> [] end ]},
+
+        #panel{id=?EN_DESC(Id), body=product_ui:shorten(wf:js_escape(E#entry.description)), data_fields=[{<<"data-html">>, true}]},
 
         #footer{class=["blog-footer", "row-fluid"], body=[
             #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, 
@@ -187,24 +187,19 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
             #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
                 #span{class=[?ID_CM_COUNT(Id)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
                 postback={read, entry, Id}},
-            #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, Id}}
-        ]}
-    ]},
+            #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, Id}} ]} ]},
     element_panel:render_element(Entry);
-
 
 % Detached review
 
-render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=detached}=State})->
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=detached}=State})->
     Eid = element(State#feed_state.entry_id, E),
    {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
     Ms = E#entry.media,
     Dir = "static/"++case wf:user() of undefined->"anonymous"; User-> User#user.email end,
-    error_logger:info_msg("Entry feed: ~p", [E#entry.feed_id]),
-    error_logger:info_msg("Container id for this entry ~p", [State#feed_state.container_id]),
-
     Recipients = [{RoutingType, To, {Eid, FeedId, lists:keyfind(comments, 1, Feeds)}}
         || #entry{to={RoutingType, To}, feed_id=FeedId, feeds=Feeds} <- kvs:all_by_index(entry,entry_id, Eid)],
+    error_logger:info_msg("ALL BY INDEX!"),
 
     Is = #input_state{
         recipients=Recipients,
@@ -215,18 +210,14 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=detached}=S
 
     CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id, recipients=Recipients},
 
-    error_logger:info_msg("Detached view recippients: ~p", [Is#input_state.recipients]),
-    Entry = #panel{id=?EN_ROW(Eid), class=["blog-post"], body=[
+    Entry = #panel{class=["blog-post"], body=[
         #h3{class=[blue], body=[#span{id=?EN_TITLE(Eid), body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
-
-%        #panel{id=?EN_MEDIA(Eid), class=[span4, "media-pic"], body = #entry_media{media=Media, mode=reviews}},
-        #figure{class=["thumbnail-figure"], body=[
-          [#entry_media{media=M} || M <- Ms]
-        ]},
         #panel{id=?EN_DESC(Eid), body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
 
         #panel{class=[comments, "row-fluid"], body=[
-            #feed2{title=[#span{class=[?ID_CM_COUNT(Eid)], body=[list_to_binary(integer_to_list(kvs_feed:comments_count(entry, E#entry.id)))]},<<" comments">>], state=CmState},
+            #feed2{icon="icon-comments-alt",
+                title=[#span{class=[?ID_CM_COUNT(Eid)], body=[integer_to_list(kvs_feed:comments_count(entry, Eid))]}, <<" comments">>],
+                state=CmState},
             #input{title= <<"Add your comment">>, class=["comments-form"], state=Is, feed_state=CmState}
        ]}
     ]},
@@ -234,7 +225,7 @@ render_element(#feed_entry2{entry=#entry{}=E, state=#feed_state{view=detached}=S
 
 % Comment
 
-render_element(#feed_entry2{entry=#comment{}=C, state=#feed_state{}=State})->
+render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
     Id = element(State#feed_state.entry_id, C),
     {Author, Avatar} = case kvs:get(user, C#comment.from) of 
       {ok, User} -> {User#user.display_name, case User#user.avatar of
@@ -244,25 +235,14 @@ render_element(#feed_entry2{entry=#comment{}=C, state=#feed_state{}=State})->
 
     Date = product_ui:to_date(C#comment.created),
     {_, Fid} = lists:keyfind(comments, 1, C#comment.feeds),
-    error_logger:info_msg("Received recipients: ~p~n", [State#feed_state.recipients]),
-    
-    Recipients = lists:flatten([
-        begin
-        error_logger:info_msg("We handle E:~p EF:~p", [E,F]),
-        case kvs:get(comment, {Id, {E,F}}) of {error,_}-> [];
-            {ok, #comment{feeds=Feeds}=PC} ->
-                error_logger:info_msg("Comment: ~p", [PC]),
-                error_logger:info_msg("Feeds of this comment ~p", [PC#comment.feeds]),
-                error_logger:info_msg("This comment in recipient exist: ~p", [PC#comment.comment_id]),
-                Cs = lists:keyfind(comments, 1, Feeds),
-                {R, T, {E, F, Cs}}
-        end
-        %{ok, C1} = kvs:get(comment, {C#comment.comment_id, {E,F}}),
-%        {R,T,{E,F, lists:keyfind(comments, 1, C#comment.feeds) }}
-        end ||{R,T,{E,F,Ci}}<-State#feed_state.recipients]),
-    error_logger:info_msg("New recipients ~p", [Recipients]),
 
-    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id},
+    Recipients = lists:flatten([case kvs:get(comment, {Id, {E,F}}) of {error,_}-> [];
+        {ok, #comment{feeds=Feeds}=PC} -> 
+            Cs = lists:keyfind(comments, 1, Feeds),
+            {R, T, {E, F, Cs}} end ||{R,T,{E,F,Ci}}<-State#feed_state.recipients]),
+%    error_logger:info_msg("[feed state recipients]New recipients ~p", [Recipients]),
+
+    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, html_tag=panel, entry_id=#comment.comment_id, recipients=Recipients},
 
     Is = #input_state{
         recipients= Recipients,
@@ -271,7 +251,7 @@ render_element(#feed_entry2{entry=#comment{}=C, state=#feed_state{}=State})->
         show_title = false,
         show_media = false},
 
-    Comment = #panel{id=?EN_ROW(Id), class=[media, "media-comment"], body=[
+    Comment = #panel{class=[media, "media-comment"], body=[
         #link{class=["pull-left"], body=[Avatar]},
         #panel{class=["media-body"], body=[
             #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
@@ -297,17 +277,8 @@ render_element(#entry_media{media=[], mode=reviews}) ->
   element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt="no media", class=[]});
 render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], mode=reviews}) ->
   element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt=T, class=[]});
-render_element(#entry_media{media=[#media{title=Title, thumbnail_url=Thumb}|_], mode=reviews}) ->
-  Ext = filename:extension(Thumb),
-  Name = filename:basename(Thumb, Ext),
-  Dir = filename:dirname(Thumb),
-  element_image:render_element(#image{alt=Title, image=filename:join([Dir, Name++"_270x124"++Ext])});
-render_element(#entry_media{media=#media{}=Media, mode=blog}) ->
-    Thumb = Media#media.thumbnail_url,
-    Ext = filename:extension(Thumb),
-    Name = filename:basename(Thumb, Ext),
-    Dir = filename:dirname(Thumb),
-    element_image:render_element(#image{alt=Media#media.title, image=filename:join([Dir, Name++"_716x480"++Ext])});
+render_element(#entry_media{media=[#media{}=Media|_], mode=reviews}) -> element_image:render_element(image(Media, "270x124"));
+render_element(#entry_media{media=#media{}=Media, mode=blog}) -> element_image:render_element(image(Media, "716x480"));
 render_element(#entry_media{media=Media}) ->
   element_panel:render_element(#panel{body=[]});
 
@@ -315,7 +286,7 @@ render_element(E) -> error_logger:info_msg("[feed2]render_element(#unknown{}) ~p
 
 % product entry components
 
-article(Id, From, Date, Media, Title, Description)-> [
+article(Type, Id, From, Date, Media, Title, Description)-> [
     #panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
         #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(From)}},
@@ -328,11 +299,17 @@ article(Id, From, Date, Media, Title, Description)-> [
     #panel{id=?EN_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=Media, mode=reviews}},
 
     #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=Title}},
-        #p{id=?EN_DESC(Id), body=product_ui:shorten(Description)},
-        #panel{id=?ID_TOOL(Id), class=[more], body= [
-            #link{body= [#i{class=["icon-edit", "icon-large"]},<<"edit">>], postback={edit_product, Id}},
-            #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, product, Id}} ]} ]}].
+        #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=wf:js_escape(Title)}},
+        #p{id=?EN_DESC(Id), body=product_ui:shorten(wf:js_escape(Description))},
+        #panel{id=?ID_TOOL(Id), class=[more], body=[
+            #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, Id}} ]} ]}].
+
+image(#media{}=Media, Size) ->
+    Thumb = Media#media.thumbnail_url,
+    Ext = filename:extension(Thumb),
+    Name = filename:basename(Thumb, Ext),
+    Dir = filename:dirname(Thumb),
+    #image{alt=Media#media.title, image=filename:join([Dir, Name++"_"++wf:to_list(Size)++Ext])}.
 
 % events
 
@@ -504,7 +481,7 @@ process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     error_logger:info_msg("[feed2] show_entry ~p", [Entry]),
     wf:insert_bottom(S#feed_state.entries, #feed_entry2{entry=Entry, state=S}),
     wf:wire("Holder.run();"),
-    wf:update(S#feed_state.more_toolbar, #link{class=[btn, "btn-large"], body= <<"more">>, delegate=feed2, postback={check_more, Entry, S}});
+    wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed2, postback={check_more, Entry, S}});
 
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([_,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
