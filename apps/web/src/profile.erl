@@ -16,8 +16,8 @@ body() ->
     What = case wf:qs(<<"id">>) of undefined -> Who;
         Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end end,
     Nav = {What, profile, []},
-    {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, What)),
-    State = #feed_state{container_id=Id, view=review},
+    State = case lists:keyfind(feed, 1, element(#iterator.feeds, What)) of
+        {_, Id}->?FD_STATE(Id)#feed_state{view=review}; false -> #feed_state{} end,
     index:header() ++ dashboard:page(Nav, [
         if What#user.email == undefined -> index:error("There is no user "++wf:to_list(wf:qs(<<"id">>))++"!");
         true -> [
