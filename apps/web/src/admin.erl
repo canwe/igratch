@@ -81,18 +81,18 @@ acl(Rows)->[
   #table{class=[table, "table-hover"], header=[#tr{cells=[#th{body= <<"id">>}, #th{body= <<"resourse">>}]}], body=[Rows]}].
 
 acls()->
-  lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
-    Id = io_lib:format("~p", [Aid]),
-    State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry, html_tag=table},
-    B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
-        #feed_ui{title=wf:to_list(Aid)++" entries", icon="icon-list", state=State,
-            header=[#tr{class=["feed-table-header"], cells=[
-                #th{body= <<"id">>},
-                #th{body= <<"accessor">>},
-                #th{body= <<"action">>}]} ]}
-    ]},
-    Ao = [#tr{cells=[#td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=Id, data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, #td{body=io_lib:format("~p", [Aid])}]}|Ain],
-   {B , Ao}
+    lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
+        State = #feed_state{container=acl, container_id=Aid, entry_type=acl_entry, html_tag=table},
+        B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
+            #feed_ui{title=wf:to_list(Aid)++" entries", icon="icon-list", state=State,
+                header=[#tr{class=["feed-table-header"], cells=[
+                    #th{body= <<"id">>},
+                    #th{body= <<"accessor">>},
+                    #th{body= <<"action">>}]} ]}]},
+        Ao = [#tr{cells=[
+            #td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=wf:to_list(Aid), data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, 
+            #td{body=wf:to_list(Aid)}]}|Ain],
+        {B , Ao}
   end, [], kvs:all(acl)).
 
 event(init) -> wf:reg(?MAIN_CH), [];
