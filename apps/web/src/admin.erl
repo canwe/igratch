@@ -159,7 +159,6 @@ event({revoke, Feature, Whom})->
     {ok, U} ->
         kvs_acl:define_access({user, U#user.email}, {feature, Feature}, disable),
         feature_reply(U, Feature, <<"Your role disabled!">>, undefined, #feed_state{entry_id=#entry.entry_id}) end;
-
 event(_) -> ok.
 
 process_delivery(R,M) ->
