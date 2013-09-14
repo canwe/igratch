@@ -81,7 +81,8 @@ tab(acl)->
                     #th{body= <<"accessor">>},
                     #th{body= <<"action">>}]} ]}]},
         Ao = [#tr{cells=[
-            #td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=wf:to_list(Aid), data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, 
+            #td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N),
+                           body=wf:to_list(Aid), data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, 
             #td{body=wf:to_list(Aid)}]}|Ain],
         {B , Ao} end, [], kvs:all(acl)),
 
@@ -147,7 +148,8 @@ event({revoke, Feature, Whom})->
                           media=[],
                           title= <<"Feature disabled">>,
                           description= "You role "++ io_lib:format("~p", [Feature])++" has been disabled!",
-                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end;
+                          shared=""}, skip, skip, skip, direct])
+                          || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end;
 event(_) -> ok.
 
 process_delivery(R,M) ->
