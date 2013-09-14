@@ -81,7 +81,8 @@ tab(acl)->
                     #th{body= <<"accessor">>},
                     #th{body= <<"action">>}]} ]}]},
         Ao = [#tr{cells=[
-            #td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=wf:to_list(Aid), data_fields=[{<<"data-toggle">>, <<"tab">>}]}}, 
+            #td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=wf:to_list(Aid),
+                data_fields=[{<<"data-toggle">>, <<"tab">>}]}},
             #td{body=wf:to_list(Aid)}]}|Ain],
         {B , Ao} end, [], kvs:all(acl)),
 
@@ -117,6 +118,25 @@ tab(products)->
 
 tab(_)-> [].
 
+feature_reply(#user{}=Whom, Feature, Msg, Eid, #feed_state{}=S) ->
+    case lists:keyfind(direct, 1, Whom#user.feeds) of false -> skip;
+        {_,Id}=Feed ->
+            Type = direct,
+            Is = #input_state{
+                collect_msg = false,
+                show_recipients = false,
+                entry_type = direct,
+                recipients = [{user, Whom#user.email, Feed}],
+                title = "Re: Feature <b>"++ wf:to_list(Feature)++"</b> request",
+                description = Msg},
+            input:event({post, Type, Is, ?DIRECT_STATE(Id)}),
+
+            User = wf:user(),
+            Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
+            [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
+                        [#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, Is, ?FD_STATE(Fid,S)])
+                || {RouteType, To, {_,Fid}} <- Recipients] end.
+
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
     wf:update(list_to_atom(Id), tab(list_to_atom(Id)));
@@ -126,28 +146,20 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({view, Id}) -> error_logger:info_msg("redirect"), wf:redirect("/profile?id="++Id);
 event({disable, What})-> error_logger:info_msg("ban user ~p", [What]);
-event({revoke, Feature, Whom})->
-  error_logger:info_msg("Disable ~p : ~p", [Whom, Feature]),
-  User = wf:user(),
-  case kvs:get(user, Whom) of {error, not_found} -> skip;
+event({allow, Whom, Eid, Feature, #feed_state{}=S}) ->
+    case kvs:get(user, Whom) of {error, not_found} -> skip;
     {ok, U} ->
-      kvs_acl:define_access({user, U#user.email}, {feature, Feature}, disable),
+        kvs_acl:define_access({user, Whom}, Feature, allow),
+        feature_reply(U, Feature, <<"Your request accepted!">>, Eid, S) end;
+event({cancel, Whom, Eid, Feature, #feed_state{}=S}) ->
+    case kvs:get(user, Whom) of {error, not_found} -> skip;
+    {ok, U} -> feature_reply(U, Feature, <<"Your request is prohibited!">>, Eid, S) end;
+event({revoke, Feature, Whom})->
+    case kvs:get(user, Whom) of {error, not_found} -> skip;
+    {ok, U} ->
+        kvs_acl:define_access({user, U#user.email}, {feature, Feature}, disable),
+        feature_reply(U, Feature, <<"Your role disabled!">>, undefined, #feed_state{entry_id=#entry.entry_id}) end;
 
-      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, U#user.feeds)}],
-      error_logger:info_msg("Reply recipients ~p", [ReplyRecipients]),
-      EntryId = kvs:uuid(),
-      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
-                  [#entry{id={EntryId, FeedId},
-                          entry_id=EntryId,
-                          feed_id=FeedId,
-                          created = now(),
-                          to = {RoutingType, To},
-                          from=User#user.email,
-                          type=reply,
-                          media=[],
-                          title= <<"Feature disabled">>,
-                          description= "You role "++ io_lib:format("~p", [Feature])++" has been disabled!",
-                          shared=""}, skip, skip, skip, direct]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end;
 event(_) -> ok.
 
 process_delivery(R,M) ->

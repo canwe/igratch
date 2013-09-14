@@ -486,8 +486,9 @@ process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([_,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
     error_logger:info_msg("[feed - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
-    wf:remove(?EN_ROW(element(S#feed_state.entry_id, E))),
-    % todo: traverse with correct feed state.
-    deselect(S);
+    case element(S#feed_state.entry_id, E) of undefined -> ok;
+    Id ->
+        wf:remove(?EN_ROW(Id)),
+        deselect(S) end;
 
 process_delivery(R,M) -> error_logger:info_msg("AAAA:~p ~p", [R, M]),ok.

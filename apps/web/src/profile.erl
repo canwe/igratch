@@ -124,39 +124,28 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("dashboard Name ~p, Tag ~p, Te
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({request, Feature}) -> 
-  error_logger:info_msg("request feature ~p", [Feature]),
-  User =wf:user(),
-  case kvs:get(acl, {feature, admin}) of {error, not_found} -> wf:update(alerts,index:error("system has no administrators yet"));
+    User =wf:user(),
+    case kvs:get(acl, {feature, admin}) of {error, not_found} -> wf:update(alerts,index:error("system has no administrators yet"));
     {ok,#acl{}=Acl} ->
-      Recipients = lists:flatten([
-        case kvs:get(user, Accessor) of {error, not_found} -> []; {ok, U} -> {Type, Accessor, lists:keyfind(direct, 1, U#user.feeds)} end
-      || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(Acl, acl_entry, undefined), Action =:= allow]),
+        Recipients = lists:flatten([case kvs:get(user, Accessor) of {error,_} -> [];
+            {ok, U} -> {Type, Accessor, lists:keyfind(direct, 1, U#user.feeds)} end
+            || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(Acl, acl_entry, undefined), Action =:= allow]),
 
-      EntryId = kvs:uuid(),
-      From = case wf:user() of undefined -> "anonymous"; User-> User#user.email end,
-
-      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
-                  [#entry{id={EntryId, FeedId},
-                          entry_id=EntryId,
-                          feed_id=FeedId,
-                          created = now(),
-                          to = {RoutingType, To},
-                          from=From,
-                          type={feature, Feature},
-                          media=[],
-                          title= <<"Request">>,
-                          description= "{feature," ++ atom_to_list(Feature) ++ "} requested",
-                          shared=""}, skip, skip, skip, skip, R]) || {RoutingType, To, {_, FeedId}}=R <- Recipients],
-
-      error_logger:info_msg("Recipients ~p", [Recipients]),
-      wf:update(alerts, index:error(io_lib:format("~p", [Feature]) ++" requested"))
-  end;
-event({revoke, Feature, Whom})-> admin:event({revoke, Feature, Whom});
+        Is = #input_state{
+            collect_msg = false,
+            show_recipients = false,
+            entry_type = {feature, Feature},
+            recipients = Recipients,
+            title = "Feature <b>"++ wf:to_list(Feature)++"</b> request",
+            description = wf:to_list(Feature) ++ " requested!"},
+        input:event({post, {feature, Feature}, Is, ?DIRECT_STATE(?FEED(entry))}),
+        wf:update(alerts, index:error(wf:to_list(Feature) ++" requested")) end;
 event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
-event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
+event(Event) ->
+    User = case wf:user() of undefined -> #user{}; U -> U end,
+    IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,
+    if IsAdmin -> admin:event(Event); true -> ok end.
 
-process_delivery([user,_,entry,_,add]=R, M)->
-    error_logger:info_msg("=>message sent!"),
+process_delivery(R,M) ->
     wf:update(sidenav, dashboard:sidenav({wf:user(), profile, []})),
-    feed_ui:process_delivery(R,M);
-process_delivery(R,M) -> feed_ui:process_delivery(R,M).
+    feed_ui:process_delivery(R,M).

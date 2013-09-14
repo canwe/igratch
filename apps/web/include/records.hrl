@@ -50,3 +50,10 @@
 -define(EN_TITLE(Id),   wf:to_list(Id)++"t").
 -define(EN_DESC(Id),    wf:to_list(Id)++"d").
 -define(EN_TOOL(Id),    wf:to_list(Id)++"tb").
+
+-define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{
+    view=direct,
+    entry_id = #entry.entry_id,
+    html_tag=panel,
+    enable_selection=true,
+    enable_traverse=true}).
