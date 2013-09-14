@@ -32,12 +32,9 @@ render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader,
                     #i{class=[Icon, blue]},
                     % select all element control
                     if S#feed_state.enable_selection == true ->
-                        SACtl = if is_tuple(S#feed_state.container_id) -> ?FD_SELALLCTL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.selectall_ctl end,
-                        SA = if is_tuple(S#feed_state.container_id) -> ?FD_SELALL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.select_all end,
-                        error_logger:info_msg("CTL: ~p ALL: ~p", [SACtl, SA]),
-                        #span{id=SACtl, body=[
-                            #checkbox{id=SA, class=[checkbox, inline], postback={select, SA, State},
-                                delegate=feed_ui, source=[SA],
+                        #span{id=S#feed_state.selectall_ctl, body=[
+                            #checkbox{id=S#feed_state.select_all, class=[checkbox, inline], postback={select, S#feed_state.select_all, State},
+                                delegate=feed_ui, source=[S#feed_state.select_all],
                                 value= string:join([wf:to_list(
                                     case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T);R -> R end) || E <- Entries], "|"),
                                 style= if Total > 0 -> [] ; true-> "display:none;" end}]}; true -> [] end]}},
@@ -47,7 +44,9 @@ render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader,
                     #span{class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>; true -> [] end},
 
                     #span{id=S#feed_state.select_toolbar, style="display:none;", class=["selection-ctl"], body=[
-                        #link{id=S#feed_state.delete_btn, class=[btn], body=[<<"delete">>], postback={delete, State}, delegate=feed_ui},
+                        #link{id=S#feed_state.delete_btn, class=[btn], body=[#i{class=["icon-trash"]}],
+                            data_fields=?TOOLTIP, title= <<"delete">>,
+                            postback={delete, State}, delegate=feed_ui},
                         SelectionCtl]},
 
                     if S#feed_state.enable_traverse == true ->
@@ -354,15 +353,14 @@ event({delete, #feed_state{selected_key=Key}=S}) ->
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
 event({select, Sel, #feed_state{selected_key=Key}=S})->
-    SA = if is_tuple(S#feed_state.container_id) -> ?FD_SELALL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.select_all end,
     Selection = wf:session(Key),
-    NewSel = case wf:q(Sel) of "undefined" -> if Sel == SA -> sets:new(); true ->
-        PrevSel = lists:sublist(Sel,1, length(Sel) - length("sel")), %?EN_SEL() ++ "sel"
-        wf:wire(#jq{target=?EN_ROW(PrevSel), method=["removeClass"], args=["'warning'"]}),
-        sets:from_list(Selection--[PrevSel]) end;
+    NewSel = case wf:q(Sel) of "undefined" -> if Sel == S#feed_state.select_all -> sets:new(); true ->
+        SelEn = ?EN_FROMSEL(Sel),
+        wf:wire(#jq{target=?EN_ROW(SelEn), method=["removeClass"], args=["'warning'"]}),
+        sets:from_list(Selection--[SelEn]) end;
     Val -> Vals = string:tokens(Val,"|"),
         [begin
-            wf:wire(#jq{target=?EN_SEL(C), method=["prop"], args=["'checked', 'checked'"]}),
+            wf:wire(#jq{target=?EN_SEL(C), method=["prop"],     args=["'checked', 'checked'"]}),
             wf:wire(#jq{target=?EN_ROW(C), method=["addClass"], args=["'warning'"]})
         end || C <- Vals],
         sets:from_list(Vals++Selection) end,
@@ -370,10 +368,10 @@ event({select, Sel, #feed_state{selected_key=Key}=S})->
     case sets:size(NewSel) of 0 -> deselect(S);
     Size ->
         wf:wire(#jq{target=S#feed_state.select_toolbar, method=["show"]}),
-        wf:wire(#jq{target=S#feed_state.close, method=["show"]}),
-        wf:wire(#jq{target=S#feed_state.feed_title, method=["attr"], args=["'style', 'background-color:lightblue'"]}),
-        wf:wire(#jq{target=S#feed_state.feed_toolbar, method=["hide"]}),
-        wf:wire(#jq{target=SA, method=["prop"], args=["'checked'," ++
+        wf:wire(#jq{target=S#feed_state.close,          method=["show"]}),
+        wf:wire(#jq{target=S#feed_state.feed_title,     method=["attr"], args=["'style', 'background-color:lightblue'"]}),
+        wf:wire(#jq{target=S#feed_state.feed_toolbar,   method=["hide"]}),
+        wf:wire(#jq{target=S#feed_state.select_all,     method=["prop"], args=["'checked'," ++
             if Size == S#feed_state.page_size orelse Size == S#feed_state.current -> "'checked'"; true -> "false" end]})
     end,
     wf:session(Key, sets:to_list(NewSel));

@@ -44,6 +44,7 @@
 
 -define(EN_ROW(Id),     wf:to_list(Id)++"row").
 -define(EN_SEL(Id),     wf:to_list(Id)++"sel").
+-define(EN_FROMSEL(Sel),lists:sublist(Sel,1, length(Sel) - length("sel"))).
 -define(EN_MEDIA(Id),   wf:to_list(Id)++"media").
 -define(EN_TITLE(Id),   wf:to_list(Id)++"t").
 -define(EN_DESC(Id),    wf:to_list(Id)++"d").
