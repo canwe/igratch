@@ -54,9 +54,13 @@ render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader,
                             #span{id=S#feed_state.feed_toolbar, body=if Total > 0 -> [
                                 #small{id=S#feed_state.page_label, body=[
                                     integer_to_list(State#feed_state.start), "-", integer_to_list(Current), " of ", integer_to_list(Total)]},
-                                #link{id=S#feed_state.prev, class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
+                                #button{id=S#feed_state.prev,
+                                    disabled = element(#iterator.next, First) == undefined,
+                                    class=[btn, case element(#iterator.next, First) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
                                     postback={traverse, #iterator.next, First, State}, delegate=feed_ui},
-                                #link{id=S#feed_state.next, class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
+                                #button{id=S#feed_state.next,
+                                    disabled = element(#iterator.prev, Last) == undefined,
+                                    class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
                                     postback={traverse, #iterator.prev, Last, State}, delegate=feed_ui}]; true-> [] end} ]}; true -> [] end,
 
                     #span{class=["pull-right"], body=[
@@ -417,9 +421,13 @@ traverse(Direction, Start, #feed_state{}=S)->
     State = S#feed_state{start=NewStart, start_element=NewFirst, last_element=NewLast, current=Current},
     wf:update(S#feed_state.entries, [#feed_entry{entry=G, state=State} || G <- Entries]),
 
-    wf:replace(S#feed_state.prev, #link{id=State#feed_state.prev, class=[btn, case element(#iterator.next, NewFirst) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>], 
+    wf:replace(S#feed_state.prev, #button{id=State#feed_state.prev,
+        disabled = element(#iterator.next, NewFirst) == undefined,
+        class=[btn, case element(#iterator.next, NewFirst) of undefined -> "disabled"; _ -> "" end], body=[<<"<">>],
         postback={traverse, #iterator.next, NewFirst, State}, delegate=feed_ui}),
-    wf:replace(S#feed_state.next, #link{id=State#feed_state.next, class=[btn, case element(#iterator.prev, NewLast) of undefined -> "disabled"; _ -> "" end], body=[<<">">>], 
+    wf:replace(S#feed_state.next, #button{id=State#feed_state.next,
+        disabled = element(#iterator.prev, NewLast) == undefined,
+        class=[btn, case element(#iterator.prev, NewLast) of undefined -> "disabled"; _ -> "" end], body=[<<">">>],
         postback={traverse, #iterator.prev, NewLast, State}, delegate=feed_ui}),
 
     wf:update(S#feed_state.page_label, [integer_to_list(NewStart), "-", integer_to_list(NewStart+Current-1), " of ", integer_to_list(Total)]),

@@ -82,7 +82,7 @@ acl(Rows)->[
 
 acls()->
     lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
-        State = ?FD_STATE(Aid)#feed_state{container=acl, entry_type=acl_entry, html_tag=table, enable_selection=true},
+        State = ?FD_STATE(Aid)#feed_state{container=acl, entry_type=acl_entry, html_tag=table, enable_selection=true, enable_traverse=true},
         B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
             #feed_ui{title=wf:to_list(Aid)++" entries", icon="icon-list", state=State,
                 header=[#tr{class=["feed-table-header"], cells=[
