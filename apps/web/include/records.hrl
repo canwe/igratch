@@ -26,7 +26,6 @@
                         state,
                         feed_state,
                         icon="icon-edit",
-%                        collapsed=false,
                         feed,
                         recipients="",
                         placeholder_rcp="",

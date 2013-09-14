@@ -27,10 +27,18 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
 
     #panel{id=State#input_state.form_id, class=["row-fluid", I#input.class], style=FormStyle, body=[#panel{class=[span9], body=[
         if State#input_state.show_recipients == true ->
-            #textboxlist{id=State#input_state.recipients_id, placeholder=I#input.placeholder_rcp, delegate=input, values=I#input.recipients, role=I#input.role};true -> [] end,
+            #textboxlist{id=State#input_state.recipients_id,
+                placeholder=I#input.placeholder_rcp, delegate=input, values=I#input.recipients, role=I#input.role};true -> [] end,
+
         if State#input_state.show_title == true ->
             #textbox{id=State#input_state.title_id, class=[span12], placeholder= I#input.placeholder_ttl}; true -> [] end,
-        #htmlbox{id=State#input_state.body_id, class=[span12], root=?ROOT, dir=Dir, post_write=attach_media, delegate_api=input, img_tool=gm, post_target=State#input_state.media_id, size=?THUMB_SIZE},
+
+        if State#input_state.simple_body == true ->
+            #textarea{id=State#input_state.body_id, class=[span12], placeholder=I#input.placeholder_box};
+        true ->
+            #htmlbox{id=State#input_state.body_id, class=[span12],
+                root=?ROOT, dir=Dir, post_write=attach_media, delegate_api=input,
+                img_tool=gm, post_target=State#input_state.media_id, size=?THUMB_SIZE} end,
 
         if State#input_state.show_price == true ->
             #panel{class=["input-append"], body=[

@@ -16,7 +16,6 @@ body() ->
     wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){tabshow($(e.target).attr('href'));});"),
     Tab = case wf:qs(<<"tab">>) of undefined -> <<"categories">>; T ->  T end,
     wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])),
-
     Nav = {wf:user(), admin, subnav()},
     index:header() ++ dashboard:page(Nav, [
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
@@ -24,9 +23,14 @@ body() ->
 
 tab(categories) ->
     State = ?FD_STATE(?GRP_FEED)#feed_state{entry_type=group, enable_selection=true, enable_traverse=true, html_tag=table},
-    Is = #input_state{show_recipients=false, show_scope=true, show_media=false, entry_type=group},
+    Is = #input_state{show_recipients=false, show_scope=true, show_media=false, entry_type=group, simple_body=true},
     [
-    #input{state=Is, feed_state=State, title= <<"Add category">>, placeholder_ttl= <<"name">>, icon="icon-tags"},
+    #input{state=Is, feed_state=State,
+        title= <<"Add category">>,
+        placeholder_ttl= <<"name">>, 
+        placeholder_box= <<"description">>, 
+        icon="icon-tags"},
+
     #feed_ui{
         title= <<"Categories ">>,
         icon="icon-list", state=State,
