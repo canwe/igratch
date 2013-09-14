@@ -321,8 +321,16 @@ event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Star
 
 event({delete, #feed_state{selected_key=Key}=S}) ->
     User = wf:user(),
+    Selection = wf:session(Key),
+    SelectedIds = if is_tuple(S#feed_state.container_id) ->
+        Entries = case element(#iterator.prev, S#feed_state.start_element) of
+            undefined  -> kvs:entries(kvs:get(S#feed_state.container, S#feed_state.container_id), S#feed_state.entry_type, S#feed_state.page_size);
+            Prev -> kvs:entries(S#feed_state.entry_type, Prev, S#feed_state.page_size, #iterator.prev) end,
+        Set = sets:from_list(Selection),
+
+        [element(S#feed_state.entry_id, E) || E <- Entries,
+            sets:is_element(wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))), Set)]; true -> Selection end,
     [begin
-        error_logger:info_msg("Session key: ~p", [Id]),
         Type = case S#feed_state.view of product -> product; _ -> S#feed_state.entry_type end,
         FullId = case Type of entry -> {Id, S#feed_state.container_id}; _ -> Id end,
 
@@ -347,8 +355,7 @@ event({delete, #feed_state{selected_key=Key}=S}) ->
                 group ->
                     msg:notify([kvs_group, Type, unregister], [Obj, #input_state{recipients=[{group, FullId, {feed, ?GRP_FEED}}]}, S]);
                 _ -> error_logger:info_msg("delete ~p. no recipients", [Type]), [] end end
-
-       end || Id <- wf:session(Key)];
+       end || Id <- SelectedIds];
 
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
