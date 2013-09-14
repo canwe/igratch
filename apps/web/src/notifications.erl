@@ -7,6 +7,13 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
+-define(NOTIFICATION_STATE(Id), ?FD_STATE(Id)#feed_state{
+    view=direct,
+    entry_id = #entry.entry_id,
+    html_tag=panel,
+    enable_selection=true,
+    enable_traverse=true}).
+
 main()-> case wf:user() of undefined -> wf:redirect("/"); _-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]} end.
 
 body()->
@@ -25,65 +32,68 @@ subnav()-> [{sent, "sent"}, {archive, "archive"}].
 feed(notifications)->
     User = wf:user(),
     {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
-    State = ?FD_STATE(Id)#feed_state{view=direct, entry_id = #entry.entry_id, html_tag=panel, enable_selection=true, enable_traverse=true},
-    Is = #input_state{entry_type=direct,collapsed=true},
-    error_logger:info_msg("Notification feed state: ~p", [State]),
-    #feed_ui{title= <<"Notification ">>, icon="icon-envelope-alt", state=State, header=[
-        #input{placeholder_rcp= <<"E-mail/User">>, placeholder_ttl= <<"Subject">>, role=user, expand_btn= <<"compose">>, class=["feed-table-header"], icon="", 
-            state=Is, feed_state=State}
-    ]};
+    State = ?NOTIFICATION_STATE(Id),
+    Is = #input_state{entry_type=direct,collapsed=true, show_media = false},
+    #feed_ui{title=title(notification), icon=icon(notification), state=State, header=[
+        #input{placeholder_rcp= <<"E-mail/User">>,
+            placeholder_ttl= <<"Subject">>,
+            role=user,
+            expand_btn= <<"compose">>,
+            class=["feed-table-header"],
+            icon="",
+            state=Is, feed_state=State}]};
+feed(Feed)->
+    Feeds = case wf:user() of undefined -> []; User -> element(#iterator.feeds, User) end,
+    case lists:keyfind(Feed, 1, Feeds) of false -> index:error("404");
+    {_, Id} -> #feed_ui{title=title(Feed), icon=icon(Feed),
+        state=?NOTIFICATION_STATE(Id),
+        header=[#tr{class=["feed-table-header"], cells=[]}]};
+    R -> error_logger:info_msg("EE: ~p", [R]) end.
 
-feed(sent)->
-    User = wf:user(),
-    {_, Id} = lists:keyfind(sent, 1, element(#iterator.feeds, User)),
-    State = ?FD_STATE(Id)#feed_state{view=direct, enable_selection=true, html_tag=panel, enable_traverse=true, entry_id=#entry.entry_id},
-    #feed_ui{title= <<"Sent Messages ">>, icon="icon-signout", state=State,
-        header=[#tr{class=["feed-table-header"], cells=[]} ]};
+title(sent)-> <<"Sent Messages ">>;
+title(notification)-> <<"Notification ">>;
+title(archive)-> <<"Archive ">>;
+title(_) -> <<"">>.
 
-feed(archive)->
-    User = wf:user(),
-    {_, Id} = lists:keyfind(archive, 1, element(#iterator.feeds, User)),
-    State = #feed_state{container_id=Id,view=direct, enable_selection=true},
-    #feed_ui{title= <<"Archive ">>, icon="icon-signout", state=State,
-        header=[#tr{class=["feed-table-header"], cells=[]} ]};
-
-feed(_) -> [index:error("404")].
+icon(sent)-> "icon-envelope";
+icon(notification)-> "icon-envelope-alt";
+icon(archive) -> "icon-archive";
+icon(_)-> "".
 
 control_event(_, _) -> ok.
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    error_logger:info_msg(""),
     wf:update(list_to_atom(Id), feed(list_to_atom(Id)));
 api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({allow, Whom, Eid, Feature, #feed_state{}=S}) ->
-  error_logger:info_msg("Allow ~p : ~p", [Whom, Feature]),
-  kvs_acl:define_access({user, Whom}, Feature, allow),
-  User = wf:user(),
-
-  case kvs:get(user, Whom) of {error, not_found} -> skip;
+    error_logger:info_msg("Allow ~p : ~p", [Whom, Feature]),
+    case kvs:get(user, Whom) of {error, not_found} -> skip;
     {ok, U} ->
-      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, U#user.feeds)}],
-      error_logger:info_msg("Reply recipients ~p", [ReplyRecipients]),
-      EntryId = kvs:uuid(),
-      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
-                  [#entry{id={EntryId, FeedId},
-                          entry_id=EntryId,
-                          feed_id=FeedId,
-                          created = now(),
-                          to = {RoutingType, To},
-                          from=User#user.email,
-                          type=direct,
-                          media=[],
-                          title= <<"Re: Feature request">>,
-                          description= "You have been granted "++ io_lib:format("~p", [Feature])++"!",
-                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
+        kvs_acl:define_access({user, Whom}, Feature, allow),
+        case lists:keyfind(direct, 1, U#user.feeds) of false -> no_feed;
+        {_,Id}=Feed ->
+            State = ?NOTIFICATION_STATE(Id),
+            Type = direct,
+            ReplyRecipients = [{user, U#user.email, Feed}],
+            Is = #input_state{
+                collect_msg = false,
+                show_recipients = false,
+                entry_type = direct,
+                recipients = ReplyRecipients,
+                title = <<"Re: Feature request">>,
+                description = "You have been granted "++ wf:to_list(Feature)++"!"},
+            input:event({post, Type, Is, State}),
 
-  Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
-  error_logger:info_msg("Remove recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Feedid},entry_id=Eid}, #input_state{}, S]) || {RouteType, To, {_, Feedid}=Fid} <- Recipients];
+            User = wf:user(),
+            Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
+            [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
+                        [#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, Is, ?FD_STATE(Fid,S)])
+                || {RouteType, To, {_,Fid}} <- Recipients]
+
+        end end;
 
 event({cancel, From, Eid, {feature, Feature}, #feed_state{}=S}) ->
     error_logger:info_msg("Reject ~p", [Feature]),

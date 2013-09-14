@@ -396,10 +396,10 @@ event({check_more, Start, #feed_state{}=S}) ->
 event(E)-> error_logger:info_msg("[feed] event: ~p", [E]).
 
 deselect(#feed_state{selected_key=Key}=S) ->
-    [begin 
+    [begin
         wf:wire(#jq{target=?EN_SEL(C), method=["prop"], args=["'checked', false"]}),
         wf:wire(#jq{target=?EN_ROW(C), method=["removeClass"], args=["'warning'"]})
-     end|| C <- wf:session(Key)],
+     end|| C <- case wf:session(Key) of undefined -> []; Ims -> Ims end],
     SA = if is_tuple(S#feed_state.container_id) -> ?FD_SELALL(erlang:phash2(S#feed_state.container_id)); true -> S#feed_state.select_all end,
     wf:wire(#jq{target=SA, method=["prop"], args=["'checked', false"]}),
     wf:wire(#jq{target=S#feed_state.select_toolbar, method=["hide"]}),

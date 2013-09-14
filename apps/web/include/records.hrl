@@ -28,9 +28,11 @@
                         icon="icon-edit",
                         feed,
                         recipients="",
-                        placeholder_rcp="",
-                        placeholder_ttl="Title",
-                        placeholder_box="",
+                        placeholder_rcp= <<"">>,
+                        placeholder_ttl= <<"Title">>,
+                        placeholder_box= <<"">>,
+                        post_btn = <<"post">>,
+                        close_btn= <<"close">>,
                         expand_btn="",
                         expand_class=?BTN_INFO}).
 

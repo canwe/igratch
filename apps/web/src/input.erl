@@ -43,17 +43,20 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
         if State#input_state.show_price == true ->
             #panel{class=["input-append"], body=[
                 #textbox{id=State#input_state.price_id, value=float_to_list(0/100, [{decimals, 2}])},
-                #select{id=State#input_state.currency_id, class=[selectpicker], body=[#option{label= L, body = V} || {L,V} <- ?CURRENCY]} ]}; true -> [] end,
+                #select{id=State#input_state.currency_id, class=[selectpicker],
+                    body=[#option{label= L, body = V} || {L,V} <- ?CURRENCY]} ]}; true -> [] end,
 
         if State#input_state.show_scope == true ->
             #select{id=State#input_state.scope_id, body=[
-                #option{label= <<"scope">>, body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
-                #option{label= <<"Public">>, value = public},
+                #option{label= <<"scope">>,   body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
+                #option{label= <<"Public">>,  value = public},
                 #option{label= <<"Private">>, value = private} ]}; true -> [] end,
 
         #panel{class=["btn-toolbar"], body=[
-            #link{id=State#input_state.post_id, class=?BTN_INFO, body= <<"Post">>, delegate=input, postback={post, State#input_state.entry_type, State, FS}, source=Source},
-            #link{class=[btn], style=ExpandStyle, body= <<"Close">>, postback={hide_input, State}, delegate=input}
+            #link{id=State#input_state.post_id, class=?BTN_INFO, body=I#input.post_btn,
+                delegate=input, postback={post, State#input_state.entry_type, State, FS}, source=Source},
+            #link{class=[btn], style=ExpandStyle, body=I#input.close_btn, 
+                delegate=input, postback={hide_input, State}}
         ]},
 
         if State#input_state.show_media == true ->
@@ -197,21 +200,25 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
 event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     error_logger:info_msg("=>post entry: ~p", [Fs]),
     User = wf:user(),
-    Desc = wf:q(Is#input_state.body_id),
-    Title = wf:q(Is#input_state.title_id),
+    {Title, Desc} = if Is#input_state.collect_msg == true ->
+        {wf:q(Is#input_state.title_id), wf:q(Is#input_state.body_id)}; 
+    true -> {Is#input_state.title, Is#input_state.description} end,
     error_logger:info_msg("Show recipients: ~p", [Is#input_state.show_recipients]),
     RawRecipients = if Is#input_state.show_recipients == true -> wf:q(Is#input_state.recipients_id); true -> Is#input_state.recipients end,
+
     error_logger:info_msg("Entry type: ~p", [EntryType]),
     error_logger:info_msg("Raw: ~p", [RawRecipients]),
-    R1 = lists:flatmap(fun(S) -> [begin
+    R1 = if Is#input_state.collect_msg == true ->
+        lists:flatmap(fun(S) -> [begin
         error_logger:info_msg("s:~p a:~p ", [S, A]),
         Type = list_to_atom(A),
         Feed = case EntryType of review -> reviews; _ -> EntryType end,
         ObjId = string:tokens(string:substr(S, length(A)+Pos), "="),
         case kvs:get(Type, lists:nth(1,ObjId)) of {error,_}-> [];
         {ok, E} -> {Type, element(#iterator.id, E), lists:keyfind(Feed, 1, element(#iterator.feeds, E))} end end
+        || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(RawRecipients, ","));
+    true -> RawRecipients end,
 
-        || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(RawRecipients, ",")),
     error_logger:info_msg("R1: ~p", [R1]),
 
     R2 = [[ {group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-
