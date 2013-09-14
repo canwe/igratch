@@ -60,6 +60,25 @@ icon(notification)-> "icon-envelope-alt";
 icon(archive) -> "icon-archive";
 icon(_)-> "".
 
+feature_reply(#user{}=Whom, Feature, Msg, Eid, #feed_state{}=S) ->
+    case lists:keyfind(direct, 1, Whom#user.feeds) of false -> skip;
+        {_,Id}=Feed ->
+            Type = direct,
+            Is = #input_state{
+                collect_msg = false,
+                show_recipients = false,
+                entry_type = direct,
+                recipients = [{user, Whom#user.email, Feed}],
+                title = "Re: Feature <b>"++ wf:to_list(Feature)++"</b> request",
+                description = Msg},
+            input:event({post, Type, Is, ?NOTIFICATION_STATE(Id)}),
+
+            User = wf:user(),
+            Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
+            [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
+                        [#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, Is, ?FD_STATE(Fid,S)])
+                || {RouteType, To, {_,Fid}} <- Recipients] end.
+
 control_event(_, _) -> ok.
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
@@ -69,58 +88,14 @@ api_event(_,_,_) -> ok.
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({allow, Whom, Eid, Feature, #feed_state{}=S}) ->
-    error_logger:info_msg("Allow ~p : ~p", [Whom, Feature]),
     case kvs:get(user, Whom) of {error, not_found} -> skip;
     {ok, U} ->
         kvs_acl:define_access({user, Whom}, Feature, allow),
-        case lists:keyfind(direct, 1, U#user.feeds) of false -> no_feed;
-        {_,Id}=Feed ->
-            State = ?NOTIFICATION_STATE(Id),
-            Type = direct,
-            ReplyRecipients = [{user, U#user.email, Feed}],
-            Is = #input_state{
-                collect_msg = false,
-                show_recipients = false,
-                entry_type = direct,
-                recipients = ReplyRecipients,
-                title = <<"Re: Feature request">>,
-                description = "You have been granted "++ wf:to_list(Feature)++"!"},
-            input:event({post, Type, Is, State}),
+        feature_reply(U, Feature, "Your request accepted!", Eid, S) end;
 
-            User = wf:user(),
-            Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
-            [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
-                        [#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, Is, ?FD_STATE(Fid,S)])
-                || {RouteType, To, {_,Fid}} <- Recipients]
-
-        end end;
-
-event({cancel, From, Eid, {feature, Feature}, #feed_state{}=S}) ->
-    error_logger:info_msg("Reject ~p", [Feature]),
-  User = wf:user(),
-  % send message to user
-  case kvs:get(user, From) of {error, not_found} -> skip;
-    {ok, U} ->
-      ReplyRecipients = [{user, U#user.email, lists:keyfind(direct, 1, U#user.feeds)}],
-      error_logger:info_msg("Reply recipients ~p", [ReplyRecipients]),
-      EntryId = kvs:uuid(),
-      [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add],
-                  [#entry{id={EntryId, FeedId},
-                          entry_id=EntryId,
-                          feed_id=FeedId,
-                          created = now(),
-                          to = {RoutingType, To},
-                          from=User#user.email,
-                          type=direct,
-                          media=[],
-                          title= <<"Re: Feature request">>,
-                          description= "You request for "++ io_lib:format("~p", [Feature])++" has been rejected!",
-                          shared=""}, #input_state{}, S]) || {RoutingType, To, {_, FeedId}} <- ReplyRecipients] end,
-
-  % delete message from feed
-  Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
-  error_logger:info_msg("Remove recipients: ~p", [Recipients]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [#entry{id={Eid, Fid}, entry_id=Eid}, #input_state{}, S]) || {RouteType, To, {_, Fid}} <- Recipients];
+event({cancel, From, Eid, Feature, #feed_state{}=S}) ->
+    case kvs:get(user, From) of {error, not_found} -> skip;
+    {ok, U} -> feature_reply(U, Feature, "Your request is prohibited!", Eid, S) end;
 
 event(Event) -> error_logger:info_msg("[notification] event: ~p", [Event]), ok.
 
