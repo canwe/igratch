@@ -99,10 +99,16 @@ event({post, group, #input_state{}=Is, #feed_state{}=FS}) ->
     User = wf:user(),
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
     Name = wf:q(Is#input_state.title_id),
-    Desc = wf:q(Is#input_state.body_id),
     Publicity = case wf:q(Is#input_state.scope_id) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
     Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
-    RegData = #group{id=Id, name = wf:js_escape(Name), description = wf:js_escape(Desc), scope = Publicity, creator = From, owner = From, feeds = ?GRP_CHUNK, created = now()},
+    RegData = #group{id=Id,
+                    name = Name,
+                    description = wf:q(Is#input_state.body_id),
+                    scope = Publicity,
+                    creator = From,
+                    owner = From,
+                    feeds = ?GRP_CHUNK,
+                    created = now()},
 
     msg:notify([kvs_group, group, register], [RegData, Is, FS]);
 
