@@ -8,6 +8,17 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
+-compile({parse_transform, shen}).
+
+-jsmacro([macro/3]).
+
+macro(A,B,C) ->
+    ws:send('Bert':encodebuf(
+        [{source,'Bert':binary(A)},
+         {x,C},
+         {pickle,'Bert':binary(B)},
+         {linked,C}])).
+
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
