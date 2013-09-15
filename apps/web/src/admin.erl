@@ -14,7 +14,7 @@
 
 on_shown() ->
     X = jq("a[data-toggle=\"tab\"]"),
-    X:on("show", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
+    X:on("shown", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
 
 show(E) ->
     D = jq(document),
