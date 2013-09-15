@@ -1,5 +1,5 @@
 -module(admin).
-%-compile({parse_transform, shen}).
+-compile({parse_transform, shen}).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
@@ -10,20 +10,30 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-%-jsmacro([]).
+-jsmacro([on_shown/0,show/1]).
+
+on_shown() ->
+    X = jq("a[data-toggle=\"tab\"]"),
+    X:on("show", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
+
+show(E) ->
+    D = jq(document),
+    D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
 main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 
 body() ->
+    User = case wf:user() of undefined -> #user{}; U -> U end,
     wf:wire(#api{name=tabshow}),
-    wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){tabshow($(e.target).attr('href'));});"),
-    Tab = case wf:qs(<<"tab">>) of undefined -> <<"categories">>; T ->  T end,
-    wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])),
+    wf:wire(on_shown()),
+    wf:wire(show(case wf:qs(<<"tab">>) of undefined -> "'categories'"; T ->  "'"++wf:to_list(T)++"'" end)),
 
-    Nav = {wf:user(), admin, subnav()},
+    Nav = {User, admin, subnav()},
+    IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,
     index:header() ++ dashboard:page(Nav, [
-        #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
-            #panel{id=Id, class=["tab-pane"]} || Id <-[categories, acl, users, products] ]} ]) ++ index:footer().
+        #panel{class=[span9, "tab-content"], style="min-height:400px;",
+            body = if IsAdmin -> [#panel{id=Id, class=["tab-pane"]} 
+                || Id <-[categories, acl, users, products] ];true -> [] end} ]) ++ index:footer().
 
 subnav() -> [
     {categories, "categories"},
