@@ -1,4 +1,5 @@
 -module(product).
+-compile({parse_transform, shen}).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
@@ -8,32 +9,26 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
--compile({parse_transform, shen}).
+-jsmacro([on_shown/0,show/1]).
 
--jsmacro([macro/3]).
+on_shown() ->
+    X = jq("a[data-toggle=\"tab\"]"),
+    X:on("shown", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
 
-macro(A,B,C) ->
-    ws:send('Bert':encodebuf(
-        [{source,'Bert':binary(A)},
-         {x,C},
-         {pickle,'Bert':binary(B)},
-         {linked,C}])).
+show(E) ->
+    D = jq(document),
+    D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
 body() ->
     Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
     wf:wire(#api{name=tabshow}),
-    wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){tabshow($(e.target).attr('href'));});"),
-    Tab = case wf:qs(<<"tab">>) of undefined -> <<"reviews">>; T ->  T end,
-    wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])),
+    wf:wire(on_shown()),
+    wf:wire(show(case wf:qs(<<"tab">>) of undefined -> "'reviews'"; T ->  "'"++wf:to_list(T)++"'" end)),
 
-
-  wf:wire(#api{name=tabshow}),
-  wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){ console.log(e.target); tabshow($(e.target).attr('href'));});"),
-
-  index:header()++[
-  #section{class=[section], body=#panel{class=[container], body=
+    index:header()++[
+    #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, binary_to_list(Id)) of
       {ok, P} ->
         wf:session(product, P),
@@ -63,8 +58,7 @@ body() ->
         #button{class=[close], data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>},
         #strong{body= atom_to_list(E)} ]}
     end
-  }}
-  ]++index:footer().
+  }}]++index:footer().
 
 essential(P)->[
   #product_hero{product=P},

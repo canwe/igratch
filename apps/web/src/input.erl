@@ -223,7 +223,7 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
 
     R2 = [[ {group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-
         lists:flatten([case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(To)])]
-        || {RouteType, To, _} <- R1, RouteType==product],
+        || {RouteType, To, _} <- R1, RouteType==product, EntryType==review orelse EntryType == reviews],
     error_logger:info_msg("R2: ~p", [R2]),
 
     R3 = case User of undefined -> [];
