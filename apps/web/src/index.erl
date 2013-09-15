@@ -110,7 +110,10 @@ header() -> [
                   #list{class=["dropdown-menu"], body=[
                     #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
                   ]}]},
-                #li{body=#link{body= <<"Account">>, url= <<"/profile">>}}]
+                #li{body=#link{body= <<"Account">>, url= <<"/profile">>}},
+                #li{body=#link{body=[#i{class=["icon-stack", "icon-large"], title= <<"shopping cart">>, body=[
+                    #i{class=["icon-stack-base", "icon-circle"]},
+                    #i{class=["icon-shopping-cart"]}]}], url= <<"/shopping_cart">>}} ]
             end
           ]} ]} ]} ]} ]} ].
 
