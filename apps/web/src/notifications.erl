@@ -32,6 +32,7 @@ feed(notifications)->
             placeholder_ttl= <<"Subject">>,
             expand_btn= <<"compose">>,
             class=["feed-table-header"],
+            role=user,
             icon="",
             state=Is, feed_state=State}]};
 feed(Feed)->
