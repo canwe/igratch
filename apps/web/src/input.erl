@@ -25,7 +25,7 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
         #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
             #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, State}, delegate=input} ]} ]},
 
-    #panel{id=State#input_state.form_id, class=["row-fluid", I#input.class], style=FormStyle, body=[#panel{class=[span9], body=[
+    #panel{id=State#input_state.form_id, class=["row-fluid", I#input.class], style=FormStyle, body=[#panel{class=[span9, input], body=[
         if State#input_state.show_recipients == true ->
             #textboxlist{id=State#input_state.recipients_id,
                 placeholder=I#input.placeholder_rcp, delegate=input, values=I#input.recipients, role=I#input.role};true -> [] end,

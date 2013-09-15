@@ -30,7 +30,6 @@ feed(notifications)->
     #feed_ui{title=title(notification), icon=icon(notification), state=State, header=[
         #input{placeholder_rcp= <<"E-mail/User">>,
             placeholder_ttl= <<"Subject">>,
-            role=user,
             expand_btn= <<"compose">>,
             class=["feed-table-header"],
             icon="",
@@ -38,9 +37,10 @@ feed(notifications)->
 feed(Feed)->
     Feeds = case wf:user() of undefined -> []; User -> element(#iterator.feeds, User) end,
     case lists:keyfind(Feed, 1, Feeds) of false -> index:error("404");
-    {_, Id} -> #feed_ui{title=title(Feed), icon=icon(Feed),
-        state=?DIRECT_STATE(Id),
-        header=[#tr{class=["feed-table-header"], cells=[]}]};
+    {_, Id} ->
+        #feed_ui{title=title(Feed), icon=icon(Feed),
+            state=?DIRECT_STATE(Id),
+            header=[#tr{class=["feed-table-header"], cells=[]}]};
     R -> error_logger:info_msg("EE: ~p", [R]) end.
 
 title(sent)-> <<"Sent Messages ">>;
