@@ -1,4 +1,5 @@
 -module(notifications).
+-compile({parse_transform, shen}).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
@@ -7,13 +8,22 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
+-jsmacro([on_shown/0,show/1]).
+
+on_shown() ->
+    X = jq("a[data-toggle=\"tab\"]"),
+    X:on("shown", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
+
+show(E) ->
+    D = jq(document),
+    D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
+
 main()-> case wf:user() of undefined -> wf:redirect("/"); _-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]} end.
 
 body()->
     wf:wire(#api{name=tabshow}),
-    wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){ console.log(e.target); tabshow($(e.target).attr('href'));});"),
-    Tab = case wf:qs(<<"tab">>) of undefined -> <<"notifications">>; T ->  T end,
-    wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').tab('show');});",[Tab])),
+    wf:wire(on_shown()),
+    wf:wire(show(case wf:qs(<<"tab">>) of undefined -> "'notifications'"; T ->  "'"++wf:to_list(T)++"'" end)),
 
     Nav = {wf:user(), notifications, subnav()},
     index:header() ++ dashboard:page(Nav,
@@ -36,6 +46,7 @@ feed(notifications)->
             icon="",
             state=Is, feed_state=State}]};
 feed(Feed)->
+    error_logger:info_msg("Show feed: ~p", [Feed]),
     Feeds = case wf:user() of undefined -> []; User -> element(#iterator.feeds, User) end,
     case lists:keyfind(Feed, 1, Feeds) of false -> index:error("404");
     {_, Id} ->
