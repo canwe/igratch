@@ -9,7 +9,7 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader, state=S, selection_ctl=SelectionCtl}) ->
+render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, header=TableHeader, state=S, selection_ctl=SelectionCtl}) ->
     wf:render(#section{class=[feed, Class], body=[
         case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_}->
             #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
@@ -29,7 +29,8 @@ render_element(#feed_ui{title=Title, icon=Icon, class=Class, header=TableHeader,
             if S#feed_state.show_title == true ->
             #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
                 #panel{class=[span1], body=#h4{body=[
-                    #i{class=[Icon, blue]},
+                    case IconUrl of undefined -> #i{class=[Icon, blue]};
+                    Url -> #link{url=Url, body=[#i{class=[Icon, blue]}], data_fields=[{<<"data-toggle">>, <<"tab">>}]} end,
                     % select all element control
                     if S#feed_state.enable_selection == true ->
                         #span{id=S#feed_state.selectall_ctl, body=[

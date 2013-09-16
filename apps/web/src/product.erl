@@ -90,35 +90,33 @@ feed(Tab)->
         #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", role=product, state = Is, feed_state=State}
     ]}.
 
-aside()-> [
+aside()->
+    DiscussionState = ?FD_STATE(?FEED(comment))#feed_state{
+        flat_mode=true,
+        view=comment,
+        entry_type=comment,
+        entry_id=#comment.comment_id},
+    EntriesState = ?FD_STATE(?FEED(entry))#feed_state{
+        flat_mode=true,
+        entry_id=#entry.entry_id},
+
     #aside{class=[sidebar], body=[
       #panel{class=["sidebar-widget"], body=[
-        #h2{class=["sidebar-header"], body= <<"">>},
-        #p{body= <<"Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.">>}
-      ]},
+        #feed_ui{
+            title = <<"More shooters">>,
+            state = EntriesState } ]},
+
       #panel{class=["sidebar-widget"], body=[
-        #h2{class=["sidebar-header"], body= <<"More shooters">>},
-        #list{class=[unstyled], body=[
-          #li{body=[#h4{body=#link{body = <<"Quis nostrud exercitation">>}},
-            #p{body=#small{body= <<"June 12, 2012">>}}]}
-        ]}
-      ]},
+        #feed_ui{
+            title = <<"Recent posts">>,
+            state = EntriesState } ]},
+
       #panel{class=["sidebar-widget"], body=[
-        #h2{class=["sidebar-header"], body= <<"Recent posts">>},
-        #list{class=[unstyled], body=[
-          #li{body=[#h4{body=#link{body = <<"Quis nostrud exercitation">>}},
-            #p{body=#small{body= <<"June 12, 2012">>}}]}
-        ]}
-      ]},
-      #panel{class=["sidebar-widget"], body=[
-        #h2{class=["sidebar-header"], body= <<"Popular posts">>},
-        #list{class=[unstyled], body=[
-          #li{body=[#h4{body=#link{body = <<"Lorem ipsum dolor sit">>}},
-            #p{body=#small{body= <<"November 12, 2012">>}}]}
-        ]}
-      ]}
-    ]}
-].
+        #feed_ui{
+            title= <<"Active discussion">>,
+            icon="icon-comments-alt",
+            class="comments-flat",
+            state=DiscussionState} ]} ]}.
 
 controls(#entry{type=Type} =  E) -> [
   #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].

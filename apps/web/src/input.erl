@@ -10,62 +10,80 @@
 -compile(export_all).
 
 render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
-    Source = [State#input_state.title_id, State#input_state.body_id, State#input_state.recipients_id, State#input_state.price_id, State#input_state.currency_id, State#input_state.scope_id],
+    Source = [State#input_state.title_id,
+        State#input_state.body_id,
+        State#input_state.recipients_id,
+        State#input_state.price_id,
+        State#input_state.currency_id,
+        State#input_state.scope_id],
     User = wf:user(),
     Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
     Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
     {FormStyle, ExpandStyle} = if State#input_state.collapsed==true -> {"display:none;",""}; true -> {"", "display:none;"} end,
 
-    wf:render(
-    [
-    case Title of undefined -> []; _ -> #h3{class=[blue], body= Title} end,
+    wf:render([
+        #panel{id=State#input_state.toolbar_id, class=["row-fluid"], body=[
+            #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
+                #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, State}, delegate=input} ]} ]},
 
-    #panel{id=State#input_state.alert_id},
-    #panel{id=State#input_state.toolbar_id, class=["row-fluid"], body=[
-        #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
-            #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, State}, delegate=input} ]} ]},
+        #panel{id=State#input_state.form_id, class=[I#input.class], style=FormStyle, body=[
+            #panel{id=State#input_state.alert_id},
+            case Title of undefined -> []; _ -> #h4{class=[blue], body= Title} end,
 
-    #panel{id=State#input_state.form_id, class=["row-fluid", I#input.class], style=FormStyle, body=[#panel{class=[span9, input], body=[
-        if State#input_state.show_recipients == true ->
-            #textboxlist{id=State#input_state.recipients_id,
-                placeholder=I#input.placeholder_rcp, delegate=input, values=I#input.recipients, role=I#input.role};true -> [] end,
+            #panel{class=["row-fluid"], body=[
 
-        if State#input_state.show_title == true ->
-            #textbox{id=State#input_state.title_id, class=[span12], placeholder= I#input.placeholder_ttl}; true -> [] end,
+            #panel{class=[span9, input], body=[
+                if State#input_state.show_recipients == true ->
+                    #textboxlist{id=State#input_state.recipients_id,
+                        placeholder=I#input.placeholder_rcp,
+                        delegate=input,
+                        values=I#input.recipients,
+                        role=I#input.role};true -> [] end,
 
-        if State#input_state.simple_body == true ->
-            #textarea{id=State#input_state.body_id, class=[span12], placeholder=I#input.placeholder_box};
-        true ->
-            #htmlbox{id=State#input_state.body_id, class=[span12],
-                root=?ROOT, dir=Dir, post_write=attach_media, delegate_api=input,
-                img_tool=gm, post_target=State#input_state.media_id, size=?THUMB_SIZE} end,
+                if State#input_state.show_title == true ->
+                    #textbox{id=State#input_state.title_id, class=[span12],placeholder= I#input.placeholder_ttl}; true -> [] end,
 
-        if State#input_state.show_price == true ->
-            #panel{class=["input-append"], body=[
-                #textbox{id=State#input_state.price_id, value=float_to_list(0/100, [{decimals, 2}])},
-                #select{id=State#input_state.currency_id, class=[selectpicker],
-                    body=[#option{label= L, body = V} || {L,V} <- ?CURRENCY]} ]}; true -> [] end,
+                if State#input_state.simple_body == true ->
+                    #textarea{id=State#input_state.body_id, class=[span12], placeholder=I#input.placeholder_box};
+                true ->
+                    #htmlbox{id=State#input_state.body_id, class=[span12],
+                        root=?ROOT, dir=Dir,
+                        post_write=attach_media,
+                        delegate_api=input,
+                        img_tool=gm,
+                        post_target=State#input_state.media_id, size=?THUMB_SIZE} end,
 
-        if State#input_state.show_scope == true ->
-            #select{id=State#input_state.scope_id, body=[
-                #option{label= <<"scope">>,   body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
-                #option{label= <<"Public">>,  value = public},
-                #option{label= <<"Private">>, value = private} ]}; true -> [] end,
+                if State#input_state.show_price == true ->
+                    #panel{class=["input-append"], body=[
+                        #textbox{id=State#input_state.price_id, value=float_to_list(0/100, [{decimals, 2}])},
+                        #select{id=State#input_state.currency_id, class=[selectpicker],
+                            body=[#option{label= L, body = V} || {L,V} <- ?CURRENCY]} ]}; true -> [] end,
 
-        #panel{class=["btn-toolbar"], body=[
-            #link{id=State#input_state.post_id, class=?BTN_INFO, body=I#input.post_btn,
-                delegate=input, postback={post, State#input_state.entry_type, State, FS}, source=Source},
-            #link{class=[btn], style=ExpandStyle, body=I#input.close_btn, 
-                delegate=input, postback={hide_input, State}}
-        ]},
+                if State#input_state.show_scope == true ->
+                    #select{id=State#input_state.scope_id, body=[
+                        #option{label= <<"scope">>,   body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
+                        #option{label= <<"Public">>,  value = public},
+                        #option{label= <<"Private">>, value = private} ]}; true -> [] end,
 
-        if State#input_state.show_media == true ->
-            #panel{id=State#input_state.media_id, body=preview_medias(State#input_state.media_id, Medias, input)}; true -> [] end
-      ]},
-      #panel{class=[span3], body=if State#input_state.show_upload == true -> [
-        #upload{id=State#input_state.upload_id, preview=true, root=?ROOT, dir=Dir,
-            value="", delegate_query=?MODULE, post_write=attach_media, delegate_api=input, img_tool=gm, post_target=State#input_state.media_id, size=?THUMB_SIZE}
-        ]; true -> [] end}]}] ).
+                #panel{class=["btn-toolbar"], body=[
+                    #link{id=State#input_state.post_id, class=I#input.post_class, body=I#input.post_btn,
+                        delegate=input, postback={post, State#input_state.entry_type, State, FS}, source=Source},
+                    #link{class=I#input.close_class, style=ExpandStyle, body=I#input.close_btn,
+                        delegate=input, postback={hide_input, State}} ]},
+
+                if State#input_state.show_media == true ->
+                    #panel{id=State#input_state.media_id, 
+                        body=preview_medias(State#input_state.media_id, Medias, input)}; true -> [] end ]},
+
+            #panel{class=[span3], body=if State#input_state.show_upload == true -> [
+                #upload{id=State#input_state.upload_id,
+                    preview=true, root=?ROOT, dir=Dir,
+                    value="",
+                    delegate_query=?MODULE,
+                    post_write=attach_media,
+                    delegate_api=input, 
+                    img_tool=gm, 
+                    post_target=State#input_state.media_id, size=?THUMB_SIZE}]; true -> [] end} ]} ]}] ).
 
 preview_medias(Id, Medias, Delegate)->
   L = length(Medias),
@@ -73,7 +91,8 @@ preview_medias(Id, Medias, Delegate)->
     #carousel{indicators=false, style="border:1px solid #eee;", items=[
       #panel{class=["row-fluid"], body=[
         #panel{class=[span3], style="position:relative;", body=[
-          #link{class=[close], style="position:absolute; right:10px;top:5px; color:red;",  body= <<"&times;">>, postback={remove_media, M, Id}, delegate=Delegate},
+          #link{class=[close], style="position:absolute; right:10px;top:5px; color:red;",
+            body= <<"&times;">>, postback={remove_media, M, Id}, delegate=Delegate},
           #link{class=[thumbnail], body=[
             #image{image= case M#media.thumbnail_url of undefined -> <<"holder.js/100%x80">>;
               Th ->

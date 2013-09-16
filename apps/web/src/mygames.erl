@@ -10,19 +10,31 @@
 
 -include("records.hrl").
 
-
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
-body()-> Nav = {wf:user(), mygames, []},
-    Id = case lists:keyfind(products, 1, element(#iterator.feeds, case wf:user() of undefined-> #user{}; U->U end)) of {_, V} -> V; false -> undefined end,
-    Fs = ?FD_STATE(Id)#feed_state{view=product, html_tag=panel, entry_id=#entry.entry_id, enable_selection=true},
-    Is = #input_state{show_upload=true, entry_type=product, show_price=true},
-    index:header() ++ dashboard:page(Nav, [
-        #feed_ui{title= <<"My games">>, icon="icon-gamepad", state=Fs,
-            header=[
-            #input{title= <<"New Game">>,placeholder_rcp= <<"Categories">>, placeholder_ttl= <<"Game title">>, role=group, state=Is, feed_state=Fs, class=["feed-table-header"]}
-        ]}
-    ]) ++index:footer().
+body()->
+    User = wf:user(),
+    Nav = {User, mygames, []},
+    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
+
+    index:header() ++ dashboard:page(Nav,
+        case lists:keyfind(products, 1, Feeds) of false -> [];
+        {_, Id} ->
+            Fs = ?FD_STATE(Id)#feed_state{view=product,
+                html_tag=panel,
+                entry_id=#entry.entry_id,
+                enable_selection=true},
+            Is = #input_state{show_upload=true, entry_type=product, show_price=true, simple_body=true},
+            #feed_ui{title= <<"My games">>, icon="icon-gamepad", state=Fs, header=[
+                #input{title= <<"New Game">>,
+                    placeholder_rcp= <<"Categories">>,
+                    placeholder_ttl= <<"Game title">>,
+                    placeholder_box= <<"Brief description">>,
+                    post_btn= <<"create">>,
+                    role=group,
+                    state=Is,
+                    feed_state=Fs,
+                    class=["feed-table-header"]} ]} end ) ++index:footer().
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
