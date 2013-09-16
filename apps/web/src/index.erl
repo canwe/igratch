@@ -39,7 +39,11 @@ body() ->
                                         data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
                                     || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]} ]},
                             #feed_ui{title= <<"Active discussion">>, icon="icon-comments-alt", class="comments-flat",
-                                state=?FD_STATE(?FEED(comment))#feed_state{flat_mode=true,view=comment,  entry_type=comment, entry_id=#comment.comment_id}} ]}]}]}]}]}] ++ footer().
+                                state=?FD_STATE(?FEED(comment))#feed_state{
+                                    flat_mode=true,
+                                    view=comment,
+                                    entry_type=comment,
+                                    entry_id=#comment.comment_id}} ]}]}]}]}]}] ++ footer().
 
 feed("all")->
     State = ?FD_STATE(?FEED(entry))#feed_state{view=review, entry_id=#entry.entry_id},
@@ -139,9 +143,10 @@ footer() -> [
         #li{body=#link{body=[#i{class=["icon-pinterest",    "icon-2x"]}]}},
         #li{body=#link{body=[#i{class=["icon-envelope-alt", "icon-2x"]}]}} ]} ]} ]}}].
 
-error(Msg)-> alert(Msg,"alert-danger").
-info(Msg) -> alert(Msg,"alert-info").
-warn(Msg) -> alert(Msg,"alert-warning").
+success(Msg)-> alert(Msg, "alert-success").
+error(Msg)  -> alert(Msg,"alert-danger").
+info(Msg)   -> alert(Msg,"alert-info").
+warn(Msg)   -> alert(Msg,"alert-warning").
 alert(Msg, Class)->
     #panel{class=[alert, Class, "alert-block", fade, in], body=[
     #link{class=[close], url="#", data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>}, #strong{body= Msg} ]}.

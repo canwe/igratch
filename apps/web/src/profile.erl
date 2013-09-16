@@ -6,6 +6,7 @@
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/acls.hrl").
 -include_lib("kvs/include/feeds.hrl").
+-include_lib("kernel/include/file.hrl").
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
@@ -42,38 +43,40 @@ body() ->
 
                 #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=State}] end ] end ])  ++ index:footer().
 
-profile_info(Who, #user{} = What, Size) ->
-%    error_logger:info_msg("What: ~p", [What]),
-    RegDate = product_ui:to_date(What#user.register_date),
-    Mailto = if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
-    Large = Size == "icon-2x",
-    [#h3{class=[blue], body= if Large -> <<"Profile">>; true -> <<"&nbsp;&nbsp;&nbsp;Author">> end},
+profile_info(Who, #user{} = What, Size) -> [
+    % todo: need avz support to keep updated data
+%    #h3{class=[blue], body=[<<"Profile ">>,  if Who==What ->
+%        #span{id=profile_ctl, body=[ #link{class=[btn], body= <<"edit">>, postback={edit_profile}} ]}; true -> [] end]},
+    #h3{class=[blue], body=[<<"Profile ">>]},
+
     #panel{class=["row-fluid"], body=[
+        #panel{class=[span4, "dashboard-img-wrapper"], body=[
+            #panel{id=profile_img, class=["dashboard-img"], body=[
+                #image{image = case What#user.avatar of undefined ->  "/holder.js/180x180";
+                    Av -> re:replace(Av, <<"_normal">>, <<"">>, [{return, list}])
+                        ++"?sz=180&width=180&height=180&s=180" end, width= <<"180px">>, height= <<"180px">>}]},
+            #panel{id=img_ctl, class=["dashboard-img-ctl"], body=[]} ]},
 
-        #panel{class=[if Large -> span4; true -> span12 end, "dashboard-img-wrapper"], body=
-        #panel{class=["dashboard-img"], body=
-          #image{class=[], alt="",
-            image = case What#user.avatar of undefined ->  "/holder.js/" ++ if Large -> "180x180"; true -> "135x135" end;
-            Av -> re:replace(Av, <<"_normal">>, <<"">>, [{return, list}]) ++"?sz=180&width=180&height=180&s=180" end, width= <<"180px">>, height= <<"180px">>}}},
-
-        #panel{class=if Large -> [span8, "profile-info-wrapper"]; true -> [span12] end, body=
-        #panel{class=["form-inline", "profile-info"], body=[
-          #panel{body=[if Large -> #label{body= <<"Name:">>};true -> [] end, #b{body= What#user.display_name}]},
-          if Large -> #panel{body=[if Large -> #label{body= <<"Mail:">>}; true -> [] end, #link{url= Mailto, body=#strong{body= What#user.email}}]}; true -> [] end,
-          #panel{body=[if Large -> #label{body= <<"Member since ">>}; true -> [] end, #strong{body= RegDate}]},
-          #b{class=["text-success"], body= if What#user.status==ok -> <<"Active">>; true-> atom_to_list(What#user.status) end},
-          features(Who, What, Size),
-          #p{id=alerts}
-        ]}}]} ];
+        #panel{class= [span8, "profile-info-wrapper"], body=
+            #panel{class=["form-inline", "profile-info"], body=[
+                #panel{body=[#label{body= <<"Name:">>}, #b{id=displayname, body= What#user.display_name}]},
+                #panel{body=[#label{body= <<"Mail:">>},
+                    #link{url= if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
+                        body=#strong{body= What#user.email}}]},
+                #panel{body=[#label{body= <<"Member since ">>}, #strong{body= product_ui:to_date(What#user.register_date)}]},
+                #b{class=["text-success"], body=
+                    if What#user.status==ok -> <<"Active">>; true-> atom_to_list(What#user.status) end},
+                features(Who, What, Size),
+                #p{id=alerts} ]}}]} ];
 profile_info(Who, What, Size) -> case kvs:get(user, What) of {ok, U}-> profile_info(Who,U,Size); _-> [] end.
 
 features(Who, What, Size) ->
   Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
   Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
   Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
-  AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) =:= allow,
+  AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) == allow,
   [#p{body=[
-  if AmIAdmin -> #link{class=["text-warning"], 
+  if AmIAdmin -> #link{class=["text-warning"],
       data_fields=?TOOLTIP, title= <<"disable user">>,
       postback={disable, What},
       body = #span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-user"]}, #i{class=["icon-ban-circle", "text-error"]} ]} };
@@ -125,10 +128,89 @@ payments(What) ->
           #td{body=#link{url=?URL_PRODUCT(Id),body= Title}} ]} 
       end || #payment{product=#product{id=Id, title=Title, price=Price, currency=Cur}} = Py <-kvs_payment:payments(What#user.email) ]]}], "icon-list").
 
+preview_medias(#media{} = M)-> [
+    #image{image = case M#media.thumbnail_url of undefined -> <<"/holder.js/180x180">>;
+        Th ->  Ext = filename:extension(Th),
+            filename:join([filename:dirname(Th), filename:basename(Th, Ext)++"_180x180"++Ext]) end},
+    #panel{id=apply_ctl, class=["btn-toolbar", "text-center"],body=[
+        #link{class=[btn],body= <<"apply">>, postback={apply_image, M}},
+        #link{class=[btn],body= <<"cancel">>, postback={close_image}} ]}].
+
+api_event(attach_media, Args, _Tag)->
+  Props = n2o_json:decode(Args),
+  Target = binary_to_list(proplists:get_value(<<"preview">>, Props#struct.lst)),
+  Id = proplists:get_value(<<"id">>, Props#struct.lst),
+  File = binary_to_list(proplists:get_value(<<"file">>, Props#struct.lst)),
+  Type = proplists:get_value(<<"type">>, Props#struct.lst),
+  Thumb = binary_to_list(proplists:get_value(<<"thumb">>, Props#struct.lst)),
+  Media = #media{id = Id,
+    url = File,
+    type = {attachment, Type},
+    thumbnail_url = Thumb},
+  wf:update(Target, preview_medias(Media));
+
 api_event(Name,Tag,Term) -> error_logger:info_msg("dashboard Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
+
+control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
+  Name = binary_to_list(File),
+  Size = case file:read_file_info(filename:join([Root,Dir,Name])) of 
+    {ok, FileInfo} ->
+      Media = #media{
+        id = element_upload:hash(filename:join([Root,Dir,Name])),
+        url = filename:join([Root,Dir,Name]),
+        type = {attachment, MimeType},
+        thumbnail_url = filename:join([Dir,"thumbnail",Name])},
+      wf:update(Target, preview_medias(Media)),
+      FileInfo#file_info.size;
+    {error, _} -> 0 end,
+  {exist, Size}.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
+event({edit_profile}) ->
+    Who = wf:user(),
+    wf:update(profile_ctl, [#link{class=[btn], body= <<"close">>, postback={cancel}}]),
+    wf:update(displayname, #panel{class=["input-append"], body=[
+        #textbox{id=display_name,value=[Who#user.display_name]},
+        #button{class=[btn], body= <<"update">>, source=[display_name], postback={apply_name}} ]}),
+    wf:update(img_ctl,
+        #upload{id=profile_upload,
+                preview=false,
+                root=?ROOT,
+                dir="static/"++ case Who of undefined-> "anonymous"; User -> User#user.email end,
+                value="",
+                delegate_query=?MODULE,
+                post_write=attach_media,
+                delegate_api=?MODULE,
+                img_tool=gm,
+                post_target=profile_img,
+                size=?THUMB_SIZE});
+event({cancel})->
+    Who = wf:user(),
+    wf:update(profile_ctl, [#link{class=[btn], body= <<"edit">>, postback={edit_profile}}]),
+    wf:update(displayname, Who#user.display_name),
+    wf:update(img_ctl, []);
+event({apply_name}) ->
+    User = wf:user(),
+    DisplayName = wf:q(display_name),
+    case kvs:put(User#user{display_name=DisplayName}) of ok ->
+        wf:user(User#user{display_name=DisplayName}),
+        wf:update(alerts, index:success(<<"Display name updated.">>));
+    _-> wf:update(alerts, index:error(<<"Failed to update display name. Please try again.">>)) end;
+event({apply_image, #media{thumbnail_url=Th}}) ->
+    User = wf:user(),
+    Ext = filename:extension(Th),
+    Ava = filename:join([filename:dirname(Th), filename:basename(Th, Ext)++"_180x180"++Ext]),
+    case kvs:put(User#user{avatar=Ava}) of ok ->
+        wf:user(User#user{avatar=Ava}),
+        wf:update(alerts, index:success(<<"Profile image updated.">>)),
+        wf:remove(apply_ctl);
+    _-> wf:update(alerts, index:error(<<"Failed to update profile image. Please try again.">>)) end;
+event({close_image}) ->
+    User =  wf:user(),
+    wf:update(profile_img, #image{image = case User#user.avatar of undefined ->  "/holder.js/180x180";
+        Av -> re:replace(Av, <<"_normal">>, <<"">>, [{return, list}])
+            ++"?sz=180&width=180&height=180&s=180" end, width= <<"180px">>, height= <<"180px">>});
 event({request, Feature}) ->
     User =wf:user(),
     case kvs:get(acl, {feature, admin}) of {error, not_found} -> wf:update(alerts,index:error("system has no administrators yet"));

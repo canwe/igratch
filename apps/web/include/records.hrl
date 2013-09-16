@@ -6,7 +6,7 @@
 -define(ID_CM_COUNT(Id),Id++"cc").
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(ID_FEED_TOOL(Id),wf:to_list(Id)++"est").
--define(THUMB_SIZE,     [{139, 80}, {270, 124}, {200, 200}, {570, 570}, {716, 480}, {1170, 350}]).
+-define(THUMB_SIZE,     [{139, 80}, {270, 124}, {180,180}, {200, 200}, {570, 570}, {716, 480}, {1170, 350}]).
 -define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
 -define(BTN_INFO,       [btn, "btn-info"]).
 -define(BTN_SUCCESS,    [btn, "btn-success"]).
@@ -34,9 +34,11 @@
                         post_btn = <<"post">>,
                         close_btn= <<"close">>,
                         expand_btn="",
+                        post_class=?BTN_INFO,
+                        close_class=[btn],
                         expand_class=?BTN_INFO}).
 
--record(feed_ui,        {?ELEMENT_BASE(feed_ui), state, icon="", header=[], selection_ctl=[]}).
+-record(feed_ui,        {?ELEMENT_BASE(feed_ui), state, icon="", icon_url, header=[], selection_ctl=[]}).
 -record(feed_entry,     {?ELEMENT_BASE(feed_ui), entry, state}).
 -record(row_entry,      {?ELEMENT_BASE(feed_ui), entry, state}).
 -record(div_entry,      {?ELEMENT_BASE(feed_ui), entry, state}).
