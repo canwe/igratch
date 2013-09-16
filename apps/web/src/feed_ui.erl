@@ -42,7 +42,9 @@ render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, h
 
                 #panel{class=[span11], body=#h4{body=[
                     if is_atom(Title) == true -> wf:to_list(Title); true -> Title end,
-                    #span{class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>; true -> [] end},
+                    if S#feed_state.enable_traverse == false ->
+                        #span{id=S#feed_state.page_label, class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>; true -> [] end};
+                    true -> [] end,
 
                     #span{id=S#feed_state.select_toolbar, style="display:none;", class=["selection-ctl"], body=[
                         #link{id=S#feed_state.delete_btn, class=[btn], body=[#i{class=["icon-trash"]}],
@@ -64,7 +66,10 @@ render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, h
                                     disabled = element(#iterator.prev, Last) == undefined,
                                     class=[btn, case element(#iterator.prev, Last)  of undefined -> "disabled"; _ -> "" end],
                                     body=[#i{class=["icon-chevron-right"]}], data_fields=?TOOLTIP, title= <<"next">>,
-                                    postback={traverse, #iterator.prev, Last, State}, delegate=feed_ui}]; true-> [] end} ]}; true -> [] end,
+                                    postback={traverse, #iterator.prev, Last, State}, delegate=feed_ui}];
+                            true-> [
+                                #small{id=S#feed_state.page_label, body=[#span{class=["text-warning"], body= <<" [no entries]">>}]},
+                                #i{id=S#feed_state.prev},#i{id=S#feed_state.next} ] end} ]}; true -> [] end,
 
                     #span{class=["pull-right"], body=[
                         #link{id=S#feed_state.close, class=[close, "text-error"], postback={cancel_select, State}, delegate=feed_ui, body= <<"&times;">>}
@@ -412,32 +417,48 @@ deselect(#feed_state{selected_key=Key}=S) ->
 % Traverse
 
 traverse(Direction, Start, #feed_state{}=S)->
-    error_logger:info_msg("=> Traverse ~p from ~p", [Direction ,Start]),
+    {ok, Container} = kvs:get(S#feed_state.container, S#feed_state.container_id),
+    Top = element(#container.top, Container),
+    error_logger:info_msg("=>Traverse ~p from ~p top ~p", [Direction , element(#iterator.id, Start), Top]),
+
     Entries = case element(Direction, Start) of
-        undefined  -> kvs:entries(kvs:get(S#feed_state.container, S#feed_state.container_id), S#feed_state.entry_type, S#feed_state.page_size);
+        undefined  -> kvs:entries(Container, S#feed_state.entry_type, S#feed_state.page_size);
         Prev -> kvs:entries(S#feed_state.entry_type, Prev, S#feed_state.page_size, Direction)
     end,
     {NewLast, NewFirst} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
 
-    Total = S#feed_state.total,
+    Total = element(#container.entries_count, Container),
     Current = length(Entries),
-    NewStart = case Direction of #iterator.prev -> S#feed_state.start+S#feed_state.page_size; #iterator.next -> S#feed_state.start-S#feed_state.page_size end,
+    NewStart = case Direction of #iterator.prev ->
+        if Top==element(#iterator.id, Start) -> 1;
+        true ->
+            S#feed_state.start + S#feed_state.page_size end;
+        #iterator.next -> S#feed_state.start-S#feed_state.page_size end,
+
+    error_logger:info_msg("New start: ~p", [NewStart]),
 
     State = S#feed_state{start=NewStart, start_element=NewFirst, last_element=NewLast, current=Current},
     wf:update(S#feed_state.entries, [#feed_entry{entry=G, state=State} || G <- Entries]),
 
-    wf:replace(S#feed_state.prev, #button{id=State#feed_state.prev,
-        disabled = element(#iterator.next, NewFirst) == undefined,
-        class=[btn, case element(#iterator.next, NewFirst) of undefined -> "disabled"; _ -> "" end],
-        body=[#i{class=["icon-chevron-left"]}], data_fields=?TOOLTIP, title= <<"previous">>,
-        postback={traverse, #iterator.next, NewFirst, State}, delegate=feed_ui}),
-    wf:replace(S#feed_state.next, #button{id=State#feed_state.next,
-        disabled = element(#iterator.prev, NewLast) == undefined,
-        class=[btn, case element(#iterator.prev, NewLast) of undefined -> "disabled"; _ -> "" end],
-        body=[#i{class=["icon-chevron-right"]}], data_fields=?TOOLTIP, title= <<"next">>,
-        postback={traverse, #iterator.prev, NewLast, State}, delegate=feed_ui}),
+    if Total == 0 ->
+        wf:replace(S#feed_state.prev, #i{id=S#feed_state.prev}),
+        wf:replace(S#feed_state.next, #i{id=S#feed_state.next});
+    true ->
+        wf:replace(S#feed_state.prev, #button{id=State#feed_state.prev,
+            disabled = element(#iterator.next, NewFirst) == undefined,
+            class=[btn, case element(#iterator.next, NewFirst) of undefined -> "disabled"; _ -> "" end],
+            body=[#i{class=["icon-chevron-left"]}], data_fields=?TOOLTIP, title= <<"previous">>,
+            postback={traverse, #iterator.next, NewFirst, State}, delegate=feed_ui}),
+        wf:replace(S#feed_state.next, #button{id=State#feed_state.next,
+            disabled = element(#iterator.prev, NewLast) == undefined,
+            class=[btn, case element(#iterator.prev, NewLast) of undefined -> "disabled"; _ -> "" end],
+            body=[#i{class=["icon-chevron-right"]}], data_fields=?TOOLTIP, title= <<"next">>,
+            postback={traverse, #iterator.prev, NewLast, State}, delegate=feed_ui}) end,
 
-    wf:update(S#feed_state.page_label, [integer_to_list(NewStart), "-", integer_to_list(NewStart+Current-1), " of ", integer_to_list(Total)]),
+    wf:update(S#feed_state.page_label, [
+        if Total == 0 -> #small{class=["text-warning"],body= <<"[no entries]">>};
+        true-> [integer_to_list(NewStart), "-", integer_to_list(NewStart+Current-1), " of ", integer_to_list(Total)] end
+    ]),
 
     if State#feed_state.enable_selection == true ->
         wf:update(S#feed_state.selectall_ctl,
@@ -470,8 +491,11 @@ process_delivery([_,_,Type,_,add],
     wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
     wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
 
-    % todo: feed state received from #input doesn't have the info necessary for traverse
-    wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}),
+    if S#feed_state.enable_traverse == true -> traverse(#iterator.prev, E, S);
+    true ->
+        % todo: feed state received from #input doesn't have the info necessary for traverse
+        % insert element and update feed control actions
+        wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}) end,
 
     if I#input_state.collapsed andalso I#input_state.post_collapse ->
         wf:wire(#jq{target=I#input_state.form_id,   method=[hide]}),
@@ -488,8 +512,10 @@ process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([_,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
     error_logger:info_msg("[feed - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
     case element(S#feed_state.entry_id, E) of undefined -> ok;
-    Id ->
-        wf:remove(?EN_ROW(Id)),
-        deselect(S) end;
+    Id -> if S#feed_state.enable_traverse == true ->
+        case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_}-> ok;
+        {ok,_} -> traverse(#iterator.prev, E, S) end;
+    true -> wf:remove(?EN_ROW(Id)) end end,
+    deselect(S);
 
 process_delivery(R,M) -> error_logger:info_msg("AAAA:~p ~p", [R, M]),ok.
