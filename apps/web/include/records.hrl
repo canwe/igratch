@@ -55,7 +55,7 @@
 
 -define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{
     view=direct,
-    entry_id = #entry.entry_id,
+%    entry_id = #entry.entry_id,
     html_tag=panel,
     enable_selection=true,
     enable_traverse=true}).

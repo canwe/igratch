@@ -77,18 +77,18 @@ api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({archive, #feed_state{selected_key=Key} = S}) ->
+event({archive, #feed_state{selected_key=Selected, visible_key=Visible} = S}) ->
+    Selection = sets:from_list(wf:session(Selected)),
     User = wf:user(),
-    case lists:keyfind(archive, 1, User#user.feeds) of false -> error_logger:info_msg("no archive");
-    {_,Fid} ->
-        Is = #input_state{},
-        [case kvs:get(entry, {Id, S#feed_state.container_id}) of {error,_} -> error_logger:info_msg("No object");
+    case lists:keyfind(archive, 1, User#user.feeds) of false -> ok;
+    {_,Fid} -> Is = #input_state{},
+        [case kvs:get(entry, Id) of {error,_} -> ok; 
         {ok, E} ->
-            msg:notify( [kvs_feed, user, User#user.email, entry, Id, add],
-                        [E#entry{id={Id, Fid}, feed_id=Fid}, Is, ?FD_STATE(Fid, S)]),
+            msg:notify( [kvs_feed, user, User#user.email, entry, Eid, add],
+                        [E#entry{id={Eid, Fid}, feed_id=Fid}, Is, ?FD_STATE(Fid, S)]),
 
-            msg:notify( [kvs_feed, user, User#user.email, entry, Fid, delete], [E, Is, S])
-        end || Id <- wf:session(Key)] end;
+            msg:notify( [kvs_feed, user, User#user.email, entry, FeedId, delete], [E, Is, S])
+        end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 event(Event) ->
     User = case wf:user() of undefined -> #user{}; U -> U end,
     IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,

@@ -17,11 +17,20 @@ render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, h
                 #panel{class=[span11], body=#h4{body=[wf:to_list(Title), #span{class=["text-warning"], body= <<" [no feed]">>}]}}]};
         {ok, Feed} ->
             wf:session(S#feed_state.selected_key,[]),
+
             Entries = kvs:entries(Feed, S#feed_state.entry_type, S#feed_state.page_size),
+
+            wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, E)|| E<-Entries]),
+
             Total = element(#container.entries_count, Feed),
             Current = length(Entries),
             {Last, First} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
-            State = S#feed_state{start_element = First, last_element = Last, start = 1, total = Total, current = Current},
+            State = S#feed_state{
+                start_element = First,
+                last_element = Last,
+                start = 1,
+                total = Total,
+                current = Current},
             [
 
             %% header
@@ -159,8 +168,9 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State
 % direct message
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State})->
+    Id = wf:to_list(case element(State#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T); R -> R end),
     User = wf:user(),
-    Id = element(State#feed_state.entry_id, E),
+    %Id = element(State#feed_state.entry_id, E),
     From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
     IsAdmin = case User of undefined -> false; Us when Us#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
 
@@ -331,47 +341,41 @@ image(#media{}=Media, Size) ->
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Start, S);
 
-event({delete, #feed_state{selected_key=Key}=S}) ->
+event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
+    Selection = sets:from_list(wf:session(Selected)),
     User = wf:user(),
-    Selection = wf:session(Key),
-    SelectedIds = if is_tuple(S#feed_state.container_id) ->
-        Entries = case element(#iterator.prev, S#feed_state.start_element) of
-            undefined  -> kvs:entries(kvs:get(S#feed_state.container, S#feed_state.container_id), S#feed_state.entry_type, S#feed_state.page_size);
-            Prev -> kvs:entries(S#feed_state.entry_type, Prev, S#feed_state.page_size, #iterator.prev) end,
-        Set = sets:from_list(Selection),
-
-        [element(S#feed_state.entry_id, E) || E <- Entries,
-            sets:is_element(wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))), Set)]; true -> Selection end,
     [begin
         Type = case S#feed_state.view of product -> product; _ -> S#feed_state.entry_type end,
-        FullId = case Type of entry -> {Id, S#feed_state.container_id}; _ -> Id end,
+        error_logger:info_msg("Delete ~p", [Id]),
 
-        error_logger:info_msg("Delete ~p", [FullId]),
-
-        case kvs:get(Type, FullId) of {error,_} -> error_logger:info_msg("No object");
+        case kvs:get(Type, Id) of {error,_} -> error_logger:info_msg("No object");
         {ok, Obj} ->
             case Type of
                 product ->
-                    Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(FullId)],
+                    Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(Id)],
                     R1 = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)}],
                     R2 = [{product, Id, {products, ?FEED(product)}}],
                     R3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups],
                     msg:notify([kvs_product, Type, unregister], [Obj, #input_state{recipients=lists:flatten([R1,R2,R3])}, S]);
 
                 entry ->
-                    R1 = [{RoutingType, To, {somefeed, Fid}} || #entry{feed_id=Fid, to={RoutingType, To}} <-kvs:all_by_index(entry, entry_id, Id)],
+                    {Eid,_} = Id,
+                    R1 = if S#feed_state.del_by_index == true ->
+                        [{RoutingType, To, {somefeed, Fid}} || #entry{feed_id=Fid, to={RoutingType, To}}
+                            <- kvs:all_by_index(entry, entry_id, Eid)];
+                        true -> {RoutingType, To} = Obj#entry.to, [{RoutingType, To, {feed, Obj#entry.feed_id}}] end,
                     R2 = [{user, user, {feed, entries}}],
                     [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
-                        [Obj#entry{id={Id, Fid}, entry_id=Id, feed_id=Fid}, #input_state{}, ?FD_STATE(Fid, S)#feed_state{}])
+                        [Obj#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, #input_state{}, ?FD_STATE(Fid, S)])
                         || {RouteType, To, {_, Fid}} <- lists:flatten([R1,R2])];
                 group ->
-                    msg:notify([kvs_group, Type, unregister], [Obj, #input_state{recipients=[{group, FullId, {feed, ?GRP_FEED}}]}, S]);
+                    msg:notify([kvs_group, Type, unregister], [Obj, #input_state{recipients=[{group, Id, {feed, ?GRP_FEED}}]}, S]);
                 _ -> error_logger:info_msg("delete ~p. no recipients", [Type]), [] end end
-       end || Id <- SelectedIds];
+       end || Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)];
 
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
-event({select, Sel, #feed_state{selected_key=Key}=S})->
+event({select, Sel, #feed_state{selected_key=Key, visible_key=V}=S})->
     Selection = wf:session(Key),
     NewSel = case wf:q(Sel) of "undefined" -> if Sel == S#feed_state.select_all -> sets:new(); true ->
         SelEn = ?EN_FROMSEL(Sel),
@@ -393,6 +397,7 @@ event({select, Sel, #feed_state{selected_key=Key}=S})->
         wf:wire(#jq{target=S#feed_state.select_all,     method=["prop"], args=["'checked'," ++
             if Size == S#feed_state.page_size orelse Size == S#feed_state.current -> "'checked'"; true -> "false" end]})
     end,
+
     wf:session(Key, sets:to_list(NewSel));
 
 event({check_more, Start, #feed_state{}=S}) ->
@@ -423,16 +428,22 @@ traverse(Direction, Start, #feed_state{}=S)->
         undefined  -> kvs:entries(Container, S#feed_state.entry_type, S#feed_state.page_size);
         Prev -> kvs:entries(S#feed_state.entry_type, Prev, S#feed_state.page_size, Direction)
     end,
-    {NewLast, NewFirst} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
 
+    wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, E)|| E<-Entries]),
+
+    {NewLast, NewFirst} = case Entries of [] -> {#iterator{},#iterator{}}; E  -> {lists:last(E), lists:nth(1,E)} end,
     Total = element(#container.entries_count, Container),
     Current = length(Entries),
-    error_logger:info_msg("Entries loaded ~p", [Current]),
+
     NewStart = case Direction of
         #iterator.prev -> S#feed_state.start + S#feed_state.page_size;
         #iterator.next -> if Top==element(#iterator.id, Start) -> 1; true -> S#feed_state.start-S#feed_state.page_size end end,
 
-    State = S#feed_state{start=NewStart, start_element=NewFirst, last_element=NewLast, current=Current},
+    State = S#feed_state{
+        start=NewStart,
+        start_element=NewFirst,
+        last_element=NewLast,
+        current=Current},
     wf:update(S#feed_state.entries, [#feed_entry{entry=G, state=State} || G <- Entries]),
 
     if Total == 0 ->
@@ -507,9 +518,8 @@ process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
 process_delivery([_,_,entry,_,delete], [#entry{}=E, #input_state{}, #feed_state{}=S]) ->
     error_logger:info_msg("[feed - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
-
-    case E#entry.entry_id of undefined -> ok;
-    Id -> wf:remove(?EN_ROW(Id)) end,
+    Id = wf:to_list(case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T); R -> R end),
+    wf:remove(?EN_ROW(Id)),
     deselect(S);
 
 process_delivery(R,_) -> error_logger:info_msg("[feed_ui]unhandled route:~p", [R]),ok.
