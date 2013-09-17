@@ -66,7 +66,7 @@ body() ->
   }}]++index:footer().
 
 feed(#product{} = P, {Tab, Id})->
-    User = wf:user(),
+    User = case wf:user() of undefined -> #user{};U -> U end,
     State = ?FD_STATE(Id)#feed_state{
         view=blog,
         html_tag=panel,
