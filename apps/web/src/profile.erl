@@ -41,7 +41,7 @@ body() ->
                 {_, Id} -> #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=?REVIEW_STATE(Id)} end ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) -> 
-    error_logger:info_msg("Avatar: ~p", [Who#user.avatar]),
+%    error_logger:info_msg("Avatar: ~p", [Who#user.avatar]),
     [
     #h3{class=[blue], body=[<<"Profile ">>,  if Who==What ->
         #span{id=profile_ctl, body=[ #link{body=[#i{class=["icon-edit", "icon-large"]}], title="edit", postback={edit_profile}} ]}; true -> [] end]},

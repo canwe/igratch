@@ -34,7 +34,8 @@ body() ->
         wf:session(product, P),
         [
         #panel{class=["row-fluid", "page-header"], body=[
-          #h4{class=[span9], style="line-height:30px;", body= [#link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, #small{body=[[
+          #h4{class=[span9], style="line-height:30px;", body= [
+            #link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, #small{body=[[
             begin
               Name = case kvs:get(group,I) of {ok, G}-> G#group.name; _ -> "noname" end,
               [<<" | ">>, #link{url="/store?id="++I, body=[#span{class=["icon-asterisk"]},Name]}]
@@ -69,7 +70,7 @@ feed(#product{} = P, {Tab, Id})->
     State = ?FD_STATE(Id)#feed_state{
         view=blog,
         html_tag=panel,
-        enable_selection=true},
+        enable_selection=User#user.email == P#product.owner},
 
     #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
         if User#user.email == P#product.owner orelse Tab == reviews ->
