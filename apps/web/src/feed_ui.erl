@@ -419,8 +419,6 @@ deselect(#feed_state{selected_key=Key}=S) ->
 traverse(Direction, Start, #feed_state{}=S)->
     {ok, Container} = kvs:get(S#feed_state.container, S#feed_state.container_id),
     Top = element(#container.top, Container),
-    error_logger:info_msg("=>Traverse ~p from ~p top ~p", [Direction , element(#iterator.id, Start), Top]),
-
     Entries = case element(Direction, Start) of
         undefined  -> kvs:entries(Container, S#feed_state.entry_type, S#feed_state.page_size);
         Prev -> kvs:entries(S#feed_state.entry_type, Prev, S#feed_state.page_size, Direction)
@@ -429,13 +427,10 @@ traverse(Direction, Start, #feed_state{}=S)->
 
     Total = element(#container.entries_count, Container),
     Current = length(Entries),
-    NewStart = case Direction of #iterator.prev ->
-        if Top==element(#iterator.id, Start) -> 1;
-        true ->
-            S#feed_state.start + S#feed_state.page_size end;
-        #iterator.next -> S#feed_state.start-S#feed_state.page_size end,
-
-    error_logger:info_msg("New start: ~p", [NewStart]),
+    error_logger:info_msg("Entries loaded ~p", [Current]),
+    NewStart = case Direction of
+        #iterator.prev -> S#feed_state.start + S#feed_state.page_size;
+        #iterator.next -> if Top==element(#iterator.id, Start) -> 1; true -> S#feed_state.start-S#feed_state.page_size end end,
 
     State = S#feed_state{start=NewStart, start_element=NewFirst, last_element=NewLast, current=Current},
     wf:update(S#feed_state.entries, [#feed_entry{entry=G, state=State} || G <- Entries]),
@@ -464,7 +459,8 @@ traverse(Direction, Start, #feed_state{}=S)->
         wf:update(S#feed_state.selectall_ctl,
         #checkbox{id=State#feed_state.select_all, class=[checkbox, inline], postback={select, State#feed_state.select_all, State}, delegate=feed_ui,
             source=[State#feed_state.select_all],
-            value = string:join([wf:to_list(case element(State#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T);R -> R end) || E <- Entries], "|"),
+            value = string:join([wf:to_list(
+                case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T);R -> R end) || E <- Entries], "|"),
             style=if Total > 0 -> [] ; true-> "display:none;" end}); true -> [] end,
     wf:replace(State#feed_state.delete_btn,
         #link{id=S#feed_state.delete_btn, class=[btn], body=[#i{class=["icon-trash"]}],
@@ -491,7 +487,7 @@ process_delivery([_,_,Type,_,add],
     wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
     wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
 
-    if S#feed_state.enable_traverse == true -> traverse(#iterator.prev, E, S);
+    if S#feed_state.enable_traverse == true -> traverse(#iterator.next, E, S);
     true ->
         % todo: feed state received from #input doesn't have the info necessary for traverse
         % insert element and update feed control actions
@@ -509,13 +505,11 @@ process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback={check_more, Entry, S}});
 
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery([_,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
+process_delivery([_,_,entry,_,delete], [#entry{}=E, #input_state{}, #feed_state{}=S]) ->
     error_logger:info_msg("[feed - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
-    case element(S#feed_state.entry_id, E) of undefined -> ok;
-    Id -> if S#feed_state.enable_traverse == true ->
-        case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_}-> ok;
-        {ok,_} -> traverse(#iterator.prev, E, S) end;
-    true -> wf:remove(?EN_ROW(Id)) end end,
+
+    case E#entry.entry_id of undefined -> ok;
+    Id -> wf:remove(?EN_ROW(Id)) end,
     deselect(S);
 
-process_delivery(R,M) -> error_logger:info_msg("AAAA:~p ~p", [R, M]),ok.
+process_delivery(R,_) -> error_logger:info_msg("[feed_ui]unhandled route:~p", [R]),ok.
