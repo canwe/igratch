@@ -78,7 +78,7 @@ tab(acl)->
             container=acl,
             entry_type=acl_entry,
             html_tag=table,
-            enable_selection=true,
+            enable_selection=false,
             enable_traverse=true},
 
         B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
@@ -86,7 +86,6 @@ tab(acl)->
                 icon="icon-list",
                 state=State,
                 header=[#tr{class=["feed-table-header"], cells=[
-                    #th{},
                     #th{body= <<"id">>},
                     #th{body= <<"accessor">>},
                     #th{body= <<"action">>}]} ]}]},

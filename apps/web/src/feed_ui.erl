@@ -45,8 +45,7 @@ render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, h
                         #span{id=S#feed_state.selectall_ctl, body=[
                             #checkbox{id=S#feed_state.select_all, class=[checkbox, inline], postback={select, S#feed_state.select_all, State},
                                 delegate=feed_ui, source=[S#feed_state.select_all],
-                                value= string:join([wf:to_list(
-                                    case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T);R -> R end) || E <- Entries], "|"),
+                                value= string:join([wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))) || E <- Entries], "|"),
                                 style= if Total > 0 -> [] ; true-> "display:none;" end}]}; true -> [] end]}},
 
                 #panel{class=[span11], body=#h4{body=[
@@ -106,7 +105,7 @@ render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, h
 % feed entry representation
 
 render_element(#feed_entry{entry=E, state=S})->
-    Id = wf:to_list(case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T); R -> R end),
+    Id = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
     SelId = ?EN_SEL(Id),
     wf:render(if S#feed_state.html_tag == table ->
         #tr{id=?EN_ROW(Id), cells=[
@@ -168,9 +167,8 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State
 % direct message
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State})->
-    Id = wf:to_list(case element(State#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T); R -> R end),
+    Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
     User = wf:user(),
-    %Id = element(State#feed_state.entry_id, E),
     From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
     IsAdmin = case User of undefined -> false; Us when Us#user.email==User#user.email -> true; _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
 
@@ -343,6 +341,7 @@ event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Star
 
 event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
     Selection = sets:from_list(wf:session(Selected)),
+    error_logger:info_msg("Selection~p", [Selection]),
     User = wf:user(),
     [begin
         Type = case S#feed_state.view of product -> product; _ -> S#feed_state.entry_type end,
@@ -375,7 +374,7 @@ event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
 
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
-event({select, Sel, #feed_state{selected_key=Key, visible_key=V}=S})->
+event({select, Sel, #feed_state{selected_key=Key}=S})->
     Selection = wf:session(Key),
     NewSel = case wf:q(Sel) of "undefined" -> if Sel == S#feed_state.select_all -> sets:new(); true ->
         SelEn = ?EN_FROMSEL(Sel),
@@ -470,8 +469,7 @@ traverse(Direction, Start, #feed_state{}=S)->
         wf:update(S#feed_state.selectall_ctl,
         #checkbox{id=State#feed_state.select_all, class=[checkbox, inline], postback={select, State#feed_state.select_all, State}, delegate=feed_ui,
             source=[State#feed_state.select_all],
-            value = string:join([wf:to_list(
-                case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T);R -> R end) || E <- Entries], "|"),
+            value = string:join([wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))) || E <- Entries], "|"),
             style=if Total > 0 -> [] ; true-> "display:none;" end}); true -> [] end,
     wf:replace(State#feed_state.delete_btn,
         #link{id=S#feed_state.delete_btn, class=[btn], body=[#i{class=["icon-trash"]}],
@@ -516,9 +514,12 @@ process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback={check_more, Entry, S}});
 
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery([_,_,entry,_,delete], [#entry{}=E, #input_state{}, #feed_state{}=S]) ->
+process_delivery([Type,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
     error_logger:info_msg("[feed - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
-    Id = wf:to_list(case element(S#feed_state.entry_id, E) of T when is_tuple(T) -> erlang:phash2(T); R -> R end),
+    Id = wf:to_list(erlang:phash2(case Type of
+        group ->    E#entry.entry_id;
+        product ->  E#entry.entry_id;
+        _ ->        element(S#feed_state.entry_id, E) end)),
     wf:remove(?EN_ROW(Id)),
     deselect(S);
 
