@@ -222,21 +222,17 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     {Title, Desc} = if Is#input_state.collect_msg == true ->
         {wf:q(Is#input_state.title_id), wf:q(Is#input_state.body_id)}; 
     true -> {Is#input_state.title, Is#input_state.description} end,
-    error_logger:info_msg("Show recipients: ~p", [Is#input_state.show_recipients]),
-    RawRecipients = if Is#input_state.show_recipients == true -> wf:q(Is#input_state.recipients_id); true -> Is#input_state.recipients end,
-
     error_logger:info_msg("Entry type: ~p", [EntryType]),
-    error_logger:info_msg("Raw: ~p", [RawRecipients]),
-    R1 = if Is#input_state.collect_msg == true ->
+    R1 = if Is#input_state.show_recipients == true ->
         lists:flatmap(fun(S) -> [begin
-        error_logger:info_msg("s:~p a:~p ", [S, A]),
         Type = list_to_atom(A),
         Feed = case EntryType of review -> reviews; _ -> EntryType end,
         ObjId = string:tokens(string:substr(S, length(A)+Pos), "="),
         case kvs:get(Type, lists:nth(1,ObjId)) of {error,_}-> [];
         {ok, E} -> {Type, element(#iterator.id, E), lists:keyfind(Feed, 1, element(#iterator.feeds, E))} end end
-        || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(RawRecipients, ","));
-    true -> RawRecipients end,
+        || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, 
+            string:tokens(wf:q(Is#input_state.recipients_id), ","));
+    true -> Is#input_state.recipients end,
 
     error_logger:info_msg("R1: ~p", [R1]),
 

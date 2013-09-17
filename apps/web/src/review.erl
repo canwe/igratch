@@ -33,8 +33,8 @@ body() ->
 
                         dashboard:section([
                             #h3{class=[blue], body= <<"&nbsp;&nbsp;&nbsp;&nbsp;Game">>},
-                            #h4{body=[Product#product.title]},
-                            #p{body=[Product#product.brief]},
+                            #h4{body=[wf:to_list(Product#product.title)]},
+                            #p{body=[wf:to_list(Product#product.brief)]},
 
                             #panel{class=["btn-toolbar", "text-center"], body=[
                                 #button{class=[btn, "btn-inverse", "btn-info", "btn-buy"],

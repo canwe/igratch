@@ -18,15 +18,12 @@ body() ->
         Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end end,
     Nav = {What, profile, []},
 
-    State = case lists:keyfind(feed, 1, element(#iterator.feeds, What)) of
-        {_, Id}->?FD_STATE(Id)#feed_state{view=review}; false -> #feed_state{} end,
-
     Is = #input_state{
-        entry_type=direct,
-        collapsed=true,
+        entry_type = direct,
+        collapsed = true,
         show_media = false,
         show_recipients = false,
-        recipients="user"++wf:to_list(What#user.email)++"="++wf:to_list(What#user.display_name)},
+        recipients=[{user, What#user.email, lists:keyfind(direct, 1, What#user.feeds)}]},
 
     index:header() ++ dashboard:page(Nav, [
         if What#user.email == undefined -> index:error("There is no user "++wf:to_list(wf:qs(<<"id">>))++"!");
@@ -40,8 +37,8 @@ body() ->
                     icon="",
                     placeholder_ttl= <<"Subject">>,
                     expand_btn= <<"Write message">> },
-
-                #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=State}] end ] end ])  ++ index:footer().
+                case lists:keyfind(feed, 1, element(#iterator.feeds, What)) of false -> [];
+                {_, Id} -> #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=?REVIEW_STATE(Id)} end ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) -> 
     error_logger:info_msg("Avatar: ~p", [Who#user.avatar]),

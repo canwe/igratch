@@ -47,7 +47,11 @@ body() ->
           ]}
         ]},
         #section{class=[section, alt], body=#panel{class=[container], body=[
-          essential(P)
+            #product_hero{product=P},
+            #list{class=[nav, "nav-tabs", "sky-nav", "entry-type-tabs"], body=[
+                #li{body=#link{data_fields=?DATA_TAB, url= "#"++wf:to_list(Feed), body=wf:to_list(Feed)}}
+                || {Feed, _Fid} <- P#product.feeds, Feed /= comments ]}
+
         ]}},
         #section{class=[section], body=#panel{class=[container], body=#panel{class=["row-fluid"], body=[
           #panel{class=[span9], body= #panel{class=["tab-content"], body=[
@@ -60,35 +64,29 @@ body() ->
     end
   }}]++index:footer().
 
-essential(P)->[
-  #product_hero{product=P},
-  #list{class=[nav, "nav-tabs", "sky-nav", "entry-type-tabs"], body=[
-    #li{body=[#link{url= <<"#features">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Features">>}]},
-    #li{body=[#link{url= <<"#specs">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Specification">>}]},
-    #li{body=[#link{url= <<"#gallery">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Gallery">>}]},
-    #li{body=[#link{url= <<"#videos">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Videos">>}]},
-    #li{body=[#link{url= <<"#reviews">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Reviews">>}]},
-    #li{body=[#link{url= <<"#news">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"News">>}]},
-    #li{body=[#link{url= <<"#bundles">>, data_fields=[{<<"data-toggle">>, <<"tab">>}], body= <<"Bundles">>}]}
-  ]} ].
-
-feed(Tab)->
-    P = wf:session(product),
-%    Subscriptions =  kvs_group:participate(P#product.id),
-%    Groups = lists:flatten([case kvs:get(group, Where) of {error, _}-> []; {ok, G} -> "group"++G#group.id++"="++G#group.name end || #group_subscription{where=Where} <- Subscriptions]),
-    Recipients = string:join([
-        %Groups,
-        "product"++wf:to_list(P#product.id)++"="++wf:to_list(P#product.title)
-        %case User of undefined->[]; U -> "user"++U#user.email++"="++wf:to_list(U#user.display_name) end
-    ], ","),
-    error_logger:info_msg("Recipients: ~p", [Recipients]),
-    {_, Id} = lists:keyfind(Tab, 1, element(#iterator.feeds, P)),
-    State = ?FD_STATE(Id)#feed_state{view=blog, html_tag=panel, entry_id=#entry.entry_id, enable_selection=true},
-    Is = #input_state{entry_type=case Tab of reviews -> review; _->Tab end, show_recipients=false, recipients=Recipients, collapsed=true},
+feed(#product{} = P, {Tab, Id})->
+    User = wf:user(),
+    State = ?FD_STATE(Id)#feed_state{
+        view=blog,
+        html_tag=panel,
+        enable_selection=true},
 
     #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
-        #input{expand_btn= "Write "++atom_to_list(Tab),  placeholder_ttl= <<"Title">>, class="alt", icon="", role=product, state = Is, feed_state=State}
-    ]}.
+        if User#user.email == P#product.owner orelse Tab == reviews ->
+            Is = #input_state{
+                entry_type=case Tab of reviews -> review; _-> Tab end,
+                show_recipients=false,
+                recipients=[{product, P#product.id, {Tab,Id}}],
+                collapsed=true},
+
+            #input{expand_btn= "Write "++atom_to_list(Tab),
+                placeholder_ttl= <<"Title">>,
+                class=["feed-table-header"],
+                icon="",
+                role=product,
+                feed_state=State,
+                state = Is };
+        true -> [] end]}.
 
 aside()->
     DiscussionState = ?FD_STATE(?FEED(comment))#feed_state{
@@ -180,7 +178,9 @@ event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
     error_logger:info_msg("Show tab ~p", [Id]),
-    wf:update(list_to_atom(Id), feed(list_to_atom(Id))),
+    P = wf:session(product),
+    case lists:keyfind(list_to_atom(Id), 1, element(#iterator.feeds, P)) of false -> ok;
+    {_,_}=Tab -> wf:update(list_to_atom(Id), feed(P, Tab)) end,
     wf:wire("Holder.run();");
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 

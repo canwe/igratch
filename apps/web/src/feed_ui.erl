@@ -147,22 +147,25 @@ render_element(#row_entry{entry=#acl_entry{accessor={user, Accessor}, action=Act
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=State}) ->
     Id = element(State#feed_state.entry_id, E),
-    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
+    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
 %    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
-    wf:render(article(product, Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
+    wf:render(article(product, {Id, UiId}, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{}=State}) ->
     Id = element(State#feed_state.entry_id, P),
-    From = case kvs:get(user, P#product.owner) of {ok, U} -> U#user.display_name; {error, _} -> P#product.owner end,
+    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
+    From = case kvs:get(user, P#product.owner) of {ok, U} -> {P#product.owner, U#user.display_name}; {error, _} -> {P#product.owner,P#product.owner} end,
     Media = case P#product.cover of undefined -> #media{};
     File -> #media{url = File, thumbnail_url = filename:join([filename:dirname(File), "thumbnail", filename:basename(File)])} end,
-    wf:render(article(product, Id, From, P#product.created, [Media], P#product.title, P#product.brief));
+    wf:render(article(product, {Id, UiId}, From, P#product.created, [Media], P#product.title, P#product.brief));
 
 % review
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State})->
     Id = element(State#feed_state.entry_id, E),
-    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-    wf:render(article(review, Id, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
+    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
+    wf:render(article(review, {Id, UiId}, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 
 % direct message
 
@@ -190,11 +193,12 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})->
     Id = element(State#feed_state.entry_id, E),
+    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
     From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error,_} -> E#entry.from end,
 
     Entry = #panel{class=["blog-post"], body=[
         #header{class=["blog-header"], body=[
-            #h2{body=[#span{id=?EN_TITLE(Id), body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, 
+            #h2{body=[#span{id=?EN_TITLE(UiId), body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, 
             #small{body=[<<" by ">>, #link{body=From}, product_ui:to_date(E#entry.created)]}]}]},
 
         #figure{class=["thumbnail-figure"], body=[
@@ -202,13 +206,13 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
             if length(E#entry.media) > 1 ->
                 #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=wf:js_escape(E#entry.title)}}]}; true -> [] end ]},
 
-        #panel{id=?EN_DESC(Id), body=product_ui:shorten(wf:js_escape(E#entry.description)), data_fields=[{<<"data-html">>, true}]},
+        #panel{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(E#entry.description)), data_fields=[{<<"data-html">>, true}]},
 
         #footer{class=["blog-footer", "row-fluid"], body=[
             #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, 
                 #span{class=[badge, "badge-info"], body= <<"...">>} ], postback={read, entry, Id}},
             #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
-                #span{class=[?ID_CM_COUNT(Id)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
+                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
                 postback={read, entry, Id}},
             #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, Id}} ]} ]},
     element_panel:render_element(Entry);
@@ -309,22 +313,22 @@ render_element(E) -> error_logger:info_msg("[feed]render_element(#unknown{}) ~p"
 
 % product entry components
 
-article(Type, Id, From, Date, Media, Title, Description)-> [
+article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description)-> [
     #panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
-        #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(From)}},
+        #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
         #p{class=[datestamp], body=[ #span{body= product_ui:to_date(Date)} ]},
         #p{class=[statistics], body=[
             #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[], body= <<"...">>} ]},
             #link{url="#",body=[ #i{class=["icon-comment-alt", "icon-large"]},
-                #span{class=[?ID_CM_COUNT(Id)], body=integer_to_list(kvs_feed:comments_count(entry, Id))} ]} ]} ]},
+                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))} ]} ]} ]},
 
-    #panel{id=?EN_MEDIA(Id), class=[span4, "media-pic"], body = #entry_media{media=Media, mode=reviews}},
+    #panel{id=?EN_MEDIA(UiId), class=[span4, "media-pic"], body = #entry_media{media=Media, mode=reviews}},
 
     #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=wf:js_escape(Title)}},
-        #p{id=?EN_DESC(Id), body=product_ui:shorten(wf:js_escape(Description))},
-        #panel{id=?EN_TOOL(Id), class=[more], body=[
+        #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=wf:js_escape(Title)}},
+        #p{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(Description))},
+        #panel{id=?EN_TOOL(UiId), class=[more], body=[
             #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, Id}} ]} ]}].
 
 image(#media{}=Media, Size) ->

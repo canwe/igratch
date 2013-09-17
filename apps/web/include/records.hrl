@@ -12,6 +12,7 @@
 -define(BTN_SUCCESS,    [btn, "btn-success"]).
 -define(STACK_BASE,     ["icon-stack-base", "icon-circle"]).
 -define(TOOLTIP,        [{<<"data-toggle">>,<<"tooltip">>}]).
+-define(DATA_TAB,       [{<<"data-toggle">>,<<"tab">>}]).
 -define(URL_PRODUCT(Id),"/product?id="++Id).
 
 -record(struct,         {lst=[]}).
@@ -55,7 +56,10 @@
 
 -define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{
     view=direct,
-%    entry_id = #entry.entry_id,
     html_tag=panel,
     enable_selection=true,
     enable_traverse=true}).
+
+-define(REVIEW_STATE(Id), ?FD_STATE(Id)#feed_state{
+    view = review,
+    html_tag= panel}).
