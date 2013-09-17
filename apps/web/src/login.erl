@@ -46,7 +46,12 @@ body() ->
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(login) -> avz:login(email, [{<<"email">>, list_to_binary(wf:q(user))}, {<<"password">>, wf:q(pass)}]);
-event({login, #user{}=User}) ->  msg:notify([kvs_user, login, user, User#user.email, update_status], {}), avz:login_user(User);
+event({login, #user{}=User}) ->
+    {ok, U} = kvs:get(user, User#user.email),
+    Av = case string:str(wf:to_list(U#user.avatar), "static/"++U#user.email) of
+        0 -> User#user.avatar; _ -> U#user.avatar end,
+    msg:notify([kvs_user, login, user, User#user.email, update_status], {}),
+    avz:login_user(User#user{avatar=Av});
 event({register, #user{}=User}) -> msg:notify([kvs_user, user, register], [User#user{feeds=?USR_CHUNK}, #input_state{pid=pid_to_list(self())}, #feed_state{}]);
 event(X) -> error_logger:info_msg("Event: ~p", [X]), avz:event(X).
 

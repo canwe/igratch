@@ -43,11 +43,11 @@ body() ->
 
                 #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=State}] end ] end ])  ++ index:footer().
 
-profile_info(Who, #user{} = What, Size) -> [
-    % todo: need avz support to keep updated data
-%    #h3{class=[blue], body=[<<"Profile ">>,  if Who==What ->
-%        #span{id=profile_ctl, body=[ #link{class=[btn], body= <<"edit">>, postback={edit_profile}} ]}; true -> [] end]},
-    #h3{class=[blue], body=[<<"Profile ">>]},
+profile_info(Who, #user{} = What, Size) -> 
+    error_logger:info_msg("Avatar: ~p", [Who#user.avatar]),
+    [
+    #h3{class=[blue], body=[<<"Profile ">>,  if Who==What ->
+        #span{id=profile_ctl, body=[ #link{body=[#i{class=["icon-edit", "icon-large"]}], title="edit", postback={edit_profile}} ]}; true -> [] end]},
 
     #panel{class=["row-fluid"], body=[
         #panel{class=[span4, "dashboard-img-wrapper"], body=[
@@ -169,10 +169,12 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({edit_profile}) ->
     Who = wf:user(),
-    wf:update(profile_ctl, [#link{class=[btn], body= <<"close">>, postback={cancel}}]),
-    wf:update(displayname, #panel{class=["input-append"], body=[
-        #textbox{id=display_name,value=[Who#user.display_name]},
-        #button{class=[btn], body= <<"update">>, source=[display_name], postback={apply_name}} ]}),
+    wf:update(profile_ctl, [#link{body=#i{class=["icon-reply", "icon-large", "text-warning"]},
+        title= <<"close">>, postback={cancel}}]),
+%    wf:update(displayname, #panel{class=["input-append"], body=[
+%        #textbox{id=display_name,value=[Who#user.display_name]},
+%        #button{class=[btn], body=#i{class=["icon-refresh", "icon-large"]},
+%            title= <<"update">>, source=[display_name], postback={apply_name}} ]}),
     wf:update(img_ctl,
         #upload{id=profile_upload,
                 preview=false,
@@ -187,8 +189,8 @@ event({edit_profile}) ->
                 size=?THUMB_SIZE});
 event({cancel})->
     Who = wf:user(),
-    wf:update(profile_ctl, [#link{class=[btn], body= <<"edit">>, postback={edit_profile}}]),
-    wf:update(displayname, Who#user.display_name),
+    wf:update(profile_ctl, [#link{body=#i{class=["icon-edit", "icon-large"]}, title= <<"edit">>, postback={edit_profile}}]),
+%    wf:update(displayname, Who#user.display_name),
     wf:update(img_ctl, []);
 event({apply_name}) ->
     User = wf:user(),
