@@ -44,7 +44,11 @@ feed(notifications)->
             class=["feed-table-header"],
             role=user,
             icon="",
-            state=Is, feed_state=State}]};
+            state=Is, feed_state=State}],
+        selection_ctl=[
+            #link{class=[btn], body=#i{class=["icon-archive"]},
+            data_fields=?TOOLTIP, title= <<"archive">>, postback={archive, State}}
+        ]};
 feed(Feed)->
     error_logger:info_msg("Show feed: ~p", [Feed]),
     Feeds = case wf:user() of undefined -> []; User -> element(#iterator.feeds, User) end,
@@ -73,6 +77,18 @@ api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
+event({archive, #feed_state{selected_key=Key} = S}) ->
+    User = wf:user(),
+    case lists:keyfind(archive, 1, User#user.feeds) of false -> error_logger:info_msg("no archive");
+    {_,Fid} ->
+        Is = #input_state{},
+        [case kvs:get(entry, {Id, S#feed_state.container_id}) of {error,_} -> error_logger:info_msg("No object");
+        {ok, E} ->
+            msg:notify( [kvs_feed, user, User#user.email, entry, Id, add],
+                        [E#entry{id={Id, Fid}, feed_id=Fid}, Is, ?FD_STATE(Fid, S)]),
+
+            msg:notify( [kvs_feed, user, User#user.email, entry, Fid, delete], [E, Is, S])
+        end || Id <- wf:session(Key)] end;
 event(Event) ->
     User = case wf:user() of undefined -> #user{}; U -> U end,
     IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,
