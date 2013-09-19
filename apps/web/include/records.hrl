@@ -13,7 +13,9 @@
 -define(STACK_BASE,     ["icon-stack-base", "icon-circle"]).
 -define(TOOLTIP,        [{<<"data-toggle">>,<<"tooltip">>}]).
 -define(DATA_TAB,       [{<<"data-toggle">>,<<"tab">>}]).
+-define(DATA_COLLAPSE,  [{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}]).
 -define(URL_PRODUCT(Id),"/product?id="++Id).
+-define(MONTH(M),       element(M, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"})).
 
 -record(struct,         {lst=[]}).
 -record(info_more,      {toolbar, category, fid, module, delegate, mode}).
@@ -53,6 +55,7 @@
 -define(EN_TITLE(Id),   wf:to_list(Id)++"t").
 -define(EN_DESC(Id),    wf:to_list(Id)++"d").
 -define(EN_TOOL(Id),    wf:to_list(Id)++"tb").
+-define(EN_CM_COUNT(Id),wf:to_list(Id)++"cc").
 
 -define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{
     view=direct,
@@ -63,3 +66,10 @@
 -define(REVIEW_STATE(Id), ?FD_STATE(Id)#feed_state{
     view = review,
     html_tag= panel}).
+
+-define(STORE_STATE(Id), ?FD_STATE(Id)#feed_state{
+    view=store,
+    enable_selection=false,
+    delegate=store}).
+
+-define(USR_CART(Id), wf:to_list(erlang:phash2(Id))++"cart").

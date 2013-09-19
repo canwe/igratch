@@ -9,7 +9,15 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, header=TableHeader, state=S, selection_ctl=SelectionCtl}) ->
+render_element(#feed_ui{state=S}=F) ->
+    Title = F#feed_ui.title,
+    Icon = F#feed_ui.icon,
+    IconUrl = F#feed_ui.icon_url,
+    Class= F#feed_ui.class,
+    TableHeader = F#feed_ui.header,
+    SelectionCtl = F#feed_ui.selection_ctl,
+    Delegate = S#feed_state.delegate,
+
     wf:render(#section{class=[feed, Class], body=[
         case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_}->
             #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
@@ -38,8 +46,8 @@ render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, h
             if S#feed_state.show_title == true ->
             #panel{id=S#feed_state.feed_title, class=["row-fluid", "feed-title", Class], body=[
                 #panel{class=[span1], body=#h4{body=[
-                    case IconUrl of undefined -> #i{class=[Icon, blue]};
-                    Url -> #link{url=Url, body=[#i{class=[Icon, blue]}], data_fields=[{<<"data-toggle">>, <<"tab">>}]} end,
+                    case IconUrl of undefined -> #i{class=[Icon]};
+                    Url -> #link{url=Url, body=[#i{class=[Icon]}], data_fields=?DATA_TAB} end,
                     % select all element control
                     if S#feed_state.enable_selection == true ->
                         #span{id=S#feed_state.selectall_ctl, body=[
@@ -51,7 +59,8 @@ render_element(#feed_ui{title=Title, icon=Icon, icon_url=IconUrl, class=Class, h
                 #panel{class=[span11], body=#h4{body=[
                     if is_atom(Title) == true -> wf:to_list(Title); true -> Title end,
                     if S#feed_state.enable_traverse == false ->
-                        #span{id=S#feed_state.page_label, class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>; true -> [] end};
+                        #span{id=S#feed_state.page_label, class=["text-warning"], body=if Current == 0 -> <<" [no entries]">>;
+                        true -> " [" ++ integer_to_list(Total) ++ "]" end};
                     true -> [] end,
 
                     #span{id=S#feed_state.select_toolbar, style="display:none;", class=["selection-ctl"], body=[
@@ -111,13 +120,13 @@ render_element(#feed_entry{entry=E, state=S})->
         #tr{id=?EN_ROW(Id), cells=[
             if S#feed_state.enable_selection == true ->
                 #td{body= [#checkbox{id=SelId, postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}]}; true -> [] end,
-            #row_entry{entry=E, state=S}
+            #row_entry{entry=E, state=S, module=S#feed_state.delegate}
         ]};
         true -> #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
             if S#feed_state.enable_selection == true -> [
                 #panel{class=[span1], body=#checkbox{id=SelId, class=["text-center"], postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}},
                 #panel{class=[span11, "row-fluid"], body= #div_entry{entry=E, state=S}}];
-            true -> #div_entry{entry=E, state=S} end
+            true -> #div_entry{entry=E, state=S, module=S#feed_state.delegate} end
         ]} end);
 
 % table rows
@@ -307,6 +316,7 @@ render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], 
   element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt=T, class=[]});
 render_element(#entry_media{media=[#media{}=Media|_], mode=reviews}) -> element_image:render_element(image(Media, "270x124"));
 render_element(#entry_media{media=#media{}=Media, mode=blog}) -> element_image:render_element(image(Media, "716x480"));
+render_element(#entry_media{media=#media{}=Media, mode=store}) -> element_image:render_element(image(Media, "270x124"));
 render_element(#entry_media{}) -> element_panel:render_element(#panel{body=[]});
 
 render_element(E) -> error_logger:info_msg("[feed]render_element(#unknown{}) ~p", [E]).
@@ -327,7 +337,7 @@ article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description)-> [
 
     #panel{class=[span5, "article-text"], body=[
         #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=wf:js_escape(Title)}},
-        #p{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(Description))},
+        #p{id=?EN_DESC(UiId), body=product_ui:shorten(Description)},
         #panel{id=?EN_TOOL(UiId), class=[more], body=[
             #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, Id}} ]} ]}].
 

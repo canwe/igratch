@@ -96,7 +96,7 @@ header() -> [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[
     #panel{class=["navbar-inner"], body=[
       #panel{class=["container"], body=[
-        #button{class=[btn, "btn-navbar"], data_fields=[{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}], body=[#span{class=["icon-bar"]}||_<-lists:seq(1,3)]},
+        #button{class=[btn, "btn-navbar"], data_fields=?DATA_COLLAPSE, body=[#span{class=["icon-bar"]}||_<-lists:seq(1,3)]},
 
         #link{url="/index", class=[brand], body=[ #image{alt= <<"iGratch">>, image= <<"/static/img/logo.png">>, width= <<"235px">>, height= <<"60px">>} ]},
         #panel{class=["nav-collapse", collapse], body=[
@@ -115,9 +115,14 @@ header() -> [
                     #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
                   ]}]},
                 #li{body=#link{body= <<"Account">>, url= <<"/profile">>}},
-                #li{body=#link{body=[#i{class=["icon-stack", "icon-large"], title= <<"shopping cart">>, body=[
+                #li{body=[#link{body=[#span{id=?USR_CART(User#user.id), class=["cart-number"],
+                    body= case lists:keyfind(cart, 1, User#user.feeds) of false -> <<"">>;
+                        {_, Id} -> case kvs:get(feed,Id) of {error,_} -> <<"">>;
+                        {ok, #feed{entries_count=C}} when C==0 -> <<"">>;
+                        {ok, #feed{entries_count=C}} -> integer_to_list(C) end end},
+                    #i{class=["icon-stack", "icon-large"], title= <<"shopping cart">>, body=[
                     #i{class=["icon-stack-base", "icon-circle"]},
-                    #i{class=["icon-shopping-cart"]}]}], url= <<"/shopping_cart">>}} ]
+                    #i{class=["icon-shopping-cart"]}]}], url= <<"/shopping_cart">>} ]} ]
             end
           ]} ]} ]} ]} ]} ].
 
