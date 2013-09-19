@@ -86,17 +86,16 @@ timestamp_label({Days, _}, _) when Days < 365 -> io_lib:format("~p " ++ "months 
 timestamp_label({Days, _}, _) when Days > 365 -> io_lib:format("~p " ++ "years ago", [trunc(Days/365)]);
 timestamp_label({Days, _}, _) -> io_lib:format("~p days ago", [Days]).
 
-shorten(undefined) -> "";
-shorten(Input) ->
-  re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(re:replace(Input,
-    "<img[^>]*>",           "...",  [global, {return, list}]),
-      "\\s+$",              "",     [global, {return, list}]),
-        "^\\s+",            "",     [global, {return, list}]),
-          "\n",            "<br/>", [global, {return, list}]),
-            "<br[\\s+]/>",  "",     [global, {return, list}]),
-              "<p></p>",    "",     [global, {return, list}]),
-                "<p>",      "",     [global, {return, list}]),
-                  "</p>",   "",     [global, {return, list}]).
+
+shorten(undefined) -> <<"">>;
+shorten(Input) when is_list(Input) -> shorten(list_to_binary(Input));
+shorten(Input) when is_binary(Input) ->
+    I1 = << <<C>> || <<C>> <= Input, (C==10) or (C==13) or (C>=31), (C=<127) >>,
+    R = [{"<img[^>]*>", "..."}, {"<p></p>", ""},
+        {"<br[\\s+]/>", ""}, {"^\\s*", ""}, {"\n+$", ""}],
+
+    lists:foldl(fun({Pt, Re}, Subj) ->
+        re:replace(Subj, Pt, Re, [global, {return, binary}]) end, I1, R).
 
 to_price(Str)->
   PriceStr2 = case string:to_float(Str) of {error, no_float} -> Str; {F, _} -> float_to_list(F, [{decimals, 2}]) end,
