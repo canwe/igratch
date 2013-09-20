@@ -46,13 +46,13 @@ body() ->
                                     entry_id=#comment.comment_id}} ]}]}]}]}]}] ++ footer().
 
 feed("all")->
-    State = ?FD_STATE(?FEED(entry))#feed_state{view=review, entry_id=#entry.entry_id},
+    State = ?FD_STATE(?FEED(entry))#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews},
     #feed_ui{title= <<"Reviews">>, icon="icon-tags", state=State};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}-> 
         {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
-        State = ?FD_STATE(Id)#feed_state{view=review, entry_id=#entry.entry_id},
+        State = ?FD_STATE(Id)#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews},
         #feed_ui{title= G#group.name, icon="icon-tags", state=State} end.
 
 featured() ->

@@ -63,7 +63,36 @@ feed(Group) ->
         icon_url="#all",
         title=[header(Groups, Group)], state=State}.
 
-%% Render store elements
+%% Render review elements
+
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State})->
+    Id = element(State#feed_state.entry_id, E),
+    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+    {FromId, From} = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
+    Media = E#entry.media,
+    Title = E#entry.title,
+    Date = E#entry.created,
+
+    wf:render([
+    #panel{class=[span3, "article-meta"], body=[
+        #h3{class=[blue], body= <<"">>},
+        #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
+        #p{class=[datestamp], body=[ #span{body= product_ui:to_date(Date)} ]},
+        #p{body=[
+            #link{url="#",body=[#span{class=[?EN_CM_COUNT(Id)],
+                body= integer_to_list(kvs_feed:comments_count(entry, Id))},
+                #i{class=["icon-comment-alt", "icon-2x"]} ]} ]}]},
+
+    #panel{id=?EN_MEDIA(UiId), class=[span4, "media-pic"],
+        body=#entry_media{media=Media, mode=reviews}},
+
+    #panel{class=[span5, "article-text"], body=[
+        #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
+            #link{style="color:#9b9c9e;", body=wf:js_escape(Title), url="/review?id="++Id}}},
+
+        #p{id=?EN_DESC(UiId), body=wf:js_escape(product_ui:shorten(E#entry.description))},
+        #panel{id=?EN_TOOL(UiId), class=[more], body=[
+            #link{body=[<<"read more">>], url="/review?id="++Id} ]}]}]);
 
 render_element(E)-> feed_ui:render_element(E).
 

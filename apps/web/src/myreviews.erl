@@ -18,9 +18,10 @@ body()->
     State = case lists:keyfind(feed, 1, List) of 
         false -> #feed_state{};
         {_, Id} -> ?FD_STATE(Id)#feed_state{
+                        entry_id=#entry.entry_id,
                         view=review,
-                        html_tag=panel,
-                        enable_selection=true} end,
+                        enable_selection=true,
+                        delegate=reviews} end,
 
     index:header() ++
     dashboard:page(Nav, [
@@ -32,7 +33,4 @@ body()->
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> feed_ui:process_delivery(Route, Msg);
-event({product_feed, Id})-> wf:redirect("/product?id="++Id);
-event({read, review, {Id,_}})-> wf:redirect("/review?id="++Id);
-event({read, review, Id})-> wf:redirect("/review?id="++Id);
 event(Event) -> error_logger:info_msg("[account] event: ~p", [Event]).

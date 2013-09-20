@@ -262,8 +262,8 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
         to = R1,
         type=EntryType,
         media=Medias,
-        title=Title,
-        description=Desc,
+        title=list_to_binary(Title),
+        description=list_to_binary(Desc),
         shared="",
         created = now()
     },
