@@ -85,6 +85,7 @@ event({add_cart, #product{}=P, #feed_state{}=S}) ->
             collect_msg = false,
             show_recipients = false,
             entry_type = cart,
+            entry_id = P#product.id,
             title = P#product.title,
             description = P#product.brief,
             medias=[media(P#product.cover)]},

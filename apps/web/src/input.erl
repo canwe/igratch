@@ -253,7 +253,7 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
-    EntryId = kvs:uuid(),
+    EntryId = case Is#input_state.entry_id of undefined -> kvs:uuid(); Id -> Id end,
     E = #entry{
         id = {EntryId, ?FEED(entry)},
         entry_id=EntryId,
