@@ -73,9 +73,12 @@
     delegate=store}).
 
 -define(CART_STATE(Id), ?FD_STATE(Id)#feed_state{
+%    entry_id=#entry.entry_id,
     view=cart,
     enable_selection=true,
-    delegate=shopping_cart}).
+    delegate=shopping_cart,
+    delegate_sel=shopping_cart}).
 
 -define(USR_CART(Id),   wf:to_list(erlang:phash2(Id))++"cart").
+-define(USR_ORDER(Id),  wf:to_list(erlang:phash2(Id))++"order").
 -define(FD_CHKOUT(Id),  wf:to_list(Id)++"chk").

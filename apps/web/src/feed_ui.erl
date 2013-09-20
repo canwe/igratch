@@ -51,8 +51,10 @@ render_element(#feed_ui{state=S}=F) ->
                     % select all element control
                     if S#feed_state.enable_selection == true ->
                         #span{id=S#feed_state.selectall_ctl, body=[
-                            #checkbox{id=S#feed_state.select_all, class=[checkbox, inline], postback={select, S#feed_state.select_all, State},
-                                delegate=feed_ui, source=[S#feed_state.select_all],
+                            #checkbox{id=S#feed_state.select_all, class=[checkbox, inline], 
+                                postback={select, S#feed_state.select_all, State},
+                                delegate=S#feed_state.delegate_sel,
+                                source=[S#feed_state.select_all],
                                 value= string:join([wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))) || E <- Entries], "|"),
                                 style= if Total > 0 -> [] ; true-> "display:none;" end}]}; true -> [] end]}},
 
@@ -119,13 +121,18 @@ render_element(#feed_entry{entry=E, state=S})->
     wf:render(if S#feed_state.html_tag == table ->
         #tr{id=?EN_ROW(Id), cells=[
             if S#feed_state.enable_selection == true ->
-                #td{body= [#checkbox{id=SelId, postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}]}; true -> [] end,
+                #td{body= [#checkbox{id=SelId,
+                    postback={select, SelId, S},
+                    delegate=S#feed_state.delegate_sel,
+                    source=[SelId], value=Id}]}; true -> [] end,
             #row_entry{entry=E, state=S, module=S#feed_state.delegate}
         ]};
         true -> #panel{id=?EN_ROW(Id), class=["row-fluid", article], body=[
             if S#feed_state.enable_selection == true -> [
                 #panel{class=[span1], body=#checkbox{id=SelId, class=["text-center"],
-                    postback={select, SelId, S}, delegate=feed_ui, source=[SelId], value=Id}},
+                    postback={select, SelId, S},
+                    delegate=S#feed_state.delegate_sel,
+                    source=[SelId], value=Id}},
                 #panel{class=[span11, "row-fluid"], body= #div_entry{entry=E, state=S, module=S#feed_state.delegate}}];
             true -> #div_entry{entry=E, state=S, module=S#feed_state.delegate} end
         ]} end);
@@ -482,7 +489,9 @@ traverse(Direction, Start, #feed_state{}=S)->
 
     if State#feed_state.enable_selection == true ->
         wf:update(S#feed_state.selectall_ctl,
-        #checkbox{id=State#feed_state.select_all, class=[checkbox, inline], postback={select, State#feed_state.select_all, State}, delegate=feed_ui,
+        #checkbox{id=State#feed_state.select_all, class=[checkbox, inline],
+            postback={select, State#feed_state.select_all, State}, 
+            delegate=S#feed_state.delegate_sel,
             source=[State#feed_state.select_all],
             value = string:join([wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))) || E <- Entries], "|"),
             style=if Total > 0 -> [] ; true-> "display:none;" end}); true -> [] end,
