@@ -337,8 +337,8 @@ article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description)-> [
     #panel{id=?EN_MEDIA(UiId), class=[span4, "media-pic"], body = #entry_media{media=Media, mode=reviews}},
 
     #panel{class=[span5, "article-text"], body=[
-        #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=Title}},
-        #p{id=?EN_DESC(UiId), body=product_ui:shorten(Description)},
+        #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=wf:js_escape(Title)}},
+        #p{id=?EN_DESC(UiId), body=wf:js_escape(product_ui:shorten(Description))},
         #panel{id=?EN_TOOL(UiId), class=[more], body=[
             #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, Id}} ]} ]}].
 
