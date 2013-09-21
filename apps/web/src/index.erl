@@ -75,7 +75,8 @@ featured() ->
             #image{class=[Class], image=Cover}
           ]},
           #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win, buy],
-            body= [<<"Buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P#product.id}}
+            body= [<<"Buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }],
+            postback={add_cart, P, #feed_state{}}}
         ]
       end || P <- Ps]
   end, caption= #panel{class=["row-fluid"],body=[
@@ -166,7 +167,9 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({read,_, Id})-> wf:redirect("/review?id="++Id);
-event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
+event({add_cart, P, S}) ->
+    store:event({add_cart, P, S}),
+    wf:redirect("/shopping_cart");
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
