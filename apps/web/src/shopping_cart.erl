@@ -14,7 +14,7 @@ body()-> index:header() ++ [
     #section{class=[section], body=[
         #panel{class=[container], body=[
             #panel{class=["row-fluid"], body=[
-            case wf:user() of undefined -> [];
+            case wf:user() of undefined -> wf:redirect("/login");
             User -> [
                 #panel{class=[span9], body=[
                     case lists:keyfind(cart, 1, element(#iterator.feeds, User)) of false -> [];
