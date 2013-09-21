@@ -112,7 +112,7 @@ control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
         type = {attachment, MimeType},
         thumbnail_url = filename:join([Dir,"thumbnail",Name])},
       wf:session(medias, [Media]),
-      wf:update(Target, input:preview_medias(Target, [Media], mygames)),
+      wf:update(Target, input:preview_medias(Target, [Media], input)),
       FileInfo#file_info.size;
     {error, _} -> 0 end,
   {exist, Size};
