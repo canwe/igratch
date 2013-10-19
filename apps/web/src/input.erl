@@ -9,19 +9,27 @@
 -include("records.hrl").
 -compile(export_all).
 
-render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
+render_element(#input{state=State, feed_state=FS}=I) ->
+    wf:render(input(I, State, FS)).
+
+input(I=#input{title=Title}, State=#input_state{}, FS=#feed_state{}) ->
     Source = [State#input_state.title_id,
         State#input_state.body_id,
         State#input_state.recipients_id,
         State#input_state.price_id,
         State#input_state.currency_id,
         State#input_state.scope_id],
+
     User = wf:user(),
     Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
-    Medias = case wf:session(medias) of undefined -> []; Ms -> Ms end,
-    {FormStyle, ExpandStyle} = if State#input_state.collapsed==true -> {"display:none;",""}; true -> {"", "display:none;"} end,
+    Medias = case wf:session(medias) of undefined -> State#input_state.medias; []-> State#input_state.medias; Ms -> Ms end,
 
-    wf:render([
+    {FormStyle, ExpandStyle} = if State#input_state.collapsed==true -> {"display:none;",""}; true -> {"", "display:none;"} end,
+    CancelStyle = if State#input_state.update == false -> "display:none;"; true -> "" end,
+    Cover = if length(State#input_state.medias) > 0 -> (lists:nth(1,State#input_state.medias))#media.url; true -> "" end,
+%    wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});"),
+    error_logger:info_msg("Show recipients: ~p", [State#input_state.show_recipients]),
+    [
         #panel{id=State#input_state.toolbar_id, class=["row-fluid"], body=[
             #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
                 #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, State}, delegate=input} ]} ]},
@@ -41,12 +49,13 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
                         role=I#input.role};true -> [] end,
 
                 if State#input_state.show_title == true ->
-                    #textbox{id=State#input_state.title_id, class=[span12],placeholder= I#input.placeholder_ttl}; true -> [] end,
+                    #textbox{id=State#input_state.title_id, class=[span12],placeholder= I#input.placeholder_ttl, value=State#input_state.title}; true -> [] end,
 
                 if State#input_state.simple_body == true ->
-                    #textarea{id=State#input_state.body_id, class=[span12], placeholder=I#input.placeholder_box};
+                    #textarea{id=State#input_state.body_id, class=[span12], placeholder=I#input.placeholder_box, body=State#input_state.description};
                 true ->
                     #htmlbox{id=State#input_state.body_id, class=[span12],
+                        html = State#input_state.description,
                         root=?ROOT, dir=Dir,
                         post_write=attach_media,
                         delegate_api=input,
@@ -55,7 +64,8 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
 
                 if State#input_state.show_price == true ->
                     #panel{class=["input-append"], body=[
-                        #textbox{id=State#input_state.price_id, value=float_to_list(0/100, [{decimals, 2}])},
+                        #textbox{id=State#input_state.price_id, 
+                            value=float_to_list(if State#input_state.price == undefined -> 0; true -> State#input_state.price end/100, [{decimals, 2}])},
                         #select{id=State#input_state.currency_id, class=[selectpicker],
                             body=[#option{label= L, body = V} || {L,V} <- ?CURRENCY]} ]}; true -> [] end,
 
@@ -66,13 +76,20 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
                         #option{label= <<"Private">>, value = private} ]}; true -> [] end,
 
                 #panel{class=["btn-toolbar"], body=[
-                    #link{id=State#input_state.post_id, class=I#input.post_class, body=I#input.post_btn,
-                        delegate=input, postback={post, State#input_state.entry_type, State, FS}, source=Source},
+                    #link{id=State#input_state.post_id, class=I#input.post_class,
+                        body=if State#input_state.update == false -> I#input.post_btn; true -> I#input.update_btn end,
+                        delegate=input,
+                        postback={
+                            if State#input_state.update == false -> post; true -> update end,
+                            State#input_state.entry_type, State, FS},
+                        source=Source},
                     #link{class=I#input.close_class, style=ExpandStyle, body=I#input.close_btn,
-                        delegate=input, postback={hide_input, State}} ]},
+                        delegate=input, postback={hide_input, State}},
+                    #link{class=I#input.cancel_class, style=CancelStyle, body=I#input.cancel_btn,
+                        delegate=input, postback={clear_input, I}} ]},
 
                 if State#input_state.show_media == true ->
-                    #panel{id=State#input_state.media_id, 
+                    #panel{id=State#input_state.media_id,
                         body=preview_medias(State#input_state.media_id, Medias, input)}; true -> [] end ]},
 
             #panel{class=[span3], body=if State#input_state.show_upload == true -> [
@@ -81,9 +98,12 @@ render_element(#input{title=Title, state=State, feed_state=FS}=I) ->
                     value="",
                     delegate_query=?MODULE,
                     post_write=attach_media,
-                    delegate_api=input, 
-                    img_tool=gm, 
-                    post_target=State#input_state.media_id, size=?THUMB_SIZE}]; true -> [] end} ]} ]}] ).
+                    delegate_api=input,
+                    img_tool=gm,
+                    post_target=State#input_state.media_id, size=?THUMB_SIZE}]; true -> [] end} 
+            ]} 
+        ]}
+    ].
 
 preview_medias(Id, Medias, Delegate)->
   L = length(Medias),
@@ -274,13 +294,103 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
         to = {RoutingType, To}}, Is, ?FD_STATE(FeedId, Fs)])
     || {RoutingType, To, {_, FeedId}} <- Recipients];
 
+event({update, product, #input_state{}=Is, #feed_state{}=Fs}) ->
+    error_logger:info_msg("=>update product", []),
+    case kvs:get(product, Is#input_state.entry_id) of {error,_}-> wf:update(Is#input_state.alert_id, index:error("no object"));
+    {ok, P=#product{}} ->
+        User = wf:user(),
+        Title = wf:q(Is#input_state.title_id),
+        Descr = wf:q(Is#input_state.body_id),
+        Currency = wf:q(Is#input_state.currency_id),
+
+        TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
+        Medias = case wf:session(medias) of undefined -> []; L -> L end,
+        error_logger:info_msg("Title picture: ~p~n Medias: ~p", [TitlePic, Medias]),
+
+        Product = P#product{
+            title = list_to_binary(Title),
+            brief = list_to_binary(Descr),
+            cover = TitlePic,
+            price = product_ui:to_price(wf:q(Is#input_state.price_id)),
+            currency = Currency},
+
+        Entry = #entry{
+            created=Product#product.created,
+            entry_id=Product#product.id,
+            from=Product#product.owner,
+            type= product,
+            media=Medias,
+            title=Product#product.title,
+            description=Product#product.brief,
+            shared=""},
+
+        kvs:put(Product),
+
+        RawRecipients = if Is#input_state.show_recipients == true -> wf:q(Is#input_state.recipients_id); true -> Is#input_state.recipients end,
+
+        R1 = lists:flatmap(fun(S) -> [
+            case kvs:get(list_to_atom(A), string:substr(S, length(A)+Pos)) of {error,_}-> [];
+            {ok, E} -> {list_to_atom(A), element(#iterator.id, E), lists:keyfind(products, 1, element(#iterator.feeds, E))} end
+            || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(RawRecipients, ",")),
+        error_logger:info_msg("r1: ~p ", [R1]),
+
+        Groups = ordsets:from_list([case kvs:get(Type, S) of {error,_}->[]; {ok, G}->G end ||{Type, S, _}<-R1, Type==group]),
+        Participate = ordsets:from_list([ case kvs:get(group, Where) of {ok, G}->G;_->[] end  || #group_subscription{where=Where} <- kvs_group:participate(P#product.id)]),
+
+        Intersection = ordsets:intersection(Groups, Participate),
+        OldSubs = ordsets:subtract(Participate, Intersection),
+        NewSubs = ordsets:subtract(Groups, Intersection),
+
+        % stay in group and edit entry
+        Rec1 = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
+            [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Intersection]],
+        error_logger:info_msg("Edit recipients: ~p~n", [Rec1]),
+
+        [msg:notify([kvs_feed, RouteType, To, entry, Eid, edit],
+            [Entry#entry{to = {RouteType, To}, feed_id=Fid, id={Product#product.id, Fid}}, Is, ?FD_STATE(Fid, Fs)]) || {RouteType, To, {_,Fid}=Eid} <- Rec1],
+
+        % leave group and remove entry
+        Rec2 = [{group,Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- OldSubs],
+        error_logger:info_msg("Remove recipients: ~p~n", [Rec2]),
+        [msg:notify([kvs_feed, RouteType, To, entry, Eid, delete], [Entry, skip]) || {RouteType, To, Eid} <- Rec2],
+        [kvs_group:leave(Product#product.id, G) || {_,G,_} <- Rec2],
+
+        % join group and add entry
+        Rec3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- NewSubs],
+        error_logger:info_msg("Add recipients: ~p~n", [Rec3]),
+        [kvs_group:join(Product#product.id, G) || {_,G,_} <- Rec3],
+        [msg:notify([kvs_feed, RoutingType, To, entry, Product#product.id, add],
+            [Entry#entry{id={Product#product.id, Fid},feed_id=Fid,to = {RoutingType, To}}, Is, ?FD_STATE(Fid,Fs)]) || {RoutingType, To, {_, Fid}} <- Rec3],
+
+        wf:update(Is#input_state.alert_id, index:success("updated"))
+    end;
+event({update, Type, #input_state{}=Is, #feed_state{}=Fs}) ->
+    Id = Is#input_state.entry_id,
+    error_logger:info_msg("Update ~p ~p", [Type, Id]);
+
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),
   wf:session(medias, New),
   wf:update(Id, preview_medias(Id, New, input));
 
-event({show_input, #input_state{}=S})-> wf:wire(#jq{target=S#input_state.toolbar_id,method=[hide]}), wf:wire(#jq{target=S#input_state.form_id,    method=[fadeIn]});
-event({hide_input, #input_state{}=S})-> wf:wire(#jq{target=S#input_state.form_id,   method=[hide]}), wf:wire(#jq{target=S#input_state.toolbar_id, method=[fadeIn]}).
+event({show_input, #input_state{}=S})->
+    wf:wire(#jq{target=S#input_state.toolbar_id,method=[hide]}),
+    wf:wire(#jq{target=S#input_state.form_id,   method=[fadeIn]});
+event({hide_input, #input_state{}=S})->
+    wf:wire(#jq{target=S#input_state.form_id,   method=[hide]}),
+    wf:wire(#jq{target=S#input_state.toolbar_id,method=[fadeIn]});
+event({clear_input, #input{state=State, feed_state=FS}=I})->
+    error_logger:info_msg("CLEAR INPUT ~p", [I#input.state#input_state.id]),
+    wf:session(medias, []),
+    wf:update(I#input.state#input_state.id,
+        #panel{body=[input(
+        I#input{recipients=[], title= <<"New game">>},
+        State#input_state{update=false, price=undefined, title=undefined, description=undefined, medias=[], entry_id=undefined},
+        FS)]}
+    ),
+%    wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});"),
+    ok;
+event(E)-> error_logger:info_msg("INPUT:~p", [E]).
 
 api_event(attach_media, Args, _Tag)->
   Props = n2o_json:decode(Args),

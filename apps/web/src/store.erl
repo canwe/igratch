@@ -58,8 +58,10 @@ feed(Group) ->
 %% Render store elements
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}) ->
-    {ok, P} = kvs:get(product, E#entry.entry_id),
-    store_element(P, State);
+    error_logger:info_msg("Id: ~p", [E#entry.entry_id]),
+    case kvs:get(product, E#entry.entry_id) of {error, _} -> wf:render(#panel{body= <<"error displaying item">>});
+    {ok, P} -> store_element(P, State)
+    end;
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}=State}) ->
     store_element(P, State);
 render_element(E)-> feed_ui:render_element(E).

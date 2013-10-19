@@ -7,7 +7,8 @@
 -define(ID_FEED(Id),    wf:to_list(Id)++"es").
 -define(ID_FEED_TOOL(Id),wf:to_list(Id)++"est").
 -define(THUMB_SIZE,     [{139, 80}, {270, 124}, {180,180}, {200, 200}, {570, 570}, {716, 480}, {1170, 350}]).
--define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
+%-define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}, {<<"Euro">>, <<"EUR">>}, {<<"Frank">>, <<"CHF">>}]).
+-define(CURRENCY,       [{<<"Dollar">>, <<"USD">>}]).
 -define(BTN_INFO,       [btn, "btn-info"]).
 -define(BTN_SUCCESS,    [btn, "btn-success"]).
 -define(STACK_BASE,     ["icon-stack-base", "icon-circle"]).
@@ -35,10 +36,13 @@
                         placeholder_ttl= <<"Title">>,
                         placeholder_box= <<"">>,
                         post_btn = <<"post">>,
+                        update_btn = <<"update">>,
                         close_btn= <<"close">>,
+                        cancel_btn= <<"cancel">>,
                         expand_btn="",
                         post_class=?BTN_INFO,
                         close_class=[btn],
+                        cancel_class=[btn],
                         expand_class=?BTN_INFO}).
 
 -record(feed_ui,        {?ELEMENT_BASE(feed_ui), state, icon="", icon_url, header=[], selection_ctl=[]}).

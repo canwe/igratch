@@ -166,7 +166,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=Stat
     Id = element(State#feed_state.entry_id, E),
     UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
     From = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
-%    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
+    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
     wf:render(article(product, {Id, UiId}, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{}=State}) ->
     Id = element(State#feed_state.entry_id, P),
@@ -331,7 +331,7 @@ render_element(E) -> error_logger:info_msg("[feed]render_element(#unknown{}) ~p"
 
 % product entry components
 
-article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description)-> [
+article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description, Ctl)-> [
     #panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
         #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
@@ -347,7 +347,11 @@ article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description)-> [
         #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=wf:js_escape(Title)}},
         #p{id=?EN_DESC(UiId), body=wf:js_escape(product_ui:shorten(Description))},
         #panel{id=?EN_TOOL(UiId), class=[more], body=[
-            #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, Id}} ]} ]}].
+            Ctl,
+            #link{body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, Id}}]} ]}].
+
+article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description)->
+    article(Type, {Id, UiId}, {FromId, From}, Date, Media, Title, Description, []).
 
 image(#media{}=Media, Size) ->
     Thumb = Media#media.thumbnail_url,
@@ -509,7 +513,7 @@ traverse_entries(RecordName, Next, Count, S)->
 
 process_delivery([_,_,Type,_,add],
                  [E, #input_state{}=I, #feed_state{}=S])->
-    error_logger:info_msg("[feed] Add entry: ~p ~p to <~p> ", [Type, element(#iterator.id, E), S#feed_state.entries]),
+    error_logger:info_msg("[feed_ui] Add entry: ~p ~p to <~p> ", [Type, element(#iterator.id, E), S#feed_state.entries]),
     deselect(S),
     wf:session(medias, []),
     wf:update(I#input_state.media_id, []),
@@ -530,6 +534,14 @@ process_delivery([_,_,Type,_,add],
         wf:wire(#jq{target=I#input_state.form_id,   method=[hide]}),
         wf:wire(#jq{target=I#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
     wf:wire("Holder.run();");
+
+process_delivery([_,_,Type,_,edit],
+                [E, #input_state{} = I, #feed_state{} = S]) ->
+    error_logger:info_msg("[feed_ui] Edit ~p ~p in ~p", [Type, element(#iterator.id, E), S#feed_state.entries]),
+    Id = wf:to_list(erlang:phash2(element(#iterator.id, E))),
+    wf:replace(?EN_ROW(Id), #feed_entry{entry=E, state=S}),
+    wf:wire("Holder.run();"),
+    ok;
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     error_logger:info_msg("[feed] show_entry ~p", [element(#iterator.id, Entry)]),

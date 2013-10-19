@@ -20,91 +20,77 @@ body()->
     index:header() ++ dashboard:page(Nav,
         case lists:keyfind(products, 1, Feeds) of false -> [];
         {_, Id} ->
-            Fs = ?FD_STATE(Id)#feed_state{view=product,
+            Fs = ?FD_STATE(Id)#feed_state{
+                view=product,
                 html_tag=panel,
                 entry_id=#entry.entry_id,
-                enable_selection=true},
-            Is = #input_state{show_upload=true, entry_type=product, show_price=true, simple_body=true},
+                enable_selection=true,
+                delegate=mygames
+            },
+            Is = #input_state{id=?FD_INPUT(Id), show_upload=true, entry_type=product, show_price=true, simple_body=true},
             #feed_ui{title= <<"My games">>, icon="icon-gamepad", state=Fs, header=[
-                #input{title= <<"New Game">>,
-                    placeholder_rcp= <<"Categories">>,
-                    placeholder_ttl= <<"Game title">>,
-                    placeholder_box= <<"Brief description">>,
-                    post_btn= <<"create">>,
-                    role=group,
-                    state=Is,
-                    feed_state=Fs,
-                    class=["feed-table-header"]} ]} end ) ++index:footer().
+                #panel{id=Is#input_state.id, body= input(Is,Fs,<<"New Game">>,[])} ]} end ) ++index:footer().
+
+%% Render products
+
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=State}) ->
+    Id = element(State#feed_state.entry_id, E),
+    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+    error_logger:info_msg("render element in MYGAMES ~p ~p", [Id, UiId]),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
+    {ok, P} = kvs:get(product, Id),
+    Ctl = [
+        #link{body= <<"edit">>, postback={edit, P, State}}
+    ],
+    wf:render(feed_ui:article(product, {Id, UiId}, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description, Ctl));
+render_element(E)-> feed_ui:render_element(E).
+
+input(#input_state{} = Is, #feed_state{}=Fs, Title, Recipients) ->
+    #input{ title= Title,
+            placeholder_rcp= <<"Categories">>,
+            placeholder_ttl= <<"Game title">>,
+            placeholder_box= <<"Brief description">>,
+            post_btn= <<"create">>,
+            role=group,
+            state=Is,
+            feed_state=Fs,
+            recipients = Recipients,
+            class=["feed-table-header"]}.
+
+media(undefined)-> [];
+media(File)-> [#media{url = File,
+    thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}].
+
+%% Events
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({update, #product{}=P, #input_state{}=Is}) ->
-  User = wf:user(),
-  Title = wf:q(Is#input_state.title_id),
-  Descr = wf:q(Is#input_state.body_id),
-  Currency = wf:q(Is#input_state.currency_id),
+event({edit, P=#product{}, Fs=#feed_state{}}) ->
+    Groups = string:join([case kvs:get(group, G) of {error,_}-> "";
+        {ok, #group{id=Id, name=Name}}-> "group"++wf:to_list(Id)++"="++wf:to_list(Name) end
+        || #group_subscription{where=G} <- kvs_group:participate(P#product.id)], ","),
 
-  TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
-  Medias = case wf:session(medias) of undefined -> []; L -> L end,
+    Is = #input_state{
+        id = ?FD_INPUT(Fs#feed_state.container_id),
+        entry_id = P#product.id,
+        update=true,
+        title = P#product.title,
+        description = P#product.brief,
+        price = P#product.price,
+        medias = media(P#product.cover),
+        show_upload=true,
+        entry_type=product,
+        show_recipients=true,
+        show_price=true,
+        simple_body=true},
 
-  Product = P#product{
-    title = list_to_binary(Title),
-    brief = list_to_binary(Descr),
-    cover = TitlePic,
-    price = product_ui:to_price(wf:q(Is#input_state.price_id)),
-    currency = Currency},
+    error_logger:info_msg("Initial value: ~p", [Groups]),
+    error_logger:info_msg("Update ~p", [Is#input_state.id]),
+    error_logger:info_msg("Cover ~p", [P#product.cover]),
 
-  Entry = #entry{
-    created=Product#product.created,
-    entry_id=Product#product.id,
-    from=Product#product.owner,
-    type= product,
-    media=Medias,
-    title=Product#product.title,
-    description=Product#product.brief,
-    shared=""},
+    wf:update(Is#input_state.id, input(Is, Fs, <<"Update game">>, Groups));
 
-  kvs:put(Product),
-
-  Cats = wf:q(Is#input_state.recipients_id),
-    error_logger:info_msg("Categories: ~p", [Cats]),
-  Groups = ordsets:from_list([case kvs:get(group,S) of {error,_}->[]; {ok,G} ->G end || S<-string:tokens(Cats, ",")]),
-  Participate = ordsets:from_list([ case kvs:get(group, Where) of {ok, G}->G;_->[] end  || #group_subscription{where=Where} <- kvs_group:participate(P#product.id)]),
-  Intersection = ordsets:intersection(Groups, Participate),
-  OldSubs = ordsets:subtract(Participate, Intersection),
-  NewSubs = ordsets:subtract(Groups, Intersection),
-
-  % stay in group and edit entry
-  Rec1 = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
-    [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Intersection]],
-  error_logger:info_msg("Edit recipients: ~p~n", [Rec1]),
-
-  [msg:notify([kvs_feed, RouteType, To, entry, Eid, edit],
-    Entry#entry{to = {RouteType, To}, feed_id=Fid, id={Product#product.id, Fid}}) || {RouteType, To, {_,Fid}=Eid} <- Rec1],
-
-  % leave group and remove entry
-  Rec2 = [{group,Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- OldSubs],
-  error_logger:info_msg("Remove recipients: ~p~n", [Rec2]),
-  [msg:notify([kvs_feed, RouteType, To, entry, Eid, delete], [Entry, skip]) || {RouteType, To, Eid} <- Rec2],
-  [msg:notify([kvs_group, Product#product.id, leave, G], {}) || {_,G,_} <- Rec2],
-  [kvs_group:leave(Product#product.id, G) || {_,G,_} <- Rec2],
-
-  % join group and add entry
-  Rec3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- NewSubs],
-  [kvs_group:join(Product#product.id, G) ||{_, G,_} <- Rec3],
-  error_logger:info_msg("Add recipients: ~p~n", [Rec3]),
-  [kvs_group:join(Product#product.id, G) || {_,G,_} <- Rec3],
-  [msg:notify([kvs_group, Product#product.id, join, G], {}) || {_,G,_} <- Rec3],
-  [msg:notify([kvs_feed, RoutingType, To, entry, Product#product.id, add],
-  [Entry#entry{id={Product#product.id, Fid},feed_id=Fid,to = {RoutingType, To}},skip,skip,skip,skip,To]) || {RoutingType, To, {_, Fid}} <- Rec3],
-
-  event({edit_product, #entry{}});
-event({read, product, {Id,_}})-> wf:redirect(?URL_PRODUCT(Id));
 event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
-event({edit_product, #entry{}=E})->
-    wf:session(medias, E#entry.media),
-%    wf:update(wf:session(game_input), input(E)),
-    wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});");
 event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
 
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
