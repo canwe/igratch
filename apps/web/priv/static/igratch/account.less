@@ -14,13 +14,14 @@
 
   & li {
     &.active a{
-      background-color:transparent;
-      .text-warning();
-      &:hover{
-        //text-shadow:2px 2px black;
         background-color:transparent;
-        color:#dcdee0;
-      }
+        color: @warningText;
+
+        &:hover{
+            background-color:transparent;
+            text-shadow:1px 1px white;
+            color: #3a87ad;
+        }
     }
     & a {
       color: #555555;
@@ -32,7 +33,6 @@
       border-right: 3px solid #555555;
       text-shadow: none;
       font-family: 'Oswald', sans-serif;
-      text-shadow:2px 2px white;
 
       @media (max-width: 767px) {
         text-align: left;
