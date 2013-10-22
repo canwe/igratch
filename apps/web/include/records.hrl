@@ -28,13 +28,13 @@
 
 -record(input,          {?ELEMENT_BASE(input),
                         state,
-                        feed_state,
+%                        feed_state,
                         icon="icon-edit",
                         feed,
                         recipients="",
-                        placeholder_rcp= <<"">>,
-                        placeholder_ttl= <<"Title">>,
-                        placeholder_box= <<"">>,
+%                        placeholder_rcp= <<"">>,
+%                        placeholder_ttl= <<"Title">>,
+%                        placeholder_box= <<"">>,
                         post_btn = <<"post">>,
                         update_btn = <<"update">>,
                         close_btn= <<"close">>,
@@ -70,11 +70,6 @@
 -define(REVIEW_STATE(Id), ?FD_STATE(Id)#feed_state{
     view = review,
     html_tag= panel}).
-
--define(STORE_STATE(Id), ?FD_STATE(Id)#feed_state{
-    view=store,
-    enable_selection=false,
-    delegate=store}).
 
 -define(CART_STATE(Id), ?FD_STATE(Id)#feed_state{
 %    entry_id=#entry.entry_id,

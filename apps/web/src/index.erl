@@ -108,22 +108,24 @@ header() -> [
             case wf:user() of
               undefined -> #li{body=#link{body= <<"Sign In">>, url= <<"/login">>}};
               User -> [
-                #li{body=[
-                  #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
-                    body=#image{class=["img-circle", "img-polaroid"], image = case User#user.avatar of undefined -> "/holder.js/50x50";
-                      Img -> iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]) end, width= <<"45px">>, height= <<"45px">>}},
-                  #list{class=["dropdown-menu"], body=[
-                    #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
-                  ]}]},
                 #li{body=#link{body= <<"Account">>, url= <<"/profile">>}},
                 #li{body=[#link{body=[#span{id=?USR_CART(User#user.id), class=["cart-number"],
                     body= case lists:keyfind(cart, 1, User#user.feeds) of false -> <<"">>;
                         {_, Id} -> case kvs:get(feed,Id) of {error,_} -> <<"">>;
                         {ok, #feed{entries_count=C}} when C==0 -> <<"">>;
                         {ok, #feed{entries_count=C}} -> integer_to_list(C) end end},
-                    #i{class=["icon-stack", "icon-large"], title= <<"shopping cart">>, body=[
-                    #i{class=["icon-stack-base", "icon-circle"]},
-                    #i{class=["icon-shopping-cart"]}]}], url= <<"/shopping_cart">>} ]} ]
+                    #span{class=["icon-stack"], title= <<"shopping cart">>, body=[
+                        #i{class=["icon-check-empty","icon-stack-base"]},
+                        #i{class=["icon-shopping-cart"]}]}], url= <<"/shopping_cart">>} ]},
+
+                #li{body=[
+                  #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
+                    body=#image{class=["img-circle", "img-polaroid"], image = case User#user.avatar of undefined -> "/holder.js/50x50";
+                      Img -> iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]) end, width= <<"45px">>, height= <<"45px">>}},
+                  #list{class=["dropdown-menu"], body=[
+                    #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
+                  ]}]}
+                ]
             end
           ]} ]} ]} ]} ]} ].
 

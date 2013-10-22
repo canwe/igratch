@@ -17,6 +17,16 @@ on_show() ->
 
 show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
+-define(STORE_STATE(Id), ?FD_STATE(Id)#feed_state{
+    view=store,
+    enable_selection=false,
+    delegate=store}).
+
+feed_states()-> [
+    {?FEED(product), ?STORE_STATE(?FEED(product))#feed_state{entry_id = #product.id, entry_type=product}} |
+    [case lists:keyfind(products, 1, element(#iterator.feeds, G)) of false -> {ok, ok};
+    {_,Id} -> {Id, ?STORE_STATE(Id)} end || #group{scope=Scope}=G <- kvs:all(group), Scope==public] ].
+
 main() -> #dtl{file="prod", bindings=[{title,<<"Store">>},{body, body()}]}.
 
 body()->
@@ -64,7 +74,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}
     end;
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}=State}) ->
     store_element(P, State);
-render_element(E)-> feed_ui:render_element(E).
+render_element(E)-> error_logger:info_msg("[store] render -> feed_ui"),feed_ui:render_element(E).
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),

@@ -9,6 +9,17 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
+feed_state(Id) ->
+    M = ?CTX#context.module,
+    case lists:keyfind(exports, 1, M:module_info()) of false ->
+        error_logger:info_msg("Module ~p doesn't export anything", [M]);
+        {exports, Ex} -> case lists:keyfind(feed_states, 1, Ex) of
+            {feed_states, 0} ->
+                case lists:keyfind(Id, 1, M:feed_states()) of false ->
+                    error_logger:info_msg("[feed_ui] No state for feed ~p in module ~p", [Id, M]);
+                    {Id, State} -> State end;
+            _ -> error_logger:info_msg("[feed_ui] ~p doesn't implement feed_states()", [M]), ?FD_STATE(Id) end end.
+
 render_element(#feed_ui{state=S}=F) ->
     Title = F#feed_ui.title,
     Icon = F#feed_ui.icon,
@@ -259,7 +270,8 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=detached}=Sta
             #feed_ui{icon="icon-comments-alt",
                 title=[#span{class=[?ID_CM_COUNT(Eid)], body=[integer_to_list(kvs_feed:comments_count(entry, Eid))]}, <<" comments">>],
                 state=CmState},
-            #input{title= <<"Add your comment">>, class=["comments-form"], state=Is, feed_state=CmState}
+%            #input{title= <<"Add your comment">>, class=["comments-form"], state=Is, feed_state=CmState}
+            #input{title= <<"Add your comment">>, class=["comments-form"], state=Is}
        ]}
     ]},
     element_panel:render_element(Entry);
@@ -303,7 +315,9 @@ render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
 %   #span{body= <<" in ">>}, #link{body= <<"The cool review article">>}
 % ]}
     InnerFeed = #feed_ui{state=CmState, class="comments",  header=[
-        #input{state=Is, feed_state=CmState, role=comment, class=["comment-reply"], expand_btn= [<<"reply">>, #i{class=["icon-reply"]}], expand_class=[]}]},
+        #input{state=Is,
+            %feed_state=CmState,
+            role=comment, class=["comment-reply"], expand_btn= [<<"reply">>, #i{class=["icon-reply"]}], expand_class=[]}]},
 
     wf:render([
         #panel{class=[media, "media-comment"], body=[
@@ -327,7 +341,7 @@ render_element(#entry_media{media=#media{}=Media, mode=blog}) -> element_image:r
 render_element(#entry_media{media=#media{}=Media, mode=store}) -> element_image:render_element(image(Media, "270x124"));
 render_element(#entry_media{}) -> element_panel:render_element(#panel{body=[]});
 
-render_element(E) -> error_logger:info_msg("[feed]render_element(#unknown{}) ~p", [E]).
+render_element(E) -> error_logger:info_msg("[feed_ui]render_element(#unknown{}) ~p", [E]).
 
 % product entry components
 
@@ -468,7 +482,8 @@ traverse(Direction, Start, #feed_state{}=S)->
         start=NewStart,
         start_element=NewFirst,
         last_element=NewLast,
-        current=Current},
+        current=Current,
+        delegate=?CTX#context.module},
     wf:update(S#feed_state.entries, [#feed_entry{entry=G, state=State} || G <- Entries]),
 
     if Total == 0 ->
@@ -524,27 +539,31 @@ process_delivery([_,_,Type,_,add],
     wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
     wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
 
+    error_logger:info_msg("MODULE: ~p", [?MODULE]),
+
     if S#feed_state.enable_traverse == true -> traverse(#iterator.next, E, S);
     true ->
         % todo: feed state received from #input doesn't have the info necessary for traverse
         % insert element and update feed control actions
-        wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}) end,
+        wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S#feed_state{delegate=?CTX#context.module}}) end,
 
     if I#input_state.collapsed andalso I#input_state.post_collapse ->
         wf:wire(#jq{target=I#input_state.form_id,   method=[hide]}),
         wf:wire(#jq{target=I#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
     wf:wire("Holder.run();");
 
-process_delivery([_,_,Type,_,edit],
-                [E, #input_state{} = I, #feed_state{} = S]) ->
-    error_logger:info_msg("[feed_ui] Edit ~p ~p in ~p", [Type, element(#iterator.id, E), S#feed_state.entries]),
-    Id = wf:to_list(erlang:phash2(element(#iterator.id, E))),
-    wf:replace(?EN_ROW(Id), #feed_entry{entry=E, state=S}),
-    wf:wire("Holder.run();"),
-    ok;
+process_delivery([_,_,Type,_,edit], [O,_, #feed_state{}=Fs]) ->
+    case feed_state(Fs#feed_state.container_id) of
+        #feed_state{}=S ->
+            error_logger:info_msg("[feed_ui] Edit ~p ~p in ~p [~p]",
+                [Type, element(#feed_state.entry_id, O), S#feed_state.entries, ?CTX#context.module]),
+
+            Id = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, O))),
+            wf:replace(?EN_ROW(Id), #feed_entry{entry=O, state=S}),
+            wf:wire("Holder.run();"); _-> skip end;
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
-    error_logger:info_msg("[feed] show_entry ~p", [element(#iterator.id, Entry)]),
+    error_logger:info_msg("~n[feed] show_entry ~p", [element(#iterator.id, Entry)]),
     wf:insert_bottom(S#feed_state.entries, #feed_entry{entry=Entry, state=S}),
     wf:wire("Holder.run();"),
     wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback={check_more, Entry, S}});

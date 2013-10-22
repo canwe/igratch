@@ -1,4 +1,6 @@
 -module(input).
+-compile(export_all).
+-compile({parse_transform, shen}).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/products.hrl").
@@ -7,103 +9,130 @@
 -include_lib("kernel/include/file.hrl").
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
--compile(export_all).
 
-render_element(#input{state=State, feed_state=FS}=I) ->
-    wf:render(input(I, State, FS)).
+-jsmacro([selectpicker/0]).
 
-input(I=#input{title=Title}, State=#input_state{}, FS=#feed_state{}) ->
-    Source = [State#input_state.title_id,
-        State#input_state.body_id,
-        State#input_state.recipients_id,
-        State#input_state.price_id,
-        State#input_state.currency_id,
-        State#input_state.scope_id],
+selectpicker()->
+    P = jq(".selectpicker"),
+    P:each(fun()-> S = jq(this), S:selectpicker(S:data()) end).
 
-    User = wf:user(),
-    Dir = "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end,
+-define(DIR, "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end).
+
+render_element(#input{state=State}=I) ->
     Medias = case wf:session(medias) of undefined -> State#input_state.medias; []-> State#input_state.medias; Ms -> Ms end,
+    FormStyle = if State#input_state.collapsed==true -> "display:none;"; true -> "" end,
+    Title = State#input_state.control_title,
 
-    {FormStyle, ExpandStyle} = if State#input_state.collapsed==true -> {"display:none;",""}; true -> {"", "display:none;"} end,
-    CancelStyle = if State#input_state.update == false -> "display:none;"; true -> "" end,
-    Cover = if length(State#input_state.medias) > 0 -> (lists:nth(1,State#input_state.medias))#media.url; true -> "" end,
-%    wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});"),
-    error_logger:info_msg("Show recipients: ~p", [State#input_state.show_recipients]),
-    [
-        #panel{id=State#input_state.toolbar_id, class=["row-fluid"], body=[
-            #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
-                #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, State}, delegate=input} ]} ]},
+    wf:render(#panel{id=State#input_state.id, body=[
+        expand_bar(I, State),
 
-        #panel{id=State#input_state.form_id, class=[I#input.class], style=FormStyle, body=[
+        #panel{id=State#input_state.form_id, class=[State#input_state.class], style=FormStyle, body=[
             #panel{id=State#input_state.alert_id},
             case Title of undefined -> []; _ -> #h4{class=[blue], body= Title} end,
 
             #panel{class=["row-fluid"], body=[
+                #panel{class=[span9, input], body=[
+                    recipients(I, State),
+                    title(State),
+                    body(State),
+                    price(State),
+                    scope(State),
+                    #panel{class=["btn-toolbar"], body=control_bar(I, State)},
 
-            #panel{class=[span9, input], body=[
-                if State#input_state.show_recipients == true ->
-                    #textboxlist{id=State#input_state.recipients_id,
-                        placeholder=I#input.placeholder_rcp,
-                        delegate=input,
-                        values=I#input.recipients,
-                        role=I#input.role};true -> [] end,
+                    if State#input_state.show_media == true ->
+                        #panel{id=State#input_state.media_id,
+                            body=preview_medias(State#input_state.media_id, Medias, input)}; true -> [] end ]},
 
-                if State#input_state.show_title == true ->
-                    #textbox{id=State#input_state.title_id, class=[span12],placeholder= I#input.placeholder_ttl, value=State#input_state.title}; true -> [] end,
+                #panel{class=[span3], body=upload(State)} ]} ]} ]}).
 
-                if State#input_state.simple_body == true ->
-                    #textarea{id=State#input_state.body_id, class=[span12], placeholder=I#input.placeholder_box, body=State#input_state.description};
-                true ->
-                    #htmlbox{id=State#input_state.body_id, class=[span12],
-                        html = State#input_state.description,
-                        root=?ROOT, dir=Dir,
-                        post_write=attach_media,
-                        delegate_api=input,
-                        img_tool=gm,
-                        post_target=State#input_state.media_id, size=?THUMB_SIZE} end,
+expand_bar(#input{}=I, #input_state{}=S)->
+    ExpandStyle = if S#input_state.collapsed==true -> ""; true -> "display:none;" end,
+    #panel{id=S#input_state.toolbar_id, class=["row-fluid"], body=[
+        #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
+            #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, S}, delegate=input} ]} ]}.
 
-                if State#input_state.show_price == true ->
-                    #panel{class=["input-append"], body=[
-                        #textbox{id=State#input_state.price_id, 
-                            value=float_to_list(if State#input_state.price == undefined -> 0; true -> State#input_state.price end/100, [{decimals, 2}])},
-                        #select{id=State#input_state.currency_id, class=[selectpicker],
-                            body=[#option{label= L, body = V} || {L,V} <- ?CURRENCY]} ]}; true -> [] end,
+recipients(#input{}=I, #input_state{show_recipients=true}=S)->
+    #textboxlist{id=S#input_state.recipients_id,
+        placeholder=S#input_state.placeholder_rcp,
+        delegate=input,
+        values=I#input.recipients,
+        role=S#input_state.role};
+recipients(_,_)-> [].
 
-                if State#input_state.show_scope == true ->
-                    #select{id=State#input_state.scope_id, body=[
-                        #option{label= <<"scope">>,   body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
-                        #option{label= <<"Public">>,  value = public},
-                        #option{label= <<"Private">>, value = private} ]}; true -> [] end,
+title(#input_state{show_title=true}=S)->
+    #textbox{id=S#input_state.title_id,
+        class=[span12],
+        placeholder= S#input_state.placeholder_ttl,
+        value=S#input_state.title};
+title(_)-> [].
 
-                #panel{class=["btn-toolbar"], body=[
-                    #link{id=State#input_state.post_id, class=I#input.post_class,
-                        body=if State#input_state.update == false -> I#input.post_btn; true -> I#input.update_btn end,
-                        delegate=input,
-                        postback={
-                            if State#input_state.update == false -> post; true -> update end,
-                            State#input_state.entry_type, State, FS},
-                        source=Source},
-                    #link{class=I#input.close_class, style=ExpandStyle, body=I#input.close_btn,
-                        delegate=input, postback={hide_input, State}},
-                    #link{class=I#input.cancel_class, style=CancelStyle, body=I#input.cancel_btn,
-                        delegate=input, postback={clear_input, I}} ]},
+body(#input_state{simple_body=true}=S)->
+    #textarea{id=S#input_state.body_id, class=[span12],
+        placeholder=S#input_state.placeholder_box,
+        body=S#input_state.description};
+body(#input_state{}=S)->
+    #htmlbox{id=S#input_state.body_id, class=[span12],
+        html = S#input_state.description,
+        root=?ROOT, dir=?DIR,
+        post_write=attach_media,
+        delegate_api=input,
+        img_tool=gm,
+        post_target=S#input_state.media_id, size=?THUMB_SIZE}.
 
-                if State#input_state.show_media == true ->
-                    #panel{id=State#input_state.media_id,
-                        body=preview_medias(State#input_state.media_id, Medias, input)}; true -> [] end ]},
+price(#input_state{show_price=true}=S)-> [
+    #panel{class=["input-append"], body=[
+        #textbox{id=S#input_state.price_id,
+            value=float_to_list(if S#input_state.price == undefined -> 0; true -> S#input_state.price end/100, [{decimals, 2}])},
+        #select{id=S#input_state.currency_id, class=[selectpicker],
+            body=[#option{label= L, body = V} || {L,V} <- ?CURRENCY]} ]} ];
+price(_)-> [].
 
-            #panel{class=[span3], body=if State#input_state.show_upload == true -> [
-                #upload{id=State#input_state.upload_id,
-                    preview=true, root=?ROOT, dir=Dir,
-                    value="",
-                    delegate_query=?MODULE,
-                    post_write=attach_media,
-                    delegate_api=input,
-                    img_tool=gm,
-                    post_target=State#input_state.media_id, size=?THUMB_SIZE}]; true -> [] end} 
-            ]} 
-        ]}
+scope(#input_state{show_scope=true}=S) -> [
+    #select{id=S#input_state.scope_id, body=[
+        #option{label= <<"scope">>,   body = <<"scope">>, disabled=true, selected=true, style="display:none; color:gray;"},
+        #option{label= <<"Public">>,  value = public},
+        #option{label= <<"Private">>, value = private} ]} ];
+scope(_)-> [].
+
+control_bar(#input{} = I, #input_state{}=S) ->
+    Source = [S#input_state.title_id,
+        S#input_state.body_id,
+        S#input_state.recipients_id,
+        S#input_state.price_id,
+        S#input_state.currency_id,
+        S#input_state.scope_id],
+    ExpandStyle = if S#input_state.collapsed==true -> ""; true -> "display:none;" end,
+    CancelStyle = if S#input_state.update == false -> "display:none;"; true -> "" end,
+
+    [
+    #link{id=S#input_state.post_id, class=I#input.post_class,
+        body=if S#input_state.update == false -> I#input.post_btn; true -> I#input.update_btn end,
+        delegate=input,
+        postback={if S#input_state.update == false -> post; true -> update end,
+            S#input_state.entry_type, S, ?FD_STATE(S#input_state.fid)#feed_state{
+                view=product,
+                html_tag=panel,
+                entry_id=#entry.entry_id,
+                delegate=mygames,
+                enable_selection=true
+            }},
+            source=Source},
+    #link{class=I#input.close_class, style=ExpandStyle, body=I#input.close_btn,
+        delegate=input, postback={hide_input, S}},
+    #link{class=I#input.cancel_class, style=CancelStyle, body=I#input.cancel_btn,
+        delegate=input, postback={clear_input, S}}
     ].
+
+upload(#input_state{show_upload=true}=S)->
+    #upload{id=S#input_state.upload_id,
+        preview=true, root=?ROOT, dir=?DIR,
+        value="",
+        delegate_query=?MODULE,
+        post_write=attach_media,
+        delegate_api=input,
+        img_tool=gm,
+        post_target=S#input_state.media_id, size=?THUMB_SIZE};
+upload(_)-> [].
 
 preview_medias(Id, Medias, Delegate)->
   L = length(Medias),
@@ -168,14 +197,19 @@ event({post, product, #input_state{}=Is, #feed_state{}=FS}) ->
     Title = wf:q(Is#input_state.title_id),
     Descr = wf:q(Is#input_state.body_id),
     Currency = wf:q(Is#input_state.currency_id),
-    TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
+%    TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
+    Medias = case wf:session(medias) of undefined -> []; L -> L end,
+    Cover = case Medias of [] -> undefined; [#media{url=Url}|_] ->
+        case string:rstr(Url,?ROOT) of 0 -> Url;
+        Pos -> string:substr(Url, Pos+length(?ROOT)) end end,
+    error_logger:info_msg("Cover: ~p", [Cover]),
     Product = #product{
         id = kvs:uuid(),
         creator = User#user.email,
         owner = User#user.email,
         title = list_to_binary(Title),
         brief = list_to_binary(Descr),
-        cover = TitlePic,
+        cover = Cover,
         price = product_ui:to_price(wf:q(Is#input_state.price_id)),
         currency = Currency,
         feeds = ?PRD_CHUNK,
@@ -192,7 +226,6 @@ event({post, product, #input_state{}=Is, #feed_state{}=FS}) ->
     R2 = case User of undefined -> []; _ when UsrFeed /=false -> [{user, User#user.email, UsrFeed}]; _-> [] end,
     R3 = [{product, Product#product.id, {products, ?FEED(product)}}], % general feed
     Recipients = lists:flatten([R1,R2, R3]),
-    Medias = case wf:session(medias) of undefined -> []; L -> L end,
 
     msg:notify([kvs_product, product, register], [Product, Is#input_state{
         recipients = Recipients,
@@ -303,14 +336,16 @@ event({update, product, #input_state{}=Is, #feed_state{}=Fs}) ->
         Descr = wf:q(Is#input_state.body_id),
         Currency = wf:q(Is#input_state.currency_id),
 
-        TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
         Medias = case wf:session(medias) of undefined -> []; L -> L end,
-        error_logger:info_msg("Title picture: ~p~n Medias: ~p", [TitlePic, Medias]),
+        Cover = case Medias of [] -> undefined; [#media{url=Url}|_] ->
+            case string:rstr(Url,?ROOT) of 0 -> Url;
+            Pos -> string:substr(Url, Pos+length(?ROOT)) end end,
+        error_logger:info_msg("Cover: ~p~n Medias: ~p Root: ~p", [Cover, Medias, ?ROOT]),
 
         Product = P#product{
             title = list_to_binary(Title),
             brief = list_to_binary(Descr),
-            cover = TitlePic,
+            cover = Cover,
             price = product_ui:to_price(wf:q(Is#input_state.price_id)),
             currency = Currency},
 
@@ -349,6 +384,9 @@ event({update, product, #input_state{}=Is, #feed_state{}=Fs}) ->
         [msg:notify([kvs_feed, RouteType, To, entry, Eid, edit],
             [Entry#entry{to = {RouteType, To}, feed_id=Fid, id={Product#product.id, Fid}}, Is, ?FD_STATE(Fid, Fs)]) || {RouteType, To, {_,Fid}=Eid} <- Rec1],
 
+        msg:notify( [kvs_feed, product, P#product.id, product, P#product.id, edit],
+                    [Product, Is, ?FD_STATE(?FEED(product))]),
+
         % leave group and remove entry
         Rec2 = [{group,Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- OldSubs],
         error_logger:info_msg("Remove recipients: ~p~n", [Rec2]),
@@ -362,11 +400,9 @@ event({update, product, #input_state{}=Is, #feed_state{}=Fs}) ->
         [msg:notify([kvs_feed, RoutingType, To, entry, Product#product.id, add],
             [Entry#entry{id={Product#product.id, Fid},feed_id=Fid,to = {RoutingType, To}}, Is, ?FD_STATE(Fid,Fs)]) || {RoutingType, To, {_, Fid}} <- Rec3],
 
-        wf:update(Is#input_state.alert_id, index:success("updated"))
+        wf:update(Is#input_state.alert_id, index:success("updated")),
+        wf:session(medias, [])
     end;
-event({update, Type, #input_state{}=Is, #feed_state{}=Fs}) ->
-    Id = Is#input_state.entry_id,
-    error_logger:info_msg("Update ~p ~p", [Type, Id]);
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),
@@ -379,17 +415,37 @@ event({show_input, #input_state{}=S})->
 event({hide_input, #input_state{}=S})->
     wf:wire(#jq{target=S#input_state.form_id,   method=[hide]}),
     wf:wire(#jq{target=S#input_state.toolbar_id,method=[fadeIn]});
-event({clear_input, #input{state=State, feed_state=FS}=I})->
-    error_logger:info_msg("CLEAR INPUT ~p", [I#input.state#input_state.id]),
+
+event({edit, P=#product{}, #feed_state{}, #input_state{}=S}) ->
+    Groups = string:join([case kvs:get(group, G) of {error,_}-> "";
+        {ok, #group{id=Id, name=Name}}-> "group"++wf:to_list(Id)++"="++wf:to_list(Name) end
+        || #group_subscription{where=G} <- kvs_group:participate(P#product.id)], ","),
+
+    Is = S#input_state{
+        entry_id = P#product.id,
+        control_title = <<"Update">>,
+        title = P#product.title,
+        description = P#product.brief,
+        price = P#product.price,
+        medias = media(P#product.cover)},
+
+    wf:session(medias, media(P#product.cover)),
+    wf:replace(S#input_state.id, #input{state=Is, recipients=Groups}),
+    wf:wire(selectpicker());
+
+event({clear_input, #input_state{}=S})->
+    Is = S#input_state{
+        update=false,
+        control_title = <<"Create">>,
+        price=undefined,
+        title=undefined,
+        description=undefined,
+        medias=[]
+    },
     wf:session(medias, []),
-    wf:update(I#input.state#input_state.id,
-        #panel{body=[input(
-        I#input{recipients=[], title= <<"New game">>},
-        State#input_state{update=false, price=undefined, title=undefined, description=undefined, medias=[], entry_id=undefined},
-        FS)]}
-    ),
-%    wf:wire("$('.selectpicker').each(function() {var $select = $(this); $select.selectpicker($select.data());});"),
-    ok;
+    wf:replace(S#input_state.id, #input{state= Is}),
+    wf:wire(selectpicker());
+
 event(E)-> error_logger:info_msg("INPUT:~p", [E]).
 
 api_event(attach_media, Args, _Tag)->
@@ -407,3 +463,7 @@ api_event(attach_media, Args, _Tag)->
   NewMedias = [Media | Medias],
   wf:session(medias, NewMedias),
   wf:update(Target, preview_medias(Target, NewMedias, input)).
+
+media(undefined)-> [];
+media(File)-> [#media{url = File,
+    thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}].
