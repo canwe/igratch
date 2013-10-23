@@ -15,8 +15,8 @@ feed_state(Id) ->
         error_logger:info_msg("Module ~p doesn't export anything", [M]);
         {exports, Ex} -> case lists:keyfind(feed_states, 1, Ex) of
             {feed_states, 0} ->
-                case lists:keyfind(Id, 1, M:feed_states()) of false ->
-                    error_logger:info_msg("[feed_ui] No state for feed ~p in module ~p", [Id, M]);
+                case lists:keyfind(Id, 1, M:feed_states()) of false -> ok;
+%                    error_logger:info_msg("[feed_ui] No state for feed ~p in module ~p", [Id, M]);
                     {Id, State} -> State end;
             _ -> error_logger:info_msg("[feed_ui] ~p doesn't implement feed_states()", [M]), ?FD_STATE(Id) end end.
 
@@ -552,15 +552,55 @@ process_delivery([_,_,Type,_,add],
         wf:wire(#jq{target=I#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
     wf:wire("Holder.run();");
 
-process_delivery([_,_,Type,_,edit], [O,_, #feed_state{}=Fs]) ->
-    case feed_state(Fs#feed_state.container_id) of
-        #feed_state{}=S ->
-            error_logger:info_msg("[feed_ui] Edit ~p ~p in ~p [~p]",
-                [Type, element(#feed_state.entry_id, O), S#feed_state.entries, ?CTX#context.module]),
+process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
+    error_logger:info_msg("[feed_ui] Entry added ~p", [Id]),
+    case feed_state(Fid) of
+    #feed_state{}=S ->
+        error_logger:info_msg("[feed_ui] Add entry ~p to ~p", [Id, Fid]),
+        deselect(S),
+        wf:session(medias, []),
 
-            Id = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, O))),
-            wf:replace(?EN_ROW(Id), #feed_entry{entry=O, state=S}),
-            wf:wire("Holder.run();"); _-> skip end;
+        if S#feed_state.enable_traverse ->
+            traverse(#iterator.next, E, S);
+        true ->
+            wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}) end,
+
+        wf:wire("Holder.run();");
+    _-> skip
+    end;
+
+process_delivery([product, Id, updated], [{error,E}, #input_state{}=Is,_]) ->
+%    error_logger:info_msg("[feed_ui] Error update: ~p", [E]),
+    wf:update(Is#input_state.alert_id, index:error(E));
+process_delivery([product, Id, updated], [#product{}=P, #input_state{}=Is])->
+%    error_logger:info_msg("[feed_ui] Update product: ~p", [Id]),
+    wf:update(Is#input_state.alert_id, index:success("updated")),
+    case feed_state(?FEED(product)) of
+    #feed_state{}=S ->
+%        error_logger:info_msg("[feed_ui] Update product ~p in ~p [~p]", [Id, ?FEED(product), ?CTX#context.module]),
+        UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, P))),
+        wf:session(medias, []),
+        wf:replace(?EN_ROW(UiId), #feed_entry{entry=P, state=S}),
+        wf:wire("Holder.run();");
+    _ -> skip
+    end;
+process_delivery([entry, {Id, Fid}, updated], [#entry{}=E])->
+    case feed_state(Fid) of
+    #feed_state{}=S ->
+%        error_logger:info_msg("[feed_ui] Update entry ~p in ~p [~p]", [Id, Fid, ?CTX#context.module]),
+        UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
+        wf:replace(?EN_ROW(UiId), #feed_entry{entry=E, state=S}),
+        wf:wire("Holder.run();");
+    _-> skip end;
+process_delivery([entry, {Eid, Fid}=Id, deleted], [])->
+    case feed_state(Fid) of
+    #feed_state{}=S ->
+%        error_logger:info_msg("[feed_ui] Entry deleted ~p", [Eid]),
+        wf:remove(?EN_ROW(erlang:phash2(Id))),
+        deselect(S);
+    _-> skip
+    end,
+    ok;
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     error_logger:info_msg("~n[feed] show_entry ~p", [element(#iterator.id, Entry)]),
@@ -578,4 +618,6 @@ process_delivery([Type,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) 
     wf:remove(?EN_ROW(Id)),
     deselect(S);
 
-process_delivery(R,_) -> error_logger:info_msg("[feed_ui]unhandled route:~p", [R]),ok.
+process_delivery(R,_) -> 
+    %error_logger:info_msg("[feed_ui]unhandled route:~p", [R]),
+    ok.

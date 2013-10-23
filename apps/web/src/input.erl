@@ -327,82 +327,31 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
         to = {RoutingType, To}}, Is, ?FD_STATE(FeedId, Fs)])
     || {RoutingType, To, {_, FeedId}} <- Recipients];
 
-event({update, product, #input_state{}=Is, #feed_state{}=Fs}) ->
+event({update, product, Is, Fs}) ->
     error_logger:info_msg("=>update product", []),
-    case kvs:get(product, Is#input_state.entry_id) of {error,_}-> wf:update(Is#input_state.alert_id, index:error("no object"));
-    {ok, P=#product{}} ->
-        User = wf:user(),
-        Title = wf:q(Is#input_state.title_id),
-        Descr = wf:q(Is#input_state.body_id),
-        Currency = wf:q(Is#input_state.currency_id),
 
-        Medias = case wf:session(medias) of undefined -> []; L -> L end,
-        Cover = case Medias of [] -> undefined; [#media{url=Url}|_] ->
-            case string:rstr(Url,?ROOT) of 0 -> Url;
+    Title = wf:q(Is#input_state.title_id),
+    Descr = wf:q(Is#input_state.body_id),
+    Price = product_ui:to_price(wf:q(Is#input_state.price_id)),
+    Currency = wf:q(Is#input_state.currency_id),
+    RawRecipients = wf:q(Is#input_state.recipients_id),
+    Cover = case wf:session(medias) of undefined -> undefined; [] -> undefined;
+        [#media{url=Url}|_] -> case string:rstr(Url,?ROOT) of 0 -> Url;
             Pos -> string:substr(Url, Pos+length(?ROOT)) end end,
-        error_logger:info_msg("Cover: ~p~n Medias: ~p Root: ~p", [Cover, Medias, ?ROOT]),
 
-        Product = P#product{
+    Product = #product{
             title = list_to_binary(Title),
             brief = list_to_binary(Descr),
             cover = Cover,
-            price = product_ui:to_price(wf:q(Is#input_state.price_id)),
+            price = Price,
             currency = Currency},
 
-        Entry = #entry{
-            created=Product#product.created,
-            entry_id=Product#product.id,
-            from=Product#product.owner,
-            type= product,
-            media=Medias,
-            title=Product#product.title,
-            description=Product#product.brief,
-            shared=""},
+    Recipients = lists:filtermap(fun(S) ->
+        A = "group",
+        case string:str(S, A) of 1 -> {true, {list_to_atom(A),string:substr(S, length(A)+1)}}; _-> false end end,
+        string:tokens(RawRecipients, ",")),
 
-        kvs:put(Product),
-
-        RawRecipients = if Is#input_state.show_recipients == true -> wf:q(Is#input_state.recipients_id); true -> Is#input_state.recipients end,
-
-        R1 = lists:flatmap(fun(S) -> [
-            case kvs:get(list_to_atom(A), string:substr(S, length(A)+Pos)) of {error,_}-> [];
-            {ok, E} -> {list_to_atom(A), element(#iterator.id, E), lists:keyfind(products, 1, element(#iterator.feeds, E))} end
-            || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(RawRecipients, ",")),
-        error_logger:info_msg("r1: ~p ", [R1]),
-
-        Groups = ordsets:from_list([case kvs:get(Type, S) of {error,_}->[]; {ok, G}->G end ||{Type, S, _}<-R1, Type==group]),
-        Participate = ordsets:from_list([ case kvs:get(group, Where) of {ok, G}->G;_->[] end  || #group_subscription{where=Where} <- kvs_group:participate(P#product.id)]),
-
-        Intersection = ordsets:intersection(Groups, Participate),
-        OldSubs = ordsets:subtract(Participate, Intersection),
-        NewSubs = ordsets:subtract(Groups, Intersection),
-
-        % stay in group and edit entry
-        Rec1 = [{user, P#product.owner, lists:keyfind(products, 1, User#user.feeds)} |
-            [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Intersection]],
-        error_logger:info_msg("Edit recipients: ~p~n", [Rec1]),
-
-        [msg:notify([kvs_feed, RouteType, To, entry, Eid, edit],
-            [Entry#entry{to = {RouteType, To}, feed_id=Fid, id={Product#product.id, Fid}}, Is, ?FD_STATE(Fid, Fs)]) || {RouteType, To, {_,Fid}=Eid} <- Rec1],
-
-        msg:notify( [kvs_feed, product, P#product.id, product, P#product.id, edit],
-                    [Product, Is, ?FD_STATE(?FEED(product))]),
-
-        % leave group and remove entry
-        Rec2 = [{group,Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- OldSubs],
-        error_logger:info_msg("Remove recipients: ~p~n", [Rec2]),
-        [msg:notify([kvs_feed, RouteType, To, entry, Eid, delete], [Entry, skip]) || {RouteType, To, Eid} <- Rec2],
-        [kvs_group:leave(Product#product.id, G) || {_,G,_} <- Rec2],
-
-        % join group and add entry
-        Rec3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- NewSubs],
-        error_logger:info_msg("Add recipients: ~p~n", [Rec3]),
-        [kvs_group:join(Product#product.id, G) || {_,G,_} <- Rec3],
-        [msg:notify([kvs_feed, RoutingType, To, entry, Product#product.id, add],
-            [Entry#entry{id={Product#product.id, Fid},feed_id=Fid,to = {RoutingType, To}}, Is, ?FD_STATE(Fid,Fs)]) || {RoutingType, To, {_, Fid}} <- Rec3],
-
-        wf:update(Is#input_state.alert_id, index:success("updated")),
-        wf:session(medias, [])
-    end;
+    msg:notify([kvs_product, Is#input_state.entry_id, update], [Product, Recipients, Is, Fs]);
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),

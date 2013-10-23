@@ -26,9 +26,11 @@ body()->
     index:header() ++
     dashboard:page(Nav, [
         #feed_ui{title=title(), icon="icon-list", state=State, header=[
-            #input{ title= <<"Submit review">>, placeholder_rcp= <<"Games">>, 
-                    role=product, state=#input_state{entry_type=review},
-                    feed_state=State, class=["feed-table-header"]} ]} ]) ++
+            #input{state=#input_state{
+                control_title= <<"Submit review">>, placeholder_rcp= <<"Games">>, 
+                role=product,
+                entry_type=review,
+                class=["feed-table-header"]}} ]} ]) ++
     index:footer().
 
 event(init) -> wf:reg(?MAIN_CH), [];

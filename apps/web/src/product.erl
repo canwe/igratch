@@ -75,17 +75,16 @@ feed(#product{} = P, {Tab, Id})->
     #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
         if User#user.email == P#product.owner orelse Tab == reviews ->
             Is = #input_state{
+                role=product,
+                placeholder_ttl= <<"Title">>,
+                class=["feed-table-header"],
                 entry_type=case Tab of reviews -> review; _-> Tab end,
                 show_recipients=false,
                 recipients=[{product, P#product.id, {Tab,Id}}],
                 collapsed=true},
 
             #input{expand_btn= "Write "++atom_to_list(Tab),
-                placeholder_ttl= <<"Title">>,
-                class=["feed-table-header"],
                 icon="",
-                role=product,
-                feed_state=State,
                 state = Is };
         true -> [] end]}.
 

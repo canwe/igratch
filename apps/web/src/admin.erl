@@ -49,17 +49,16 @@ tab(categories) ->
         enable_traverse=true,
         html_tag=table},
     Is = #input_state{
+        control_title= <<"Add category">>,
+        placeholder_ttl= <<"name">>, 
+        placeholder_box= <<"description">>,
         show_recipients=false,
         show_scope=true,
         show_media=false,
         entry_type=group,
         simple_body=true},
     [
-    #input{state=Is, feed_state=State,
-        title= <<"Add category">>,
-        placeholder_ttl= <<"name">>, 
-        placeholder_box= <<"description">>,
-        icon="icon-tags"},
+    #input{state=Is, icon="icon-tags"},
 
     #feed_ui{
         title= <<"Categories ">>,

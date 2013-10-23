@@ -19,6 +19,8 @@ body() ->
     Nav = {What, profile, []},
 
     Is = #input_state{
+        class=["feed-table-header"],
+        placeholder_ttl= <<"Subject">>,
         entry_type = direct,
         collapsed = true,
         show_media = false,
@@ -32,10 +34,7 @@ body() ->
             if Who == What -> payments(What);
             true -> [
                 #input{state=Is,
-                    feed_state= #feed_state{},
-                    class=["feed-table-header"],
                     icon="",
-                    placeholder_ttl= <<"Subject">>,
                     expand_btn= <<"Write message">> },
                 case lists:keyfind(feed, 1, element(#iterator.feeds, What)) of false -> [];
                 {_, Id} -> #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=?REVIEW_STATE(Id)} end ] end ] end ])  ++ index:footer().

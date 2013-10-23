@@ -18,6 +18,7 @@ on_show() ->
 show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
 -define(STORE_STATE(Id), ?FD_STATE(Id)#feed_state{
+%    entry_id=#entry.entry_id,
     view=store,
     enable_selection=false,
     delegate=store}).
@@ -56,9 +57,9 @@ header(Groups, Current) -> [
 feed(Group) ->
     Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
     State = case kvs:get(group, Group) of
-        {error,_} -> ?STORE_STATE(?FEED(product))#feed_state{entry_type=product};
+        {error,_} -> ?STORE_STATE(?FEED(product))#feed_state{entry_type=product, entry_id = #product.id};
         {ok, G} -> case lists:keyfind(products, 1, element(#iterator.feeds, G)) of
-            false -> ?STORE_STATE(?FEED(product))#feed_state{entry_type=product};
+            false -> ?STORE_STATE(?FEED(product))#feed_state{entry_type=product, entry_id = #product.id};
             {_, Id} -> ?STORE_STATE(Id) end end,
 
     #feed_ui{icon=["icon-home ", "icon-large ", if Group =="all"-> "text-warning"; true-> "" end],
@@ -70,10 +71,13 @@ feed(Group) ->
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}) ->
     error_logger:info_msg("Id: ~p", [E#entry.entry_id]),
     case kvs:get(product, E#entry.entry_id) of {error, _} -> wf:render(#panel{body= <<"error displaying item">>});
-    {ok, P} -> store_element(P, State)
+    {ok, P} ->
+        Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
+        store_element(Id, P, State)
     end;
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}=State}) ->
-    store_element(P, State);
+    Id = wf:to_list(erlang:phash2(element(#product.id, P))),
+    store_element(Id, P, State);
 render_element(E)-> error_logger:info_msg("[store] render -> feed_ui"),feed_ui:render_element(E).
 
 api_event(tabshow,Args,_) ->
@@ -113,8 +117,7 @@ process_delivery(R,M) ->
         {ok, #feed{entries_count=C}}-> wf:update(?USR_CART(User#user.id), integer_to_list(C)) end end,
     feed_ui:process_delivery(R,M).
 
-store_element(P,State) ->
-    Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
+store_element(Id, P,State) ->
     Media = media(P#product.cover),
     {FromId, From} = case kvs:get(user, P#product.owner) of
         {ok, U} -> {P#product.owner, U#user.display_name};

@@ -36,15 +36,19 @@ feed(notifications)->
     User = wf:user(),
     {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
     State = ?DIRECT_STATE(Id),
-    Is = #input_state{entry_type=direct,collapsed=true, show_media = false},
+    Is = #input_state{
+        role=user,
+        entry_type=direct,collapsed=true, show_media = false,
+        placeholder_rcp= <<"E-mail/User">>,
+        placeholder_ttl= <<"Subject">>,
+        class= "feed-table-header"
+    },
     #feed_ui{title=title(notification), icon=icon(notification), state=State, header=[
-        #input{placeholder_rcp= <<"E-mail/User">>,
-            placeholder_ttl= <<"Subject">>,
+        #input{
             expand_btn= <<"compose">>,
-            class=["feed-table-header"],
-            role=user,
             icon="",
-            state=Is, feed_state=State}],
+            state=Is
+           }],
         selection_ctl=[
             #link{class=[btn], body=#i{class=["icon-archive"]},
             data_fields=?TOOLTIP, title= <<"archive">>, postback={archive, State}}
