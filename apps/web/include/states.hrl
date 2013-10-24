@@ -2,10 +2,10 @@
 %-include_lib("feed_server/include/records.hrl").
 
 -define(MYGAMES_FEED(Id), ?FD_STATE(Id)#feed_state{view=product,
-                                                    html_tag=panel,
-                                                    entry_id=#entry.entry_id,
-                                                    enable_selection=true,
-                                                    delegate=mygames}).
+                                                   html_tag=panel,
+                                                   entry_id=#entry.entry_id,
+                                                   enable_selection=true,
+                                                   delegate=mygames}).
 
 -define(MYGAMES_INPUT(Id), #input_state{id=?FD_INPUT(Id),
                                         fid = Id,
@@ -20,3 +20,9 @@
                                         placeholder_rcp= <<"Categories">>,
                                         placeholder_ttl= <<"Game title">>,
                                         placeholder_box= <<"Brief description">> }).
+
+-define(STORE_FEED(Id), ?FD_STATE(Id)#feed_state{view=store,
+                                                 enable_selection=false,
+                                                 delegate=store}).
+
+-define(PRODUCTS_FEED, ?STORE_FEED(?FEED(product))#feed_state{entry_id = #product.id, entry_type=product}).

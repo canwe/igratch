@@ -7,7 +7,9 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("feed_server/include/records.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
 
 -jsmacro([on_show/0,show/1]).
 
@@ -17,24 +19,18 @@ on_show() ->
 
 show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
--define(STORE_STATE(Id), ?FD_STATE(Id)#feed_state{
-%    entry_id=#entry.entry_id,
-    view=store,
-    enable_selection=false,
-    delegate=store}).
-
 feed_states()-> [
-    {?FEED(product), ?STORE_STATE(?FEED(product))#feed_state{entry_id = #product.id, entry_type=product}} |
-    [case lists:keyfind(products, 1, element(#iterator.feeds, G)) of false -> {ok, ok};
-    {_,Id} -> {Id, ?STORE_STATE(Id)} end || #group{scope=Scope}=G <- kvs:all(group), Scope==public] ].
+    {?FEED(product), ?PRODUCTS_FEED} |
+    [case lists:keyfind(products, 1, Feeds) of false -> {ok, ok};
+    {_,Id} -> {Id, ?STORE_FEED(Id)} end || #group{scope=Scope, feeds=Feeds} <- kvs:all(group), Scope==public] ].
 
 main() -> #dtl{file="prod", bindings=[{title,<<"Store">>},{body, body()}]}.
 
 body()->
-    Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
     wf:wire(#api{name=tabshow}),
     wf:wire(on_show()),
     wf:wire(show(case wf:qs(<<"id">>) of undefined -> "'all'"; T ->  "'"++wf:to_list(T)++"'" end)),
+    Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
 
     index:header() ++ [
     #section{class=[section], body=[
@@ -56,30 +52,60 @@ header(Groups, Current) -> [
 
 feed(Group) ->
     Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
-    State = case kvs:get(group, Group) of
-        {error,_} -> ?STORE_STATE(?FEED(product))#feed_state{entry_type=product, entry_id = #product.id};
-        {ok, G} -> case lists:keyfind(products, 1, element(#iterator.feeds, G)) of
-            false -> ?STORE_STATE(?FEED(product))#feed_state{entry_type=product, entry_id = #product.id};
-            {_, Id} -> ?STORE_STATE(Id) end end,
+    State = case kvs:get(group, Group) of {error,_} -> ?PRODUCTS_FEED;
+        {ok, G} -> case lists:keyfind(products, 1, element(#iterator.feeds, G)) of false -> false;
+            {_, Id} -> ?STORE_FEED(Id) end end,
 
     #feed_ui{icon=["icon-home ", "icon-large ", if Group =="all"-> "text-warning"; true-> "" end],
         icon_url="#all",
-        title=[header(Groups, Group)], state=State}.
+        title=[header(Groups, Group)],
+        state=State}.
 
 %% Render store elements
-
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}) ->
-    error_logger:info_msg("render entry Id: ~p", [E#entry.entry_id]),
     case kvs:get(product, E#entry.entry_id) of {error, _} -> wf:render(#panel{body= <<"error displaying item">>});
     {ok, P} ->
         Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
-        store_element(Id, P, State)
-    end;
+        store_element(Id, P, State) end;
+
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}=State}) ->
     Id = wf:to_list(erlang:phash2(element(#product.id, P))),
-    error_logger:info_msg("render product id: ~p",[Id]),
     store_element(Id, P, State);
 render_element(E)-> error_logger:info_msg("[store] render -> feed_ui"),feed_ui:render_element(E).
+
+store_element(Id, P,State) ->
+    Media = media(P#product.cover),
+
+    {FromId, From} = case kvs:get(user, P#product.owner) of
+        {ok, U} -> {P#product.owner, U#user.display_name};
+        {error, _} -> {P#product.owner,P#product.owner} end,
+
+    wf:render([
+        #panel{class=[span2, "article-meta"], body=[
+            #panel{body=[
+                #link{body=From, url= "/profile?id="++wf:to_list(FromId)},
+                #panel{body= short_date(P#product.created)} ]},
+            #p{body=[#link{body=[#i{class=["icon-windows", "icon-large"]}]}]},
+            #p{body=[#link{url="#",body=[
+                #span{class=[?EN_CM_COUNT(Id)], body=
+                    integer_to_list(kvs_feed:comments_count(product, P#product.id))},
+                #i{class=["icon-comment-alt", "icon-2x"]} ]} ]} ]},
+
+        #panel{id=?EN_MEDIA(Id), class=[span3, "media-pic"], body=#entry_media{media=Media, mode=store}},
+
+        #panel{class=[span5, "article-text"], body=[
+            #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=
+                #link{style="color:#9b9c9e;", body=P#product.title, postback={read, product, P#product.id}}}},
+
+            #p{id=?EN_DESC(Id), body=product_ui:shorten(P#product.brief)} ]},
+
+        #panel{class=[span2, "text-center"], body=[
+            #h3{style="",
+                body=[#span{class=["icon-usd"]}, float_to_list(P#product.price/100, [{decimals, 2}]) ]},
+            #link{class=[btn, "btn-warning"], body=[<<"add to cart">>], postback={add_cart, P, State}} ]} ]).
+
+
+% Events
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
@@ -118,36 +144,6 @@ process_delivery(R,M) ->
         {ok, #feed{entries_count=C}}-> wf:update(?USR_CART(User#user.id), integer_to_list(C)) end end,
     feed_ui:process_delivery(R,M).
 
-store_element(Id, P,State) ->
-    Media = media(P#product.cover),
-    error_logger:info_msg("Store media: ~p", [Media]),
-    {FromId, From} = case kvs:get(user, P#product.owner) of
-        {ok, U} -> {P#product.owner, U#user.display_name};
-        {error, _} -> {P#product.owner,P#product.owner} end,
-
-    wf:render([
-        #panel{class=[span2, "article-meta"], body=[
-            #panel{body=[
-                #link{body=From, url= "/profile?id="++wf:to_list(FromId)},
-                #panel{body= short_date(P#product.created)} ]},
-            #p{body=[#link{body=[#i{class=["icon-windows", "icon-large"]}]}]},
-            #p{body=[#link{url="#",body=[
-                #span{class=[?EN_CM_COUNT(Id)], body=
-                    integer_to_list(kvs_feed:comments_count(product, P#product.id))},
-                #i{class=["icon-comment-alt", "icon-2x"]} ]} ]} ]},
-
-        #panel{id=?EN_MEDIA(Id), class=[span3, "media-pic"], body=#entry_media{media=Media, mode=store}},
-
-        #panel{class=[span5, "article-text"], body=[
-            #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=
-                #link{style="color:#9b9c9e;", body=P#product.title, postback={read, product, P#product.id}}}},
-
-            #p{id=?EN_DESC(Id), body=product_ui:shorten(P#product.brief)} ]},
-
-        #panel{class=[span2, "text-center"], body=[
-            #h3{style="",
-                body=[#span{class=["icon-usd"]}, float_to_list(P#product.price/100, [{decimals, 2}]) ]},
-            #link{class=[btn, "btn-warning"], body=[<<"add to cart">>], postback={add_cart, P, State}} ]} ]).
 
 media(undefined)-> undefined;
 media(File)-> #media{url = File,
