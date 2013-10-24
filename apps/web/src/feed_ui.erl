@@ -506,7 +506,8 @@ process_delivery([comment, {Cid, {Eid, Fid}}, added], [#comment{feed_id=CFid}=C]
             wf:insert_top(S#feed_state.entries, #feed_entry{entry=C, state=S}) end;
     _-> skip end,
 
-    case input_state(CFid) of #input_state{}=Is -> input:event({flush_input, Is}); _ -> skip end;
+    case input_state(CFid) of #input_state{}=Is -> input:event({flush_input, Is}); _ -> skip end,
+    wf:wire("Holder.run();");
 
 process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
     case feed_state(Fid) of #feed_state{}=S ->
