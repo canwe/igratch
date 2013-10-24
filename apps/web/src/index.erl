@@ -120,10 +120,18 @@ header() -> [
 
                 #li{body=[
                   #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
-                    body=#image{class=["img-circle", "img-polaroid"], image = case User#user.avatar of undefined -> "/holder.js/50x50";
-                      Img -> iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]) end, width= <<"45px">>, height= <<"45px">>}},
+                    body=#image{class=["img-circle", "img-polaroid"],
+                        image = case User#user.avatar of undefined -> "/holder.js/50x50";
+                            Img -> iolist_to_binary([Img,"?sz=50&width=50&height=50&s=50"]) end,
+                        width= <<"45px">>, height= <<"45px">>}},
                   #list{class=["dropdown-menu"], body=[
-                    #li{body=#link{id=logoutbtn, postback=logout, delegate=login, body=[#i{class=["icon-off"]}, <<"Logout">> ] }}
+                    #li{body=#link{url="/profile",  body=[#i{class=["icon-user", "icon-large"]}, <<" Profile">>]}},
+                    #li{body=#link{url="/myreviews",body=[#i{class=["icon-list", "icon-large"]}, <<" Reviews">>]}},
+                    #li{body=#link{url="/mygames",  body=[#i{class=["icon-gamepad", "icon-large"]}, <<" Games">>]}},
+                    #li{body=#link{url="/notifications", body=[#i{class=["icon-envelope", "icon-large"]}, <<" Notifications">>]}},
+                    #li{body=#link{url="/shopping_cart", body=[#i{class=["icon-shopping-cart", "icon-large"]}, <<" Shopping Cart">>]}},
+                    #li{body=#link{id=logoutbtn, postback=logout, delegate=login, 
+                        body=[#i{class=["icon-off", "icon-large"]}, <<" Logout">> ] }}
                   ]}]}
                 ]
             end
