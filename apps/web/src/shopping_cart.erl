@@ -6,7 +6,20 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("feed_server/include/records.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
+
+feed_states() ->
+    User = wf:user(),
+
+    Cart = case lists:keyfind(cart, 1, element(#iterator.feeds, User)) of false -> [];
+    {_,Fid}-> [{Fid, ?CART_STATE(Fid)}] end,
+
+    Wishlist =case lists:keyfind(wishlist, 1, element(#iterator.feeds, User)) of false -> [];
+    {_, Wid} -> [{Wid, ?CART_STATE(Wid)#feed_state{view=store}}] end,
+
+    Cart++Wishlist.
 
 main() -> #dtl{file="prod", bindings=[{title,<<"shopping cart">>},{body, body()}]}.
 
@@ -15,11 +28,12 @@ body()-> index:header() ++ [
         #panel{class=[container], body=[
             #panel{class=["row-fluid"], body=[
             case wf:user() of undefined -> wf:redirect("/login");
-            User -> [
+            User -> States = feed_states(),
+                [
                 #panel{class=[span9], body=[
                     case lists:keyfind(cart, 1, element(#iterator.feeds, User)) of false -> [];
                     {_, CId} ->
-                        State = ?CART_STATE(CId),
+                        State = proplists:get_value(CId, States),
                         #feed_ui{title= <<"shopping cart">>,
                             icon="icon-shopping-cart icon-large blue",
                             selection_ctl=checkout_ctl(State),
@@ -31,7 +45,7 @@ body()-> index:header() ++ [
                     {_, WId} ->
                         #feed_ui{title= <<"whish list">>,
                             icon="icon-list blue",
-                            state=?CART_STATE(WId)#feed_state{view=store},
+                            state=proplists:get_value(WId, States),
                             header=[]} end]},
 
                 #panel{class=[span3], body=[
@@ -52,7 +66,7 @@ order_summary(S)->
 order_products(#feed_state{selected_key=Selected, visible_key=Visible})->
     Selection = sets:from_list(wf:session(Selected)),
     Products = lists:flatten([case kvs:get(product,Pid) of {error,_}->[];{ok, P}-> P end
-        || {Pid,_}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)]),
+        || {Pid,_}=Id <- ordsets:from_list(wf:session(Visible)), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)]),
 
     lists:mapfoldl(fun(#product{}=P, In)-> {
         [#h4{body=P#product.title},
@@ -121,10 +135,12 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
         title = P#product.title,
         description = P#product.brief,
         medias=[media(P#product.cover)]},
+
     error_logger:info_msg("Input ~p ~p", [P#product.id, Fid]),
+
     input:event({post, wishlist, Is, Fs}),
-    msg:notify( [kvs_feed, user, User#user.email, entry, Fid, delete],
-                [#entry{id={P#product.id, Fid}, entry_id=P#product.id, feed_id=Fid}, Is, Fs]);
+
+    msg:notify( [kvs_feed, user, User#user.email, entry, {P#product.id, Fid}, delete], []   );
 
 event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}=S})->
     Selection = sets:from_list(wf:session(Selected)),
@@ -134,29 +150,28 @@ event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}=S})-
         [case kvs:get(entry, Id) of {error,_} -> ok; 
         {ok, E} ->
             msg:notify( [kvs_feed, user, User#user.email, entry, Eid, add],
-                        [E#entry{id={Eid, Fid}, feed_id=Fid}, Is, ?FD_STATE(Fid, S)#feed_state{view=store}]),
+                        [E#entry{id={Eid, Fid}, feed_id=Fid}]),
 
-            msg:notify( [kvs_feed, user, User#user.email, entry, FeedId, delete],
-                        [E, Is, ?FD_STATE(S)#feed_state{view=store}])
+            msg:notify( [kvs_feed, user, User#user.email, entry, {Eid, FeedId}, delete], [])
+
         end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 
 event({add_cart, #product{}=P, #feed_state{}=S}=M) ->
     store:event(M),
     User = wf:user(),
     case lists:keyfind(wishlist, 1, User#user.feeds) of false -> ok;
-    {_,Fid} -> msg:notify([kvs_feed, user, User#user.email, entry, Fid, delete],
-                          [#entry{id={P#product.id, Fid}, entry_id=P#product.id, feed_id=Fid}, #input_state{}, S]) end;
+    {_,Fid} -> msg:notify([kvs_feed, user, User#user.email, entry, {P#product.id, Fid}, delete], []) end;
 
 event({checkout, #feed_state{selected_key=Selected, visible_key=Visible}}) ->
     wf:redirect("/checkout?sid="++Selected++"&vid="++Visible);
 
 event(E) -> feed_ui:event(E).
 
-process_delivery([_,_,_,_,add]=R,
-                 [E, #input_state{}=I, #feed_state{}=S]=M)->
-    User = wf:user(),
-    wf:update(?USR_ORDER(User#user.id), order_summary(S)),
+process_delivery([entry, {Id, Fid}, _]=R, [#entry{}=E]=M) ->
+    case feed_ui:feed_state(Fid) of #feed_state{selected_key=Selected}=S ->
+        wf:update(?USR_ORDER((wf:user())#user.id), order_summary(S)); _ -> skip end,
     feed_ui:process_delivery(R,M);
+
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
 
 media(undefined)-> #media{};

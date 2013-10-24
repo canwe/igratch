@@ -86,6 +86,13 @@
                                                   class= "comment-reply",
                                                   expand_btn= [<<"reply">>, #i{class=["icon-reply"]}]}).
 
+% Cart
+
+-define(CART_STATE(Id), ?FD_STATE(Id)#feed_state{view=cart,
+                                                enable_selection=true,
+                                                delegate=shopping_cart,
+                                                delegate_sel=shopping_cart}).
+
 % Admin
 
 -define(GROUPS_FEED, ?FD_STATE(?FEED(group))#feed_state{entry_type=group,
