@@ -225,34 +225,6 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State
         _ -> [] end }]);
 
 
-% Blog view
-
-render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})->
-    Id = element(State#feed_state.entry_id, E),
-    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
-    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error,_} -> E#entry.from end,
-
-    Entry = #panel{class=["blog-post"], body=[
-        #header{class=["blog-header"], body=[
-            #h2{body=[#span{id=?EN_TITLE(UiId), body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, 
-            #small{body=[<<" by ">>, #link{body=From}, product_ui:to_date(E#entry.created)]}]}]},
-
-        #figure{class=["thumbnail-figure"], body=[
-            #carousel{items=[#entry_media{media=Media, mode=blog} || Media <- E#entry.media]},
-            if length(E#entry.media) > 1 ->
-                #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=wf:js_escape(E#entry.title)}}]}; true -> [] end ]},
-
-        #panel{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(E#entry.description)), data_fields=[{<<"data-html">>, true}]},
-
-        #footer{class=["blog-footer", "row-fluid"], body=[
-            #link{body=[ #i{class=["icon-eye-open", "icon-large"]}, 
-                #span{class=[badge, "badge-info"], body= <<"...">>} ], postback={read, entry, Id}},
-            #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
-                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
-                postback={read, entry, Id}},
-            #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, Id}} ]} ]},
-    element_panel:render_element(Entry);
-
 % Comment
 
 render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->

@@ -8,6 +8,7 @@
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
+-include("states.hrl").
 
 -jsmacro([on_shown/0,show/1]).
 
@@ -18,6 +19,9 @@ on_shown() ->
 show(E) ->
     D = jq(document),
     D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
+
+feed_states() -> [].
+input_states() -> [].
 
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
 
@@ -66,27 +70,20 @@ body() ->
   }}]++index:footer().
 
 feed(#product{} = P, {Tab, Id})->
-    User = case wf:user() of undefined -> #user{};U -> U end,
-    State = ?FD_STATE(Id)#feed_state{
-        view=blog,
-        html_tag=panel,
-        enable_selection=User#user.email == P#product.owner},
+    User = case wf:user() of undefined -> #user{}; U -> U end,
+
+    State = ?BLOG_STATE(Id)#feed_state{enable_selection=User#user.email == P#product.owner},
+    Is = ?BLOG_INPUT(Id)#input_state{
+        entry_type=case Tab of reviews -> review; _-> Tab end,
+        recipients=[{product, P#product.id, {Tab,Id}}],
+        expand_btn= "Write "++atom_to_list(Tab)},
+
+    wf:session(Id, State),
+    wf:session(?FD_INPUT(Id), Is),
 
     #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
         if User#user.email == P#product.owner orelse Tab == reviews ->
-            Is = #input_state{
-                role=product,
-                placeholder_ttl= <<"Title">>,
-                class=["feed-table-header"],
-                entry_type=case Tab of reviews -> review; _-> Tab end,
-                show_recipients=false,
-                recipients=[{product, P#product.id, {Tab,Id}}],
-                collapsed=true,
-                expand_btn= "Write "++atom_to_list(Tab)},
-
-            #input{
-                icon="",
-                state = Is };
+            #input{icon="", state = Is};
         true -> [] end]}.
 
 aside()->
@@ -120,6 +117,36 @@ aside()->
 controls(#entry{type=Type} =  E) -> [
   #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
 
+
+% Render blog view
+
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})->
+    {Eid,_} = Id = element(State#feed_state.entry_id, E),
+    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+    From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error,_} -> E#entry.from end,
+
+    Entry = #panel{class=["blog-post"], body=[
+        #header{class=["blog-header"], body=[
+            #h3{body=[#span{id=?EN_TITLE(UiId), body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, 
+            #small{body=[<<" by ">>, #link{body=From}, product_ui:to_date(E#entry.created)]}]}]},
+
+        #figure{class=["thumbnail-figure"], body=[
+            #carousel{items=[#entry_media{media=Media, mode=blog} || Media <- E#entry.media]},
+            if length(E#entry.media) > 1 ->
+                #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=wf:js_escape(E#entry.title)}}]}; true -> [] end ]},
+
+        #panel{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(E#entry.description)), data_fields=[{<<"data-html">>, true}]},
+
+        #footer{class=["blog-footer", "row-fluid"], body=[
+            #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
+                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
+                postback={read, entry, Id}},
+            #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}],
+                postback={read, entry, Eid}} ]} ]},
+    element_panel:render_element(Entry);
+render_element(E)-> feed_ui:render_element(E).
+
+% Events
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);

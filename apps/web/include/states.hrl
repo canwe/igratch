@@ -93,6 +93,18 @@
                                                 delegate=shopping_cart,
                                                 delegate_sel=shopping_cart}).
 
+% Product
+
+-define(BLOG_STATE(Id), ?FD_STATE(Id)#feed_state{view=blog, html_tag=panel, delegate=product}).
+
+-define(BLOG_INPUT(Id), #input_state{id=?FD_INPUT(Id),
+                                    fid = Id,
+                                    role=product,
+                                    placeholder_ttl= <<"Title">>,
+                                    class= "feed-table-header",
+                                    show_recipients=false,
+                                    collapsed=true}).
+
 % Admin
 
 -define(GROUPS_FEED, ?FD_STATE(?FEED(group))#feed_state{entry_type=group,
