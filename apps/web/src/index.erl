@@ -191,6 +191,4 @@ event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
-process_delivery(R,M) -> 
-    %error_logger:info_msg("[index] delivery -> feed | ~p", [R]),
-    feed_ui:process_delivery(R,M).
+process_delivery(R,M) -> feed_ui:process_delivery(R,M).

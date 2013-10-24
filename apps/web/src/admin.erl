@@ -66,7 +66,7 @@ tab(acl)->
     {AclEn, Acl} = lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
         State = proplists:get_value(Aid, feed_states()),
 
-        B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
+        B = #panel{id=wf:to_list(R)++wf:to_list(N), class=["tab-pane"], body=[
             #feed_ui{title=wf:to_list(Aid)++" entries",
                 icon="icon-list",
                 state=State,
