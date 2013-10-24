@@ -75,7 +75,7 @@ tab(acl)->
                     #th{body= <<"accessor">>},
                     #th{body= <<"action">>}]} ]}]},
         Ao = [#tr{cells=[
-            #td{body=#link{url="#"++atom_to_list(R)++atom_to_list(N), body=wf:to_list(Aid),
+            #td{body=#link{url="#"++wf:to_list(R)++wf:to_list(N), body=wf:to_list(Aid),
                 data_fields=[{<<"data-toggle">>, <<"tab">>}]}},
             #td{body=wf:to_list(Aid)}]}|Ain],
         {B , Ao} end, [], kvs:all(acl)),
