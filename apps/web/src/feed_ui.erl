@@ -132,7 +132,7 @@ render_element(#feed_ui{state=S}=F) ->
 % feed entry representation
 
 render_element(#feed_entry{entry=E, state=S})->
-%    error_logger:info_msg("R: ~p S: ~p", [element(#iterator.id, E), S#feed_state.delegate]),
+    error_logger:info_msg("Render ~p with help of ~p", [E, S#feed_state.delegate]),
     Id = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
     SelId = ?EN_SEL(Id),
     wf:render(if S#feed_state.html_tag == table ->
@@ -156,7 +156,9 @@ render_element(#feed_entry{entry=E, state=S})->
 
 % table rows
 
-render_element(#row_entry{entry=#group{name=Name, description=Desc, scope=Scope}=E, state=#feed_state{}=S}) -> wf:render([
+render_element(#row_entry{entry=#group{name=Name, description=Desc, scope=Scope}=E, state=#feed_state{}=S}) -> 
+    error_logger:info_msg("[feed_ui]Render group ~p ~p", [Name, element(S#feed_state.entry_id, E)]),
+    wf:render([
         #td{body=wf:to_list(element(S#feed_state.entry_id, E))},
         #td{body=wf:js_escape(Name)},
         #td{body=wf:js_escape(Desc)},
@@ -392,7 +394,8 @@ event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
         case kvs:get(Type, Id) of {error,_} -> error_logger:info_msg("No object");
         {ok, Obj} ->
             case Type of
-                product -> msg:notify([kvs_product, User#user.email, delete], [Obj]);
+                product ->  msg:notify([kvs_product, User#user.email, delete], [Obj]);
+                group ->    msg:notify([kvs_group, User#user.email, delete], [Obj]);
                 entry ->
                     {Eid,_} = Id,
                     R1 = if S#feed_state.del_by_index == true ->
@@ -403,8 +406,6 @@ event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
                     [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
                         [Obj#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, #input_state{}, ?FD_STATE(Fid, S)])
                         || {RouteType, To, {_, Fid}} <- lists:flatten([R1,R2])];
-                group ->
-                    msg:notify([kvs_group, Type, unregister], [Obj, #input_state{recipients=[{group, Id, {feed, ?GRP_FEED}}]}, S]);
                 _ -> error_logger:info_msg("delete ~p. no recipients", [Type]), [] end end
        end || Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)];
 
@@ -478,8 +479,8 @@ traverse(Direction, Start, #feed_state{}=S)->
         start=NewStart,
         start_element=NewFirst,
         last_element=NewLast,
-        current=Current,
-        delegate=?CTX#context.module},
+        current=Current},
+
     wf:update(S#feed_state.entries, [#feed_entry{entry=G, state=State} || G <- Entries]),
 
     if Total == 0 ->
@@ -522,23 +523,28 @@ traverse_entries(RecordName, Next, Count, S)->
     case kvs:get(RecordName, Next) of {error, not_found} -> [];
     {ok, R}-> self() ! {delivery, [somepath, show_entry], [R, S]}, [R | traverse_entries(RecordName, element(#iterator.prev, R), Count-1, S)] end.
 
-process_delivery([product, Id, created], [{error,E}]) ->
-    ok;
-process_delivery([product, Id, created], [#product{}=P]) ->
-    case feed_state(?FEED(product)) of
-    #feed_state{} = S ->
+process_delivery([Type, Id, created], [{error,E}]) -> 
+    error_logger:info_msg("~p ~p create failed: ~p", [Type, Id, E]);
+process_delivery([Type, Id, created], [P]) ->
+    error_logger:info_msg("[feed_ui] ~p created ~p", [Type, Id]),
+    case feed_state(?FEED(Type)) of #feed_state{} = S ->
+        error_logger:info_msg("Delegate: ~p", [S#feed_state.delegate]),
         deselect(S),
         wf:session(medias, []),
         PrevVisible = wf:session(S#feed_state.visible_key),
         wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, P) | PrevVisible]),
 
         if S#feed_state.enable_traverse ->
+            error_logger:info_msg("TRAVERSE"),
             traverse(#iterator.next, P, S);
         true ->
+            error_logger:info_msg("INSERT"),
             wf:insert_top(S#feed_state.entries, #feed_entry{entry=P, state=S}) end,
         wf:wire("Holder.run();");
 
-    _ -> skip end;
+    _ -> skip end,
+
+    case input_state(?FEED(Type)) of #input_state{}=Is -> input:event({clear_input, Is}); _ -> skip end;
 
 process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
     case feed_state(Fid) of #feed_state{}=S ->
@@ -548,8 +554,10 @@ process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
         wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, E) | PrevVisible]),
 
         if S#feed_state.enable_traverse ->
+            error_logger:info_msg("TRAVERSE"),
             traverse(#iterator.next, E, S);
         true ->
+            error_logger:info_msg("INSERT"),
             wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}) end,
 
         wf:wire("Holder.run();");
@@ -584,16 +592,13 @@ process_delivery([entry, {_,Fid}, deleted], [#entry{}=E])->
     end,
     ok;
 
-process_delivery([product, Id, deleted], [{error, E}]) ->
-    ok;
-process_delivery([product, Id, deleted], [#product{}=P]) ->
-    case feed_state(?FEED(product)) of #feed_state{} = S ->
+process_delivery([Type, Id, deleted], [{error, E}]) -> ok;
+
+process_delivery([Type, Id, deleted], [P]) ->
+    case feed_state(?FEED(Type)) of #feed_state{} = S ->
         UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, P))),
-        error_logger:info_msg("uid:~p", [UiId]),
         wf:remove(?EN_ROW(UiId)),
-        deselect(S);
-    _ -> skip end,
-    ok;
+        deselect(S); _ -> skip end;
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     error_logger:info_msg("~n[feed] show_entry ~p", [element(#iterator.id, Entry)]),

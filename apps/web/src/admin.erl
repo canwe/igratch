@@ -8,7 +8,9 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("feed_server/include/records.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
 
 -jsmacro([on_shown/0,show/1]).
 
@@ -19,6 +21,12 @@ on_shown() ->
 show(E) ->
     D = jq(document),
     D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
+
+feed_states() ->
+    [{?FEED(group), ?GROUPS_FEED}, {?FEED(user), ?USERS_FEED}, {?FEED(product), ?PRODUCTS_VIEW_FEED}] ++
+    [{Id, ?ACL_FEED(Id)} || #acl{id=Id} <- kvs:all(acl)].
+
+input_states() -> [{?FEED(group), ?GROUPS_INPUT}].
 
 main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
 
@@ -42,28 +50,11 @@ subnav() -> [
     {products, "products"}
   ].
 
-tab(categories) ->
-    State = ?FD_STATE(?GRP_FEED)#feed_state{
-        entry_type=group,
-        enable_selection=true,
-        enable_traverse=true,
-        html_tag=table},
-    Is = #input_state{
-        control_title= <<"Add category">>,
-        placeholder_ttl= <<"name">>, 
-        placeholder_box= <<"description">>,
-        show_recipients=false,
-        show_scope=true,
-        show_media=false,
-        entry_type=group,
-        simple_body=true},
-    [
-    #input{state=Is, icon="icon-tags"},
+tab(categories) -> [
+    #input{state=proplists:get_value(?FEED(group), input_states()), icon="icon-tags"},
 
-    #feed_ui{
-        title= <<"Categories ">>,
-        icon="icon-list", state=State,
-
+    #feed_ui{title= <<"Categories ">>,
+        icon="icon-list", state=proplists:get_value(?FEED(group), feed_states()),
         header=[#tr{class=["feed-table-header"], cells=[
             #th{body= <<"">>},
             #th{body= <<"id">>},
@@ -73,12 +64,7 @@ tab(categories) ->
 
 tab(acl)->
     {AclEn, Acl} = lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
-        State = ?FD_STATE(Aid)#feed_state{
-            container=acl,
-            entry_type=acl_entry,
-            html_tag=table,
-            enable_selection=false,
-            enable_traverse=true},
+        State = proplists:get_value(Aid, feed_states()),
 
         B = #panel{id=atom_to_list(R)++atom_to_list(N), class=["tab-pane"], body=[
             #feed_ui{title=wf:to_list(Aid)++" entries",
@@ -102,11 +88,7 @@ tab(acl)->
     #panel{class=["tab-content"], body=[AclEn]} ];
 
 tab(users)->
-    State = ?FD_STATE(?USR_FEED)#feed_state{
-        entry_type=user,
-        entry_id=#user.username,
-        html_tag=table,
-        enable_traverse=true},
+    State = proplists:get_value(?FEED(user), feed_states()),
 
     #feed_ui{title= <<"Users ">>, icon="icon-user", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
@@ -115,11 +97,7 @@ tab(users)->
             #th{body= <<"last login">>}]} ]};
 
 tab(products)->
-    State = ?FD_STATE(?PRD_FEED)#feed_state{
-        entry_type=product,
-        enable_selection=true,
-        enable_traverse=true,
-        html_tag=table},
+    State = proplists:get_value(?FEED(product), feed_states()),
 
     #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State, header=[
         #tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}, #th{}]}]};

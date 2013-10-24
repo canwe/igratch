@@ -189,8 +189,9 @@ event({post, group, #input_state{}=Is, #feed_state{}=FS}) ->
                     owner = From,
                     feeds = ?GRP_CHUNK,
                     created = now()},
-
-    msg:notify([kvs_group, group, register], [RegData, Is, FS]);
+    msg:notify([kvs_group, User#user.email, create], [RegData]),
+%    msg:notify([kvs_group, group, register], [RegData, Is, FS]),
+    ok;
 
 event({post, product, #input_state{}=Is,_}) ->
     error_logger:info_msg("[input] => save product"),
