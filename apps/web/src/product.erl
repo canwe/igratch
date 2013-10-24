@@ -81,9 +81,10 @@ feed(#product{} = P, {Tab, Id})->
                 entry_type=case Tab of reviews -> review; _-> Tab end,
                 show_recipients=false,
                 recipients=[{product, P#product.id, {Tab,Id}}],
-                collapsed=true},
+                collapsed=true,
+                expand_btn= "Write "++atom_to_list(Tab)},
 
-            #input{expand_btn= "Write "++atom_to_list(Tab),
+            #input{
                 icon="",
                 state = Is };
         true -> [] end]}.

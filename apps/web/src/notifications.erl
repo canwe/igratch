@@ -41,11 +41,11 @@ feed(notifications)->
         entry_type=direct,collapsed=true, show_media = false,
         placeholder_rcp= <<"E-mail/User">>,
         placeholder_ttl= <<"Subject">>,
-        class= "feed-table-header"
+        class= "feed-table-header",
+        expand_btn= <<"compose">>
     },
     #feed_ui{title=title(notification), icon=icon(notification), state=State, header=[
         #input{
-            expand_btn= <<"compose">>,
             icon="",
             state=Is
            }],

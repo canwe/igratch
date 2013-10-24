@@ -49,7 +49,8 @@ expand_bar(#input{}=I, #input_state{}=S)->
     ExpandStyle = if S#input_state.collapsed==true -> ""; true -> "display:none;" end,
     #panel{id=S#input_state.toolbar_id, class=["row-fluid"], body=[
         #panel{class=["btn-toolbar", I#input.class], style=ExpandStyle, body=[
-            #link{class=I#input.expand_class, body=I#input.expand_btn, postback={show_input, S}, delegate=input} ]} ]}.
+            #link{class=I#input.expand_class,
+                body=S#input_state.expand_btn, postback={show_input, S}, delegate=input} ]} ]}.
 
 recipients(#input{}=I, #input_state{show_recipients=true}=S)->
     #textboxlist{id=S#input_state.recipients_id,
@@ -106,7 +107,7 @@ control_bar(#input{} = I, #input_state{}=S) ->
 
     [
     #link{id=S#input_state.post_id, class=I#input.post_class,
-        body=if S#input_state.update == false -> I#input.post_btn; true -> I#input.update_btn end,
+        body=if S#input_state.update == false -> S#input_state.post_btn; true -> S#input_state.update_btn end,
         delegate=input,
         postback={if S#input_state.update == false -> post; true -> update end,
             S#input_state.entry_type, S, ?FD_STATE(S#input_state.fid)#feed_state{
@@ -117,9 +118,9 @@ control_bar(#input{} = I, #input_state{}=S) ->
                 enable_selection=true
             }},
             source=Source},
-    #link{class=I#input.close_class, style=ExpandStyle, body=I#input.close_btn,
+    #link{class=I#input.close_class, style=ExpandStyle, body=S#input_state.close_btn,
         delegate=input, postback={hide_input, S}},
-    #link{class=I#input.cancel_class, style=CancelStyle, body=I#input.cancel_btn,
+    #link{class=I#input.cancel_class, style=CancelStyle, body=S#input_state.cancel_btn,
         delegate=input, postback={clear_input, S}}
     ].
 
@@ -191,48 +192,20 @@ event({post, group, #input_state{}=Is, #feed_state{}=FS}) ->
 
     msg:notify([kvs_group, group, register], [RegData, Is, FS]);
 
-event({post, product, #input_state{}=Is, #feed_state{}=FS}) ->
+event({post, product, #input_state{}=Is,_}) ->
     error_logger:info_msg("[input] => save product"),
     User = wf:user(),
-    Title = wf:q(Is#input_state.title_id),
-    Descr = wf:q(Is#input_state.body_id),
-    Currency = wf:q(Is#input_state.currency_id),
-%    TitlePic = case wf:session(medias) of undefined -> undefined; []-> undefined; Ms -> (lists:nth(1,Ms))#media.url--?ROOT end,
-    Medias = case wf:session(medias) of undefined -> []; L -> L end,
-    Cover = case Medias of [] -> undefined; [#media{url=Url}|_] ->
-        case string:rstr(Url,?ROOT) of 0 -> Url;
-        Pos -> string:substr(Url, Pos+length(?ROOT)) end end,
-    error_logger:info_msg("Cover: ~p", [Cover]),
-    Product = #product{
+
+    Product = (to_product(Is))#product{
         id = kvs:uuid(),
         creator = User#user.email,
         owner = User#user.email,
-        title = list_to_binary(Title),
-        brief = list_to_binary(Descr),
-        cover = Cover,
-        price = product_ui:to_price(wf:q(Is#input_state.price_id)),
-        currency = Currency,
         feeds = ?PRD_CHUNK,
         created = now() },
 
-    RawRecipients = if Is#input_state.show_recipients == true -> wf:q(Is#input_state.recipients_id); true -> Is#input_state.recipients end,
+    Groups = groups(Is),
 
-    R1 = lists:flatmap(fun(S) -> [
-        case kvs:get(list_to_atom(A), string:substr(S, length(A)+Pos)) of {error,_}-> [];
-        {ok, E} -> {list_to_atom(A), element(#iterator.id, E), lists:keyfind(products, 1, element(#iterator.feeds, E))} end
-        || {A, Pos} <- [{A, string:str(S, A)} || A <- ["user", "group", "product"]], Pos == 1] end, string:tokens(RawRecipients, ",")),
-
-    UsrFeed = lists:keyfind(products, 1, User#user.feeds),
-    R2 = case User of undefined -> []; _ when UsrFeed /=false -> [{user, User#user.email, UsrFeed}]; _-> [] end,
-    R3 = [{product, Product#product.id, {products, ?FEED(product)}}], % general feed
-    Recipients = lists:flatten([R1,R2, R3]),
-
-    msg:notify([kvs_product, product, register], [Product, Is#input_state{
-        recipients = Recipients,
-        medias = Medias,
-        owner = User#user.email,
-        title = Product#product.title,
-        description=Product#product.brief}, FS]);
+    msg:notify([kvs_product, User#user.email, create], [Product, Groups]);
 
 event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
     error_logger:info_msg("=>comment entry:"),
@@ -247,7 +220,6 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
 
     Recipients = lists:flatten([R1,R2]),
     error_logger:info_msg("[input] -> Recipients: ~p", [Recipients]),
-    Created = now(),
     Cid = kvs:uuid(),
     C = #comment{id = {Cid, {Eid, ?FEED(entry)}},
                 from = From,
@@ -330,28 +302,10 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
 event({update, product, Is, Fs}) ->
     error_logger:info_msg("=>update product", []),
 
-    Title = wf:q(Is#input_state.title_id),
-    Descr = wf:q(Is#input_state.body_id),
-    Price = product_ui:to_price(wf:q(Is#input_state.price_id)),
-    Currency = wf:q(Is#input_state.currency_id),
-    RawRecipients = wf:q(Is#input_state.recipients_id),
-    Cover = case wf:session(medias) of undefined -> undefined; [] -> undefined;
-        [#media{url=Url}|_] -> case string:rstr(Url,?ROOT) of 0 -> Url;
-            Pos -> string:substr(Url, Pos+length(?ROOT)) end end,
+    Product =to_product(Is),
+    Groups = groups(Is),
 
-    Product = #product{
-            title = list_to_binary(Title),
-            brief = list_to_binary(Descr),
-            cover = Cover,
-            price = Price,
-            currency = Currency},
-
-    Recipients = lists:filtermap(fun(S) ->
-        A = "group",
-        case string:str(S, A) of 1 -> {true, {list_to_atom(A),string:substr(S, length(A)+1)}}; _-> false end end,
-        string:tokens(RawRecipients, ",")),
-
-    msg:notify([kvs_product, Is#input_state.entry_id, update], [Product, Recipients, Is, Fs]);
+    msg:notify([kvs_product, Is#input_state.entry_id, update], [Product, Groups, Is, Fs]);
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),
@@ -395,7 +349,44 @@ event({clear_input, #input_state{}=S})->
     wf:replace(S#input_state.id, #input{state= Is}),
     wf:wire(selectpicker());
 
+%   Clean by fields
+%    wf:update(I#input_state.media_id, []),
+%    wf:wire(wf:f("$('#~s').val('');", [I#input_state.title_id])),
+%    wf:wire(wf:f("$('#~s').val('');", [I#input_state.body_id])),
+%    wf:wire(wf:f("$('#~s').val('0.00');", [I#input_state.price_id])),
+%    wf:wire(#jq{target=I#input_state.body_id, method=[html], args="''"}),
+%    wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
+%    wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
+%    if I#input_state.collapsed andalso I#input_state.post_collapse ->
+%        wf:wire(#jq{target=I#input_state.form_id,   method=[hide]}),
+%        wf:wire(#jq{target=I#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
+
 event(E)-> error_logger:info_msg("INPUT:~p", [E]).
+
+to_product(#input_state{}=Is)->
+    Title = wf:q(Is#input_state.title_id),
+    Descr = wf:q(Is#input_state.body_id),
+    Price = product_ui:to_price(wf:q(Is#input_state.price_id)),
+    Currency = wf:q(Is#input_state.currency_id),
+    Medias = case wf:session(medias) of undefined -> []; L -> L end,
+    Cover = case Medias of [] -> undefined; [#media{url=Url}|_] ->
+        case string:rstr(Url,?ROOT) of 0 -> Url;
+        Pos -> string:substr(Url, Pos+length(?ROOT)) end end,
+
+    #product{
+        title = list_to_binary(Title),
+        brief = list_to_binary(Descr),
+        cover = Cover,
+        price = Price,
+        currency = Currency}.
+
+groups(#input_state{}=Is)->
+    RawRecipients = if Is#input_state.show_recipients == true -> wf:q(Is#input_state.recipients_id);
+        true -> Is#input_state.recipients end,
+
+    lists:filtermap(fun(S) -> A = "group",
+        case string:str(S, A) of 1 -> {true, {list_to_atom(A),string:substr(S, length(A)+1)}}; _-> false end end,
+        string:tokens(RawRecipients, ",")).
 
 api_event(attach_media, Args, _Tag)->
   Props = n2o_json:decode(Args),

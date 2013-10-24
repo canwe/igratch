@@ -69,7 +69,7 @@ feed(Group) ->
 %% Render store elements
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}) ->
-    error_logger:info_msg("Id: ~p", [E#entry.entry_id]),
+    error_logger:info_msg("render entry Id: ~p", [E#entry.entry_id]),
     case kvs:get(product, E#entry.entry_id) of {error, _} -> wf:render(#panel{body= <<"error displaying item">>});
     {ok, P} ->
         Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
@@ -77,6 +77,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}
     end;
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}=State}) ->
     Id = wf:to_list(erlang:phash2(element(#product.id, P))),
+    error_logger:info_msg("render product id: ~p",[Id]),
     store_element(Id, P, State);
 render_element(E)-> error_logger:info_msg("[store] render -> feed_ui"),feed_ui:render_element(E).
 
@@ -119,6 +120,7 @@ process_delivery(R,M) ->
 
 store_element(Id, P,State) ->
     Media = media(P#product.cover),
+    error_logger:info_msg("Store media: ~p", [Media]),
     {FromId, From} = case kvs:get(user, P#product.owner) of
         {ok, U} -> {P#product.owner, U#user.display_name};
         {error, _} -> {P#product.owner,P#product.owner} end,
@@ -147,7 +149,7 @@ store_element(Id, P,State) ->
                 body=[#span{class=["icon-usd"]}, float_to_list(P#product.price/100, [{decimals, 2}]) ]},
             #link{class=[btn, "btn-warning"], body=[<<"add to cart">>], postback={add_cart, P, State}} ]} ]).
 
-media(undefined)-> #media{};
+media(undefined)-> undefined;
 media(File)-> #media{url = File,
     thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}.
 

@@ -25,6 +25,7 @@ body() ->
         collapsed = true,
         show_media = false,
         show_recipients = false,
+        expand_btn= <<"Write message">> ,
         recipients=[{user, What#user.email, lists:keyfind(direct, 1, What#user.feeds)}]},
 
     index:header() ++ dashboard:page(Nav, [
@@ -33,9 +34,7 @@ body() ->
             dashboard:section(profile, profile_info(Who, What, "icon-2x"), "icon-user"),
             if Who == What -> payments(What);
             true -> [
-                #input{state=Is,
-                    icon="",
-                    expand_btn= <<"Write message">> },
+                #input{state=Is, icon=""},
                 case lists:keyfind(feed, 1, element(#iterator.feeds, What)) of false -> [];
                 {_, Id} -> #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=?REVIEW_STATE(Id)} end ] end ] end ])  ++ index:footer().
 

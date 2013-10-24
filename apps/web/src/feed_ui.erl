@@ -11,14 +11,20 @@
 
 feed_state(Id) ->
     M = ?CTX#context.module,
-    case lists:keyfind(exports, 1, M:module_info()) of false ->
-        error_logger:info_msg("Module ~p doesn't export anything", [M]);
+    case lists:keyfind(exports, 1, M:module_info()) of false -> false;
         {exports, Ex} -> case lists:keyfind(feed_states, 1, Ex) of
             {feed_states, 0} ->
                 case lists:keyfind(Id, 1, M:feed_states()) of false -> ok;
-%                    error_logger:info_msg("[feed_ui] No state for feed ~p in module ~p", [Id, M]);
                     {Id, State} -> State end;
-            _ -> error_logger:info_msg("[feed_ui] ~p doesn't implement feed_states()", [M]), ?FD_STATE(Id) end end.
+            _ -> false end end.
+
+input_state(Id) -> M = ?CTX#context.module,
+    case lists:keyfind(exports, 1, M:module_info()) of false -> false;
+        {exports, Ex} -> case lists:keyfind(input_states, 1, Ex) of
+            {input_states, 0} ->
+                case lists:keyfind(Id, 1, M:input_states()) of false -> ok;
+                    {Id, State} -> State end;
+            _ -> false end end.
 
 render_element(#feed_ui{state=S}=F) ->
     Title = F#feed_ui.title,
@@ -27,7 +33,6 @@ render_element(#feed_ui{state=S}=F) ->
     Class= F#feed_ui.class,
     TableHeader = F#feed_ui.header,
     SelectionCtl = F#feed_ui.selection_ctl,
-    Delegate = S#feed_state.delegate,
 
     wf:render(#section{class=[feed, Class], body=[
         case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_}->
@@ -127,6 +132,7 @@ render_element(#feed_ui{state=S}=F) ->
 % feed entry representation
 
 render_element(#feed_entry{entry=E, state=S})->
+%    error_logger:info_msg("R: ~p S: ~p", [element(#iterator.id, E), S#feed_state.delegate]),
     Id = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
     SelId = ?EN_SEL(Id),
     wf:render(if S#feed_state.html_tag == table ->
@@ -177,7 +183,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=Stat
     Id = element(State#feed_state.entry_id, E),
     UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
     From = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
-    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
+%    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
     wf:render(article(product, {Id, UiId}, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{}=State}) ->
     Id = element(State#feed_state.entry_id, P),
@@ -305,19 +311,11 @@ render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
         show_title = false,
         show_media = false,
         collapsed = true,
-        post_collapse = true},
-% #panel{style="background:#eeeeee; border:1px solid #efefef; padding:10px 10px; ", body=[
-%   #link{body= <<"The game is ...">>}
-% ]},
-% #p{style="padding: 0 10px;", body=[
-%   #span{body= <<"Sep 2, 2013 at 2:44">>}, #span{body= <<" by ">>},
-%   #link{body= <<"Andrii Zadorozhnii">>},
-%   #span{body= <<" in ">>}, #link{body= <<"The cool review article">>}
-% ]}
+        post_collapse = true,
+        expand_btn= [<<"reply">>, #i{class=["icon-reply"]}]},
+
     InnerFeed = #feed_ui{state=CmState, class="comments",  header=[
-        #input{state=Is,
-            %feed_state=CmState,
-            role=comment, class=["comment-reply"], expand_btn= [<<"reply">>, #i{class=["icon-reply"]}], expand_class=[]}]},
+        #input{state=Is, role=comment, class=["comment-reply"], expand_class=[]}]},
 
     wf:render([
         #panel{class=[media, "media-comment"], body=[
@@ -336,6 +334,8 @@ render_element(#entry_media{media=[], mode=reviews}) ->
   element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt="no media", class=[]});
 render_element(#entry_media{media=[#media{thumbnail_url=undefined, title=T}|_], mode=reviews}) ->
   element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/270x124/text:no media">>}],alt=T, class=[]});
+render_element(#entry_media{media=undefined, mode=store}) ->
+    element_image:render_element(#image{data_fields=[{<<"data-src">>,<<"holder.js/191x88/text:no media">>}], alt="no media", class=[]});
 render_element(#entry_media{media=[#media{}=Media|_], mode=reviews}) -> element_image:render_element(image(Media, "270x124"));
 render_element(#entry_media{media=#media{}=Media, mode=blog}) -> element_image:render_element(image(Media, "716x480"));
 render_element(#entry_media{media=#media{}=Media, mode=store}) -> element_image:render_element(image(Media, "270x124"));
@@ -382,6 +382,8 @@ event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Star
 event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
     Selection = sets:from_list(wf:session(Selected)),
     error_logger:info_msg("Selection~p", [Selection]),
+    V = wf:session(Visible),
+    error_logger:info_msg("Visible: ~p", [V]),
     User = wf:user(),
     [begin
         Type = case S#feed_state.view of product -> product; _ -> S#feed_state.entry_type end,
@@ -390,13 +392,7 @@ event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
         case kvs:get(Type, Id) of {error,_} -> error_logger:info_msg("No object");
         {ok, Obj} ->
             case Type of
-                product ->
-                    Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end || #group_subscription{where=Where} <- kvs_group:participate(Id)],
-                    R1 = [{user, User#user.email, lists:keyfind(products, 1, User#user.feeds)}],
-                    R2 = [{product, Id, {products, ?FEED(product)}}],
-                    R3 = [{group, Where, lists:keyfind(products, 1, Feeds)} || #group{id=Where, feeds=Feeds} <- Groups],
-                    msg:notify([kvs_product, Type, unregister], [Obj, #input_state{recipients=lists:flatten([R1,R2,R3])}, S]);
-
+                product -> msg:notify([kvs_product, User#user.email, delete], [Obj]);
                 entry ->
                     {Eid,_} = Id,
                     R1 = if S#feed_state.del_by_index == true ->
@@ -526,39 +522,30 @@ traverse_entries(RecordName, Next, Count, S)->
     case kvs:get(RecordName, Next) of {error, not_found} -> [];
     {ok, R}-> self() ! {delivery, [somepath, show_entry], [R, S]}, [R | traverse_entries(RecordName, element(#iterator.prev, R), Count-1, S)] end.
 
-process_delivery([_,_,Type,_,add],
-                 [E, #input_state{}=I, #feed_state{}=S])->
-    error_logger:info_msg("[feed_ui] Add entry: ~p ~p to <~p> ", [Type, element(#iterator.id, E), S#feed_state.entries]),
-    deselect(S),
-    wf:session(medias, []),
-    wf:update(I#input_state.media_id, []),
-    wf:wire(wf:f("$('#~s').val('');", [I#input_state.title_id])),
-    wf:wire(wf:f("$('#~s').val('');", [I#input_state.body_id])),
-    wf:wire(wf:f("$('#~s').val('0.00');", [I#input_state.price_id])),
-    wf:wire(#jq{target=I#input_state.body_id, method=[html], args="''"}),
-    wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
-    wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
-
-    error_logger:info_msg("MODULE: ~p", [?MODULE]),
-
-    if S#feed_state.enable_traverse == true -> traverse(#iterator.next, E, S);
-    true ->
-        % todo: feed state received from #input doesn't have the info necessary for traverse
-        % insert element and update feed control actions
-        wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S#feed_state{delegate=?CTX#context.module}}) end,
-
-    if I#input_state.collapsed andalso I#input_state.post_collapse ->
-        wf:wire(#jq{target=I#input_state.form_id,   method=[hide]}),
-        wf:wire(#jq{target=I#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
-    wf:wire("Holder.run();");
-
-process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
-    error_logger:info_msg("[feed_ui] Entry added ~p", [Id]),
-    case feed_state(Fid) of
-    #feed_state{}=S ->
-        error_logger:info_msg("[feed_ui] Add entry ~p to ~p", [Id, Fid]),
+process_delivery([product, Id, created], [{error,E}]) ->
+    ok;
+process_delivery([product, Id, created], [#product{}=P]) ->
+    case feed_state(?FEED(product)) of
+    #feed_state{} = S ->
         deselect(S),
         wf:session(medias, []),
+        PrevVisible = wf:session(S#feed_state.visible_key),
+        wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, P) | PrevVisible]),
+
+        if S#feed_state.enable_traverse ->
+            traverse(#iterator.next, P, S);
+        true ->
+            wf:insert_top(S#feed_state.entries, #feed_entry{entry=P, state=S}) end,
+        wf:wire("Holder.run();");
+
+    _ -> skip end;
+
+process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
+    case feed_state(Fid) of #feed_state{}=S ->
+        deselect(S),
+        wf:session(medias, []),
+        PrevVisible = wf:session(S#feed_state.visible_key),
+        wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, E) | PrevVisible]),
 
         if S#feed_state.enable_traverse ->
             traverse(#iterator.next, E, S);
@@ -566,40 +553,46 @@ process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
             wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}) end,
 
         wf:wire("Holder.run();");
-    _-> skip
-    end;
+    _-> skip end,
+
+    case input_state(Fid) of #input_state{}=Is -> input:event({clear_input, Is}); _ -> skip end;
 
 process_delivery([product, Id, updated], [{error,E}, #input_state{}=Is,_]) ->
-%    error_logger:info_msg("[feed_ui] Error update: ~p", [E]),
     wf:update(Is#input_state.alert_id, index:error(E));
 process_delivery([product, Id, updated], [#product{}=P, #input_state{}=Is])->
-%    error_logger:info_msg("[feed_ui] Update product: ~p", [Id]),
     wf:update(Is#input_state.alert_id, index:success("updated")),
-    case feed_state(?FEED(product)) of
-    #feed_state{}=S ->
-%        error_logger:info_msg("[feed_ui] Update product ~p in ~p [~p]", [Id, ?FEED(product), ?CTX#context.module]),
+    case feed_state(?FEED(product)) of #feed_state{}=S ->
         UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, P))),
         wf:session(medias, []),
         wf:replace(?EN_ROW(UiId), #feed_entry{entry=P, state=S}),
         wf:wire("Holder.run();");
     _ -> skip
     end;
-process_delivery([entry, {Id, Fid}, updated], [#entry{}=E])->
-    case feed_state(Fid) of
-    #feed_state{}=S ->
-%        error_logger:info_msg("[feed_ui] Update entry ~p in ~p [~p]", [Id, Fid, ?CTX#context.module]),
+process_delivery([entry, {_,Fid}, updated], [#entry{}=E])->
+    case feed_state(Fid) of #feed_state{}=S ->
         UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
         wf:replace(?EN_ROW(UiId), #feed_entry{entry=E, state=S}),
         wf:wire("Holder.run();");
     _-> skip end;
-process_delivery([entry, {Eid, Fid}=Id, deleted], [])->
-    case feed_state(Fid) of
-    #feed_state{}=S ->
-%        error_logger:info_msg("[feed_ui] Entry deleted ~p", [Eid]),
-        wf:remove(?EN_ROW(erlang:phash2(Id))),
+process_delivery([entry, {_,Fid}, deleted], [#entry{}=E])->
+    case feed_state(Fid) of #feed_state{}=S ->
+        UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
+        error_logger:info_msg("uid:~p", [UiId]),
+        wf:remove(?EN_ROW(UiId)),
         deselect(S);
     _-> skip
     end,
+    ok;
+
+process_delivery([product, Id, deleted], [{error, E}]) ->
+    ok;
+process_delivery([product, Id, deleted], [#product{}=P]) ->
+    case feed_state(?FEED(product)) of #feed_state{} = S ->
+        UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, P))),
+        error_logger:info_msg("uid:~p", [UiId]),
+        wf:remove(?EN_ROW(UiId)),
+        deselect(S);
+    _ -> skip end,
     ok;
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
@@ -609,15 +602,6 @@ process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
     wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback={check_more, Entry, S}});
 
 process_delivery([no_more], [BtnId]) -> wf:update(BtnId, []), ok;
-process_delivery([Type,_,entry,_,delete], [E, #input_state{}, #feed_state{}=S]) ->
-    error_logger:info_msg("[feed - delivery] Remove entry ~p from <~p>", [element(S#feed_state.entry_id, E), S#feed_state.entries]),
-    Id = wf:to_list(erlang:phash2(case Type of
-        group ->    E#entry.entry_id;
-        product ->  E#entry.entry_id;
-        _ ->        element(S#feed_state.entry_id, E) end)),
-    wf:remove(?EN_ROW(Id)),
-    deselect(S);
-
-process_delivery(R,_) -> 
+process_delivery(_,_) ->
     %error_logger:info_msg("[feed_ui]unhandled route:~p", [R]),
     ok.
