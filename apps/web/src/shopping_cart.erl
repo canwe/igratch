@@ -142,11 +142,11 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
 
     msg:notify( [kvs_feed, user, User#user.email, entry, {P#product.id, Fid}, delete], []   );
 
-event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}=S})->
+event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
     Selection = sets:from_list(wf:session(Selected)),
     User = wf:user(),
     case lists:keyfind(wishlist, 1, User#user.feeds) of false -> ok;
-    {_,Fid} -> Is = #input_state{},
+    {_,Fid} ->
         [case kvs:get(entry, Id) of {error,_} -> ok; 
         {ok, E} ->
             msg:notify( [kvs_feed, user, User#user.email, entry, Eid, add],
@@ -156,7 +156,7 @@ event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}=S})-
 
         end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 
-event({add_cart, #product{}=P, #feed_state{}=S}=M) ->
+event({add_cart, #product{}=P, _}=M) ->
     store:event(M),
     User = wf:user(),
     case lists:keyfind(wishlist, 1, User#user.feeds) of false -> ok;
@@ -167,9 +167,16 @@ event({checkout, #feed_state{selected_key=Selected, visible_key=Visible}}) ->
 
 event(E) -> feed_ui:event(E).
 
-process_delivery([entry, {Id, Fid}, _]=R, [#entry{}=E]=M) ->
-    case feed_ui:feed_state(Fid) of #feed_state{selected_key=Selected}=S ->
-        wf:update(?USR_ORDER((wf:user())#user.id), order_summary(S)); _ -> skip end,
+process_delivery([entry,{_,Fid},_]=R, [#entry{}]=M) ->
+    error_logger:info_msg("Rou ~p", [R]),
+    User = wf:user(),
+    case feed_ui:feed_state(Fid) of #feed_state{}=S ->
+        case lists:keyfind(cart, 1, User#user.feeds) of false -> ok;
+        {_, CFid} -> case kvs:get(feed, CFid) of
+            {ok, #feed{entries_count=C}} when C == 0 -> wf:update(?USR_CART(User#user.id), "");
+            {ok, #feed{entries_count=C}} -> wf:update(?USR_CART(User#user.id), integer_to_list(C));
+            _ -> ok end end,
+        wf:update(?USR_ORDER(User#user.id), order_summary(S)); _ -> skip end,
     feed_ui:process_delivery(R,M);
 
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
