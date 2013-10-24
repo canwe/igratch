@@ -66,8 +66,8 @@ render_element(#product_hero{product=P}) ->
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
         #panel{class=["btn-toolbar", "text-center"], body=[
           #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
-            body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }], postback={checkout, P#product.id}},
-          #button{class=[btn, "btn-large", "btn-warning"], body= [#span{class=["icon-shopping-cart"]}, <<" add to cart ">>], postback={add_cart, P}}
+            body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }],
+                postback={add_cart, P}}
         ]}
       ]}
     ]},

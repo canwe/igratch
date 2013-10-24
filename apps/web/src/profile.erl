@@ -223,7 +223,7 @@ event({request, Feature}) ->
             recipients = Recipients,
             title = "Feature <b>"++ wf:to_list(Feature)++"</b> request",
             description = wf:to_list(Feature) ++ " requested!"},
-        input:event({post, {feature, Feature}, Is, ?DIRECT_STATE(?FEED(entry))}),
+        input:event({post, {feature, Feature}, Is}),
         wf:update(alerts, index:error(wf:to_list(Feature) ++" requested")) end;
 event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) ->

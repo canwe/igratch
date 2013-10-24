@@ -110,14 +110,7 @@ control_bar(#input{} = I, #input_state{}=S) ->
     #link{id=S#input_state.post_id, class=I#input.post_class,
         body=if S#input_state.update == false -> S#input_state.post_btn; true -> S#input_state.update_btn end,
         delegate=input,
-        postback={if S#input_state.update == false -> post; true -> update end,
-            S#input_state.entry_type, S, ?FD_STATE(S#input_state.fid)#feed_state{
-                view=product,
-                html_tag=panel,
-                entry_id=#entry.entry_id,
-                delegate=mygames,
-                enable_selection=true
-            }},
+        postback={if S#input_state.update == false -> post; true -> update end, S#input_state.entry_type, S},
             source=Source},
     #link{class=I#input.close_class, style=ExpandStyle, body=S#input_state.close_btn,
         delegate=input, postback={hide_input, S}},
@@ -176,7 +169,7 @@ control_event(Cid, Role) ->
         || {Id, Name} <- Entries, string:str(string:to_lower(wf:to_list(Name)), string:to_lower(SearchTerm)) > 0],
     element_textboxlist:process_autocomplete(Cid, Data, SearchTerm).
 
-event({post, group, #input_state{}=Is, _}) ->
+event({post, group, #input_state{}=Is}) ->
     User = wf:user(),
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
     Name = wf:q(Is#input_state.title_id),
@@ -193,7 +186,7 @@ event({post, group, #input_state{}=Is, _}) ->
     msg:notify([kvs_group, User#user.email, create], [Group]),
     ok;
 
-event({post, product, #input_state{}=Is,_}) ->
+event({post, product, #input_state{}=Is}) ->
     error_logger:info_msg("[input] => save product"),
     User = wf:user(),
 
@@ -208,7 +201,7 @@ event({post, product, #input_state{}=Is,_}) ->
 
     msg:notify([kvs_product, User#user.email, create], [Product, Groups]);
 
-event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
+event({post, comment, #input_state{}=Is}) ->
     error_logger:info_msg("=>comment entry:"),
     Comment = wf:q(Is#input_state.body_id),
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
@@ -236,16 +229,14 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
         [C#comment{id= {Cid, {EntryId, EntryFid}},
             entry_id = {EntryId,EntryFid},
             feed_id = CommentsFid, 
-            feeds=[{comments, kvs_feed:create()}]}, Is,
-
-            ?FD_STATE(CommentsFid, Fs)#feed_state{recipients=Recipients}])
+            feeds=[{comments, kvs_feed:create()}]}])
 
         || {RoutingType, To, {EntryId, EntryFid, {_,CommentsFid}}} <- Recipients];
 
 %    msg:notify([kvs_feed, comment, register], [C, Is, ?FD_STATE(?FEED(comment))]);
 
-event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
-    error_logger:info_msg("=>post entry: ~p", [Fs]),
+event({post, EntryType, #input_state{}=Is})->
+    error_logger:info_msg("=>post entry: ~p", [EntryType]),
     User = wf:user(),
     {Title, Desc} = if Is#input_state.collect_msg == true ->
         {wf:q(Is#input_state.title_id), wf:q(Is#input_state.body_id)}; 
@@ -282,6 +273,7 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
     EntryId = case Is#input_state.entry_id of undefined -> kvs:uuid(); Id -> Id end,
+    error_logger:info_msg("Entry id: ~p", [EntryId]),
     E = #entry{
         id = {EntryId, ?FEED(entry)},
         entry_id=EntryId,
@@ -299,7 +291,7 @@ event({post, EntryType, #input_state{}=Is, #feed_state{}=Fs})->
     [msg:notify([kvs_feed, RoutingType, To, entry, EntryId, add], [E#entry{
         id={EntryId, FeedId},
         feed_id=FeedId,
-        to = {RoutingType, To}}, Is, ?FD_STATE(FeedId, Fs)])
+        to = {RoutingType, To}}])
     || {RoutingType, To, {_, FeedId}} <- Recipients];
 
 event({update, product, Is, Fs}) ->

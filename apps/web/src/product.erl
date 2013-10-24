@@ -167,13 +167,9 @@ event({remove_entry, E=#entry{}, ProductId}) ->
 
 event({read, entry, Id})-> wf:redirect("/review?id="++Id);
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
-event({add_cart, #product{}=P}) ->
-  error_logger:info_msg("Add to cart: ~p", [P]),
-  case wf:session(shoing_cart) of 
-    undefined -> wf:session(shopping_cart, [P]);
-    L -> wf:session([P|L])
-  end,
-  wf:redirect("/shopping_cart");
+event({add_cart, P}) ->
+    store:event({add_cart, P}),
+    wf:redirect("/shopping_cart");
 event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 api_event(tabshow,Args,_) ->

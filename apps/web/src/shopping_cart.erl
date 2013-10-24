@@ -108,6 +108,7 @@ checkout_ctl(State) -> [
 %% Render shopping cart elements
 
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=cart}=State}) ->
+    error_logger:info_msg("eeE~p", [element(State#feed_state.entry_id, E)]),
     case kvs:get(product, E#entry.entry_id) of
         {ok, P} -> cart_item(P, State);
         {error,_}-> <<"item not available">> end;
@@ -126,7 +127,6 @@ event({select, Sel, #feed_state{view=cart}=S})->
 event({to_wishlist, #product{}=P, #feed_state{}=S})->
     User = wf:user(),
     Fid = S#feed_state.container_id,
-    Fs = ?FD_STATE(Fid, S)#feed_state{view=store},
     Is = #input_state{
         collect_msg = false,
         show_recipients = false,
@@ -138,7 +138,7 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
 
     error_logger:info_msg("Input ~p ~p", [P#product.id, Fid]),
 
-    input:event({post, wishlist, Is, Fs}),
+    input:event({post, wishlist, Is}),
 
     msg:notify( [kvs_feed, user, User#user.email, entry, {P#product.id, Fid}, delete], []   );
 
@@ -181,7 +181,7 @@ process_delivery([entry,{_,Fid},_]=R, [#entry{}]=M) ->
 
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
 
-media(undefined)-> #media{};
+media(undefined)-> undefined;
 media(File)-> #media{url = File,
     thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}.
 

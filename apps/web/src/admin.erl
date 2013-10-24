@@ -115,7 +115,7 @@ feature_reply(#user{}=Whom, Feature, Msg, Eid, #feed_state{}=S) ->
                 recipients = [{user, Whom#user.email, Feed}],
                 title = "Re: Feature <b>"++ wf:to_list(Feature)++"</b> request",
                 description = Msg},
-            input:event({post, Type, Is, ?DIRECT_STATE(Id)}),
+            input:event({post, Type, Is}),
 
             User = wf:user(),
             Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],

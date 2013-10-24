@@ -102,7 +102,7 @@ store_element(Id, P,State) ->
         #panel{class=[span2, "text-center"], body=[
             #h3{style="",
                 body=[#span{class=["icon-usd"]}, float_to_list(P#product.price/100, [{decimals, 2}]) ]},
-            #link{class=[btn, "btn-warning"], body=[<<"add to cart">>], postback={add_cart, P, State}} ]} ]).
+            #link{class=[btn, "btn-warning"], body=[<<"add to cart">>], postback={add_cart, P}} ]} ]).
 
 
 % Events
@@ -118,12 +118,9 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
 event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
 event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
-event({add_cart, #product{}=P, #feed_state{}=S}) ->
+event({add_cart, #product{}=P}) ->
     case wf:user() of undefined -> wf:redirect("/login");
-    _-> Fs = ?FD_STATE(S)#feed_state{
-            enable_selection=true,
-            view=cart,
-            delegate=shopping_cart},
+    _->
         Is = #input_state{
             collect_msg = false,
             show_recipients = false,
@@ -132,7 +129,7 @@ event({add_cart, #product{}=P, #feed_state{}=S}) ->
             title = P#product.title,
             description = P#product.brief,
             medias=[media(P#product.cover)]},
-        input:event({post, cart, Is, Fs}) end;
+        input:event({post, cart, Is}) end;
 
 event(Event) -> error_logger:info_msg("[store]Page event: ~p", [Event]), ok.
 
