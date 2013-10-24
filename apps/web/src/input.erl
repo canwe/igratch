@@ -294,13 +294,13 @@ event({post, EntryType, #input_state{}=Is})->
         to = {RoutingType, To}}])
     || {RoutingType, To, {_, FeedId}} <- Recipients];
 
-event({update, product, Is, Fs}) ->
+event({update, product, Is}) ->
     error_logger:info_msg("=>update product", []),
 
     Product =to_product(Is),
     Groups = groups(Is),
 
-    msg:notify([kvs_product, Is#input_state.entry_id, update], [Product, Groups, Is, Fs]);
+    msg:notify([kvs_product, Is#input_state.entry_id, update], [Product, Groups, Is]);
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),
