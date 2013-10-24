@@ -77,7 +77,7 @@ featured() ->
           ]},
           #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win, buy],
             body= [<<"Buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }],
-            postback={add_cart, P, #feed_state{}}}
+            postback={add_cart, P}}
         ]
       end || P <- Ps]
   end, caption= #panel{class=["row-fluid"],body=[
@@ -184,8 +184,8 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({read,_, Id})-> wf:redirect("/review?id="++Id);
-event({add_cart, P, S}) ->
-    store:event({add_cart, P, S}),
+event({add_cart, P}) ->
+    store:event({add_cart, P}),
     wf:redirect("/shopping_cart");
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
