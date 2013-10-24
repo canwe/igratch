@@ -35,6 +35,13 @@
                                           placeholder_rcp= <<"Games">>,
                                           class= "feed-table-header"}).
 
+% Index 
+
+-define(ACTIVE_FEED, ?FD_STATE(?FEED(comment))#feed_state{  flat_mode=true,
+                                                            view=comment,
+                                                            entry_type=comment,
+                                                            entry_id=#comment.comment_id}).
+
 % Store
 
 -define(STORE_FEED(Id), ?FD_STATE(Id)#feed_state{view=store, enable_selection=false, delegate=store}).

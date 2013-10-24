@@ -6,7 +6,14 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("feed_server/include/records.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
+
+feed_states()->
+    [{?FEED(entry), ?ENTRIES_FEED}, {?FEED(comment), ?ACTIVE_FEED} ]++
+    [case lists:keyfind(feed, 1, Feeds) of false -> {ok, ok};
+    {_,Id} -> {Id, ?REVIEWS_FEED(Id)} end || #group{scope=Scope, feeds=Feeds} <- kvs:all(group), Scope==public].
 
 main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
 
@@ -39,21 +46,15 @@ body() ->
                                         data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
                                     || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]} ]},
                             #feed_ui{title= <<"Active discussion">>, icon="icon-comments-alt", class="comments-flat",
-                                state=?FD_STATE(?FEED(comment))#feed_state{
-                                    flat_mode=true,
-                                    view=comment,
-                                    entry_type=comment,
-                                    entry_id=#comment.comment_id}} ]}]}]}]}]}] ++ footer().
+                                state=?ACTIVE_FEED } ]}]}]}]}]}] ++ footer().
 
 feed("all")->
-    State = ?FD_STATE(?FEED(entry))#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews},
-    #feed_ui{title= <<"Reviews">>, icon="icon-tags", state=State};
+    #feed_ui{title= <<"Reviews">>, icon="icon-tags", state=?ENTRIES_FEED};
 feed(Group) ->
     case kvs:get(group, Group) of {error,_}->[];
     {ok, G}-> 
         {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
-        State = ?FD_STATE(Id)#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews},
-        #feed_ui{title= G#group.name, icon="icon-tags", state=State} end.
+        #feed_ui{title= G#group.name, icon="icon-tags", state=?REVIEWS_FEED(Id)} end.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
