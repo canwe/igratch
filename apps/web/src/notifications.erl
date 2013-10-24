@@ -81,17 +81,17 @@ api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({archive, #feed_state{selected_key=Selected, visible_key=Visible} = S}) ->
+event({archive, #feed_state{selected_key=Selected, visible_key=Visible}}) ->
     Selection = sets:from_list(wf:session(Selected)),
     User = wf:user(),
     case lists:keyfind(archive, 1, User#user.feeds) of false -> ok;
-    {_,Fid} -> Is = #input_state{},
+    {_,Fid} ->
         [case kvs:get(entry, Id) of {error,_} -> ok; 
         {ok, E} ->
             msg:notify( [kvs_feed, user, User#user.email, entry, Eid, add],
-                        [E#entry{id={Eid, Fid}, feed_id=Fid}, Is, ?FD_STATE(Fid, S)]),
+                        [E#entry{id={Eid, Fid}, feed_id=Fid}]),
 
-            msg:notify( [kvs_feed, user, User#user.email, entry, FeedId, delete], [E, Is, S])
+            msg:notify( [kvs_feed, user, User#user.email, entry, {Eid, FeedId}, delete], [])
         end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 event(Event) ->
     User = case wf:user() of undefined -> #user{}; U -> U end,

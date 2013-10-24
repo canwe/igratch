@@ -7,7 +7,9 @@
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("feed_server/include/records.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"buy mobile">>},{body, body()}]}.
 
@@ -25,14 +27,12 @@ body() ->
                 Order = case wf:session(?USR_ORDER(User#user.email)) of undefined -> []; O->O end,
                 Status = case wf:qs(<<"status">>) of <<"approve">> -> done; _ -> failed end,
                 {_, Cid} = lists:keyfind(cart, 1, element(#iterator.feeds, User)),
-                Fs = ?CART_STATE(Cid),
-                Is = #input_state{},
                 [case kvs:get(payment, Id) of {error,_}-> ok;
                 {ok,_} ->
                     msg:notify([kvs_payment, user, User#user.email, set_state], {Id, Status, paypal}),
+
                     if Status == done ->
-                    msg:notify( [kvs_feed, user, Email, entry, Cid, delete],
-                                [#entry{id={P#product.id, Cid}, entry_id=P#product.id, feed_id=Cid}, Is, Fs]);true -> ok end
+                        msg:notify([kvs_feed, user, Email, entry, {P#product.id, Cid}, delete], []);true -> ok end
                  end || #payment{id=Id, product=P, user_id=Email} <- Order],
 
                 case Status of done -> wf:redirect("/profile");
@@ -51,6 +51,7 @@ body() ->
                 Total = lists:foldl(fun(#product{}=P, Sum)-> P#product.price+Sum end, 0, Products),
                 Order = [#payment{id=kvs_payment:payment_id(),
                                   user_id=User#user.email,
+                                  product_id = P#product.id,
                                   product=P,
                                   info=paypal} || #product{}=P <- Products],
                 if length(Order) > 0 ->
