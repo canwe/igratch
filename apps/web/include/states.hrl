@@ -4,7 +4,6 @@
 % My Games
 
 -define(MYGAMES_FEED(Id), ?FD_STATE(Id)#feed_state{view=product,
-                                                   html_tag=panel,
                                                    entry_id=#entry.entry_id,
                                                    enable_selection=true,
                                                    delegate=mygames}).
@@ -22,14 +21,63 @@
                                         placeholder_rcp= <<"Categories">>,
                                         placeholder_ttl= <<"Game title">>,
                                         placeholder_box= <<"Brief description">> }).
+% My reviews
+-define(MYREVIEWS_FEED(Id), ?FD_STATE(Id)#feed_state{view=review,
+                                                     %entry_id=#entry.entry_id,
+                                                     enable_selection=true,
+                                                     delegate=reviews}).
+
+-define(MYREVIEWS_INPUT(Id), #input_state{id=?FD_INPUT(Id),
+                                          fid = Id,
+                                          role=product,
+                                          entry_type=review,
+                                          control_title= <<"Submit review">>,
+                                          placeholder_rcp= <<"Games">>,
+                                          class= "feed-table-header"}).
 
 % Store
 
--define(STORE_FEED(Id), ?FD_STATE(Id)#feed_state{view=store,
-                                                 enable_selection=false,
-                                                 delegate=store}).
+-define(STORE_FEED(Id), ?FD_STATE(Id)#feed_state{view=store, enable_selection=false, delegate=store}).
 
 -define(PRODUCTS_FEED, ?STORE_FEED(?FEED(product))#feed_state{entry_id = #product.id, entry_type=product}).
+
+% Reviews
+
+-define(REVIEWS_FEED(Id), ?FD_STATE(Id)#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews}).
+
+-define(ENTRIES_FEED, ?FD_STATE(?FEED(entry))#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews}).
+
+% Review
+-define(DETACHED_FEED(Id), ?FD_STATE(Id)#feed_state{view=detached, entry_id=#entry.entry_id, delegate=review}).
+
+-define(COMMENTS_FEED(Id), ?FD_STATE(Id)#feed_state{view=comment,
+                                                    entry_type=comment,
+                                                    entry_id=#comment.comment_id,
+                                                    show_title=false,
+                                                    delegate=review}).
+
+-define(COMMENTS_INPUT(Id, Recipients), #input_state{id=?FD_INPUT(Id),
+                                                     fid = Id,
+                                                     recipients=Recipients,
+                                                     entry_type = comment,
+                                                     show_recipients=false,
+                                                     show_title = false,
+                                                     show_media = false,
+                                                     control_title = <<"Add your comment">>,
+                                                     class = "comments-form"}).
+
+-define(REPLY_INPUT(Id, Recipients), #input_state{id=?FD_INPUT(Id),
+                                                  fid = Id,
+                                                  recipients= Recipients,
+                                                  entry_type = comment,
+                                                  show_recipients = false,
+                                                  show_title = false,
+                                                  show_media = false,
+                                                  collapsed = true,
+                                                  post_collapse = true,
+                                                  role=comment,
+                                                  class= "comment-reply",
+                                                  expand_btn= [<<"reply">>, #i{class=["icon-reply"]}]}).
 
 % Admin
 

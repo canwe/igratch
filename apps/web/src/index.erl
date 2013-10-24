@@ -93,7 +93,10 @@ box(Discount, Price, ColorClass, IconClass)->
         list_to_binary(io_lib:format("~.2f", [Price]))]} 
     ]} ]}}.
 
-header() -> [
+header() ->
+    User = wf:user(),
+    IsAdmin = case User of undefined -> false; _ -> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
+    [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[
     #panel{class=["navbar-inner"], body=[
       #panel{class=["container"], body=[
@@ -130,6 +133,9 @@ header() -> [
                     #li{body=#link{url="/mygames",  body=[#i{class=["icon-gamepad", "icon-large"]}, <<" Games">>]}},
                     #li{body=#link{url="/notifications", body=[#i{class=["icon-envelope", "icon-large"]}, <<" Notifications">>]}},
                     #li{body=#link{url="/shopping_cart", body=[#i{class=["icon-shopping-cart", "icon-large"]}, <<" Shopping Cart">>]}},
+                    if IsAdmin ->
+                        #li{body=#link{url="/admin", body=[#i{class=["icon-cog", "icon-large"]}, <<" Admin">>]}};
+                    true -> [] end,
                     #li{body=#link{id=logoutbtn, postback=logout, delegate=login, 
                         body=[#i{class=["icon-off", "icon-large"]}, <<" Logout">> ] }}
                   ]}]}
@@ -184,4 +190,6 @@ event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
-process_delivery(R,M) -> error_logger:info_msg("[index] delivery -> feed | ~p", [R]),feed_ui:process_delivery(R,M).
+process_delivery(R,M) -> 
+    %error_logger:info_msg("[index] delivery -> feed | ~p", [R]),
+    feed_ui:process_delivery(R,M).

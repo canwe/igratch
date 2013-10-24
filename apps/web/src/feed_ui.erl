@@ -7,22 +7,25 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("feed_server/include/records.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
 
 feed_state(Id) ->
     M = ?CTX#context.module,
     case lists:keyfind(exports, 1, M:module_info()) of false -> false;
         {exports, Ex} -> case lists:keyfind(feed_states, 1, Ex) of
             {feed_states, 0} ->
-                case lists:keyfind(Id, 1, M:feed_states()) of false -> ok;
+                case lists:keyfind(Id, 1, M:feed_states()) of false -> wf:session(Id);
                     {Id, State} -> State end;
             _ -> false end end.
 
-input_state(Id) -> M = ?CTX#context.module,
+input_state(Id) ->
+    M = ?CTX#context.module,
     case lists:keyfind(exports, 1, M:module_info()) of false -> false;
         {exports, Ex} -> case lists:keyfind(input_states, 1, Ex) of
             {input_states, 0} ->
-                case lists:keyfind(Id, 1, M:input_states()) of false -> ok;
+                case lists:keyfind(Id, 1, M:input_states()) of false -> wf:session(?FD_INPUT(Id));
                     {Id, State} -> State end;
             _ -> false end end.
 
@@ -132,7 +135,6 @@ render_element(#feed_ui{state=S}=F) ->
 % feed entry representation
 
 render_element(#feed_entry{entry=E, state=S})->
-    error_logger:info_msg("Render ~p with help of ~p", [E, S#feed_state.delegate]),
     Id = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
     SelId = ?EN_SEL(Id),
     wf:render(if S#feed_state.html_tag == table ->
@@ -157,7 +159,6 @@ render_element(#feed_entry{entry=E, state=S})->
 % table rows
 
 render_element(#row_entry{entry=#group{name=Name, description=Desc, scope=Scope}=E, state=#feed_state{}=S}) -> 
-    error_logger:info_msg("[feed_ui]Render group ~p ~p", [Name, element(S#feed_state.entry_id, E)]),
     wf:render([
         #td{body=wf:to_list(element(S#feed_state.entry_id, E))},
         #td{body=wf:js_escape(Name)},
@@ -185,7 +186,6 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=product}=Stat
     Id = element(State#feed_state.entry_id, E),
     UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
     From = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
-%    Groups = [G ||#group_subscription{where=G} <- kvs_group:participate(Id)],
     wf:render(article(product, {Id, UiId}, From, E#entry.created, E#entry.media, E#entry.title, E#entry.description));
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{}=State}) ->
     Id = element(State#feed_state.entry_id, P),
@@ -251,37 +251,6 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
                 #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
                 postback={read, entry, Id}},
             #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, entry, Id}} ]} ]},
-    element_panel:render_element(Entry);
-
-% Detached review
-
-render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=detached}=State})->
-    Eid = element(State#feed_state.entry_id, E),
-   {_, Fid} = lists:keyfind(comments, 1, E#entry.feeds),
-    Recipients = [{RoutingType, To, {Eid, FeedId, lists:keyfind(comments, 1, Feeds)}}
-        || #entry{to={RoutingType, To}, feed_id=FeedId, feeds=Feeds} <- kvs:all_by_index(entry,entry_id, Eid)],
-
-    Is = #input_state{
-        recipients=Recipients,
-        entry_type = comment,
-        show_recipients=false,
-        show_title = false,
-        show_media = false},
-
-    CmState = ?FD_STATE(Fid)#feed_state{view=comment,  entry_type=comment, entry_id=#comment.comment_id, recipients=Recipients, show_title=false},
-
-    Entry = #panel{class=["blog-post"], body=[
-        #h3{class=[blue], body=[#span{id=?EN_TITLE(Eid), body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
-        #panel{id=?EN_DESC(Eid), body=E#entry.description, data_fields=[{<<"data-html">>, true}]},
-
-        #panel{class=[comments, "row-fluid"], body=[
-            #feed_ui{icon="icon-comments-alt",
-                title=[#span{class=[?ID_CM_COUNT(Eid)], body=[integer_to_list(kvs_feed:comments_count(entry, Eid))]}, <<" comments">>],
-                state=CmState},
-%            #input{title= <<"Add your comment">>, class=["comments-form"], state=Is, feed_state=CmState}
-            #input{title= <<"Add your comment">>, class=["comments-form"], state=Is}
-       ]}
-    ]},
     element_panel:render_element(Entry);
 
 % Comment
@@ -383,31 +352,17 @@ event({traverse, Direction, Start, #feed_state{}=S}) -> traverse(Direction, Star
 
 event({delete, #feed_state{selected_key=Selected, visible_key=Visible}=S}) ->
     Selection = sets:from_list(wf:session(Selected)),
-    error_logger:info_msg("Selection~p", [Selection]),
-    V = wf:session(Visible),
-    error_logger:info_msg("Visible: ~p", [V]),
     User = wf:user(),
-    [begin
-        Type = case S#feed_state.view of product -> product; _ -> S#feed_state.entry_type end,
-        error_logger:info_msg("Delete ~p", [Id]),
+    {Type, Module} = case S#feed_state.entry_type of
+        product -> {product, kvs_product};
+        group -> {group, kvs_group};
+        entry when S#feed_state.view == product -> {product, kvs_product};
+        entry -> {entry, kvs_feed};
+        T -> {T, kvs_feed} end,
 
-        case kvs:get(Type, Id) of {error,_} -> error_logger:info_msg("No object");
-        {ok, Obj} ->
-            case Type of
-                product ->  msg:notify([kvs_product, User#user.email, delete], [Obj]);
-                group ->    msg:notify([kvs_group, User#user.email, delete], [Obj]);
-                entry ->
-                    {Eid,_} = Id,
-                    R1 = if S#feed_state.del_by_index == true ->
-                        [{RoutingType, To, {somefeed, Fid}} || #entry{feed_id=Fid, to={RoutingType, To}}
-                            <- kvs:all_by_index(entry, entry_id, Eid)];
-                        true -> {RoutingType, To} = Obj#entry.to, [{RoutingType, To, {feed, Obj#entry.feed_id}}] end,
-                    R2 = [{user, user, {feed, entries}}],
-                    [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
-                        [Obj#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, #input_state{}, ?FD_STATE(Fid, S)])
-                        || {RouteType, To, {_, Fid}} <- lists:flatten([R1,R2])];
-                _ -> error_logger:info_msg("delete ~p. no recipients", [Type]), [] end end
-       end || Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)];
+    [case kvs:get(Type, Id) of {error,_} -> error_logger:info_msg("No object");
+        {ok, Obj} -> msg:notify([Module, User#user.email, delete], [Obj]) end
+        || Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)];
 
 event({cancel_select, #feed_state{}=S}) -> deselect(S);
 
@@ -526,25 +481,32 @@ traverse_entries(RecordName, Next, Count, S)->
 process_delivery([Type, Id, created], [{error,E}]) -> 
     error_logger:info_msg("~p ~p create failed: ~p", [Type, Id, E]);
 process_delivery([Type, Id, created], [P]) ->
-    error_logger:info_msg("[feed_ui] ~p created ~p", [Type, Id]),
     case feed_state(?FEED(Type)) of #feed_state{} = S ->
-        error_logger:info_msg("Delegate: ~p", [S#feed_state.delegate]),
         deselect(S),
         wf:session(medias, []),
         PrevVisible = wf:session(S#feed_state.visible_key),
         wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, P) | PrevVisible]),
 
         if S#feed_state.enable_traverse ->
-            error_logger:info_msg("TRAVERSE"),
             traverse(#iterator.next, P, S);
         true ->
-            error_logger:info_msg("INSERT"),
             wf:insert_top(S#feed_state.entries, #feed_entry{entry=P, state=S}) end,
         wf:wire("Holder.run();");
 
     _ -> skip end,
 
     case input_state(?FEED(Type)) of #input_state{}=Is -> input:event({clear_input, Is}); _ -> skip end;
+
+process_delivery([comment, {Cid, {Eid, Fid}}, added], [#comment{feed_id=CFid}=C]) ->
+    error_logger:info_msg("[feed_ui] Comment ~p added Comments fid ~p  ~p",[C#comment.id, CFid, self()]),
+    case feed_state(CFid) of #feed_state{}=S ->
+        if S#feed_state.enable_traverse ->
+            traverse(#iterator.next, C, S);
+        true ->
+            wf:insert_top(S#feed_state.entries, #feed_entry{entry=C, state=S}) end;
+    _-> skip end,
+
+    case input_state(CFid) of #input_state{}=Is -> input:event({flush_input, Is}); _ -> skip end;
 
 process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
     case feed_state(Fid) of #feed_state{}=S ->
@@ -554,10 +516,8 @@ process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
         wf:session(S#feed_state.visible_key, [element(S#feed_state.entry_id, E) | PrevVisible]),
 
         if S#feed_state.enable_traverse ->
-            error_logger:info_msg("TRAVERSE"),
             traverse(#iterator.next, E, S);
         true ->
-            error_logger:info_msg("INSERT"),
             wf:insert_top(S#feed_state.entries, #feed_entry{entry=E, state=S}) end,
 
         wf:wire("Holder.run();");
@@ -585,7 +545,6 @@ process_delivery([entry, {_,Fid}, updated], [#entry{}=E])->
 process_delivery([entry, {_,Fid}, deleted], [#entry{}=E])->
     case feed_state(Fid) of #feed_state{}=S ->
         UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
-        error_logger:info_msg("uid:~p", [UiId]),
         wf:remove(?EN_ROW(UiId)),
         deselect(S);
     _-> skip
@@ -601,7 +560,6 @@ process_delivery([Type, Id, deleted], [P]) ->
         deselect(S); _ -> skip end;
 
 process_delivery([show_entry], [Entry, #feed_state{} = S]) ->
-    error_logger:info_msg("~n[feed] show_entry ~p", [element(#iterator.id, Entry)]),
     wf:insert_bottom(S#feed_state.entries, #feed_entry{entry=Entry, state=S}),
     wf:wire("Holder.run();"),
     wf:update(S#feed_state.more_toolbar, #link{class=?BTN_INFO, body= <<"more">>, delegate=feed_ui, postback={check_more, Entry, S}});

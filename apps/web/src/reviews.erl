@@ -7,7 +7,9 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("feed_server/include/records.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
 
 -jsmacro([on_show/0,show/1]).
 
@@ -17,13 +19,19 @@ on_show() ->
 
 show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
+feed_states()-> [
+    {?FEED(entry), ?ENTRIES_FEED} |
+    [case lists:keyfind(feed, 1, Feeds) of false -> {ok, ok};
+    {_,Id} -> {Id, ?REVIEWS_FEED(Id)} end || #group{scope=Scope, feeds=Feeds} <- kvs:all(group), Scope==public] ].
+
 main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>},{body, body()}]}.
 
 body()->
-    Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
     wf:wire(#api{name=tabshow}),
     wf:wire(on_show()),
     wf:wire(show(case wf:qs(<<"id">>) of undefined -> "'all'"; T ->  "'"++wf:to_list(T)++"'" end)),
+
+    Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
 
     index:header() ++ [
     #section{class=[section], body=[
@@ -44,20 +52,9 @@ header(Groups, Current) -> [
 
 feed(Group) ->
     Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
-    State = case kvs:get(group, Group) of
-        {error,_} -> ?FD_STATE(?FEED(entry))#feed_state{
-                        view=review,
-                        entry_id=#entry.entry_id,
-                        delegate=reviews};
-        {ok, G} -> case lists:keyfind(feed, 1, element(#iterator.feeds, G)) of
-            false -> ?FD_STATE(?FEED(entry))#feed_state{
-                        view=review,
-                        entry_id=#entry.entry_id,
-                        delegate=reviews};
-            {_, Id} -> ?FD_STATE(Id)#feed_state{
-                        view=review,
-                        entry_id=#entry.entry_id,
-                        delegate=reviews} end end,
+    State = case kvs:get(group, Group) of {error,_} -> ?ENTRIES_FEED;
+        {ok, G} -> case lists:keyfind(feed, 1, element(#iterator.feeds, G)) of false -> false;
+            {_, Id} -> ?REVIEWS_FEED(Id) end end,
 
     #feed_ui{icon=["icon-tags ", "icon-large ", if Group =="all"-> "text-warning"; true-> "" end],
         icon_url="#all",
@@ -65,9 +62,10 @@ feed(Group) ->
 
 %% Render review elements
 
-render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State})->
+render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=review}=State})->
     Id = element(State#feed_state.entry_id, E),
     UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+
     {FromId, From} = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
     Media = E#entry.media,
     Title = E#entry.title,
@@ -79,7 +77,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State
         #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
         #p{class=[datestamp], body=[ #span{body= product_ui:to_date(Date)} ]},
         #p{body=[
-            #link{url="#",body=[#span{class=[?EN_CM_COUNT(Id)],
+            #link{url="#",body=[#span{class=[?EN_CM_COUNT(UiId)],
                 body= integer_to_list(kvs_feed:comments_count(entry, Id))},
                 #i{class=["icon-comment-alt", "icon-2x"]} ]} ]}]},
 
@@ -88,13 +86,15 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=review}=State
 
     #panel{class=[span5, "article-text"], body=[
         #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
-            #link{style="color:#9b9c9e;", body=wf:js_escape(Title), url="/review?id="++Id}}},
+            #link{style="color:#9b9c9e;", body=wf:js_escape(Title), url="/review?id="++wf:to_list(Eid)}}},
 
-        #p{id=?EN_DESC(UiId), body=wf:js_escape(product_ui:shorten(E#entry.description))},
+        #p{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(E#entry.description))},
         #panel{id=?EN_TOOL(UiId), class=[more], body=[
-            #link{body=[<<"read more">>], url="/review?id="++Id} ]}]}]);
+            #link{body=[<<"read more">>], url="/review?id="++wf:to_list(Eid)} ]}]}]);
 
 render_element(E)-> feed_ui:render_element(E).
+
+% Events 
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),

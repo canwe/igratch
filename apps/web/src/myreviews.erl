@@ -4,7 +4,19 @@
 -include_lib("feed_server/include/records.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/users.hrl").
+
 -include("records.hrl").
+-include("states.hrl").
+
+feed_states()->
+    User = wf:user(),
+    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
+    case lists:keyfind(feed, 1, Feeds) of false -> []; {_, Id} -> [{Id, ?MYREVIEWS_FEED(Id)}] end.
+
+input_states()-> 
+    User = wf:user(),
+    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
+    case lists:keyfind(feed, 1, Feeds) of false -> []; {_, Id} -> [{Id, ?MYREVIEWS_INPUT(Id)}] end.
 
 title() -> <<"My reviews">>.
 
@@ -13,26 +25,19 @@ main()-> #dtl{file="prod", bindings=[{title, title()},{body, body()}]}.
 body()->
     User = wf:user(),
     Nav = {User, myreviews, []},
-    List = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
+    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
 
-    State = case lists:keyfind(feed, 1, List) of 
-        false -> #feed_state{};
-        {_, Id} -> ?FD_STATE(Id)#feed_state{
-                        entry_id=#entry.entry_id,
-                        view=review,
-                        enable_selection=true,
-                        delegate=reviews} end,
+    index:header() ++ dashboard:page(Nav,
+        case lists:keyfind(feed, 1, Feeds) of false -> [];
+        {_,Id}->
+            FeedState = proplists:get_value(Id, feed_states()),
+            InputState = proplists:get_value(Id, input_states()),
 
-    index:header() ++
-    dashboard:page(Nav, [
-        #feed_ui{title=title(), icon="icon-list", state=State, header=[
-            #input{state=#input_state{
-                control_title= <<"Submit review">>, placeholder_rcp= <<"Games">>, 
-                role=product,
-                entry_type=review,
-                class=["feed-table-header"]}} ]} ]) ++
-    index:footer().
+            #feed_ui{title= title(),
+                icon="icon-list",
+                state=FeedState,
+                header=[#input{state=InputState} ]} end ) ++ index:footer().
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> feed_ui:process_delivery(Route, Msg);
-event(Event) -> error_logger:info_msg("[account] event: ~p", [Event]).
+event(Event) -> error_logger:info_msg("[my reviews] event: ~p", [Event]).

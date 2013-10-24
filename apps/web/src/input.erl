@@ -72,6 +72,7 @@ body(#input_state{simple_body=true}=S)->
         placeholder=S#input_state.placeholder_box,
         body=S#input_state.description};
 body(#input_state{}=S)->
+    error_logger:info_msg("DESC:~p", [S#input_state.description]),
     #htmlbox{id=S#input_state.body_id, class=[span12],
         html = S#input_state.description,
         root=?ROOT, dir=?DIR,
@@ -175,13 +176,13 @@ control_event(Cid, Role) ->
         || {Id, Name} <- Entries, string:str(string:to_lower(wf:to_list(Name)), string:to_lower(SearchTerm)) > 0],
     element_textboxlist:process_autocomplete(Cid, Data, SearchTerm).
 
-event({post, group, #input_state{}=Is, #feed_state{}=FS}) ->
+event({post, group, #input_state{}=Is, _}) ->
     User = wf:user(),
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
     Name = wf:q(Is#input_state.title_id),
     Publicity = case wf:q(Is#input_state.scope_id) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
     Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
-    RegData = #group{id=Id,
+    Group = #group{id=Id,
                     name = Name,
                     description = wf:q(Is#input_state.body_id),
                     scope = Publicity,
@@ -189,8 +190,7 @@ event({post, group, #input_state{}=Is, #feed_state{}=FS}) ->
                     owner = From,
                     feeds = ?GRP_CHUNK,
                     created = now()},
-    msg:notify([kvs_group, User#user.email, create], [RegData]),
-%    msg:notify([kvs_group, group, register], [RegData, Is, FS]),
+    msg:notify([kvs_group, User#user.email, create], [Group]),
     ok;
 
 event({post, product, #input_state{}=Is,_}) ->
@@ -231,13 +231,15 @@ event({post, comment, #input_state{}=Is, #feed_state{}=Fs}) ->
                 media = Medias,
                 feeds=[{comments, kvs_feed:create()}],
                 created = now() },
-    
+
     [msg:notify([kvs_feed, RoutingType, To, comment, Cid, add],
         [C#comment{id= {Cid, {EntryId, EntryFid}},
             entry_id = {EntryId,EntryFid},
             feed_id = CommentsFid, 
             feeds=[{comments, kvs_feed:create()}]}, Is,
+
             ?FD_STATE(CommentsFid, Fs)#feed_state{recipients=Recipients}])
+
         || {RoutingType, To, {EntryId, EntryFid, {_,CommentsFid}}} <- Recipients];
 
 %    msg:notify([kvs_feed, comment, register], [C, Is, ?FD_STATE(?FEED(comment))]);
@@ -340,7 +342,7 @@ event({edit, P=#product{}, #feed_state{}, #input_state{}=S}) ->
 event({clear_input, #input_state{}=S})->
     Is = S#input_state{
         update=false,
-        control_title = <<"Create">>,
+        %control_title = <<"Create">>,
         price=undefined,
         title=undefined,
         description=undefined,
@@ -350,17 +352,18 @@ event({clear_input, #input_state{}=S})->
     wf:replace(S#input_state.id, #input{state= Is}),
     wf:wire(selectpicker());
 
-%   Clean by fields
-%    wf:update(I#input_state.media_id, []),
-%    wf:wire(wf:f("$('#~s').val('');", [I#input_state.title_id])),
-%    wf:wire(wf:f("$('#~s').val('');", [I#input_state.body_id])),
-%    wf:wire(wf:f("$('#~s').val('0.00');", [I#input_state.price_id])),
-%    wf:wire(#jq{target=I#input_state.body_id, method=[html], args="''"}),
-%    wf:wire(wf:f("$('#~s').trigger('Reset');", [I#input_state.recipients_id])),
-%    wf:wire(wf:f("$('#~s').trigger('reset');", [I#input_state.upload_id])),
-%    if I#input_state.collapsed andalso I#input_state.post_collapse ->
-%        wf:wire(#jq{target=I#input_state.form_id,   method=[hide]}),
-%        wf:wire(#jq{target=I#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
+event({flush_input, #input_state{}=S}) -> 
+    wf:update(S#input_state.media_id, []),
+    wf:wire(wf:f("$('#~s').val('');", [S#input_state.title_id])),
+    wf:wire(wf:f("$('#~s').val('');", [S#input_state.body_id])),
+    wf:wire(wf:f("$('#~s').val('0.00');", [S#input_state.price_id])),
+    wf:wire(#jq{target=S#input_state.body_id, method=[html], args="''"}),
+    wf:wire(wf:f("$('#~s').trigger('Reset');", [S#input_state.recipients_id])),
+    wf:wire(wf:f("$('#~s').trigger('reset');", [S#input_state.upload_id])),
+    if S#input_state.collapsed andalso S#input_state.post_collapse ->
+        wf:wire(#jq{target=S#input_state.form_id,   method=[hide]}),
+        wf:wire(#jq{target=S#input_state.toolbar_id, method=[fadeIn]}); true -> [] end,
+    wf:wire(selectpicker());
 
 event(E)-> error_logger:info_msg("INPUT:~p", [E]).
 
