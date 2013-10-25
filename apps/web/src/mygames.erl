@@ -36,7 +36,6 @@ body()->
 
 render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=product}=State}) ->
     Id = element(State#feed_state.entry_id, E),
-    error_logger:info_msg("Id:~p", [Id]),
     case kvs:get(product, Eid) of {error,_}-> wf:render(["no product"]);
     {ok, P} ->
         Fid = State#feed_state.container_id,
