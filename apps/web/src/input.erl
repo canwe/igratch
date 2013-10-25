@@ -300,7 +300,7 @@ event({update, product, Is}) ->
     Product =to_product(Is),
     Groups = groups(Is),
 
-    msg:notify([kvs_product, Is#input_state.entry_id, update], [Product, Groups, Is]);
+    msg:notify([kvs_product, Is#input_state.entry_id, update], [Product, Groups]);
 
 event({remove_media, M, Id}) ->
   New = lists:filter(fun(E)-> E/=M end, case wf:session(medias) of undefined -> []; Mi -> Mi end),

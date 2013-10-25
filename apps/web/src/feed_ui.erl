@@ -13,21 +13,21 @@
 
 feed_state(Id) ->
     M = ?CTX#context.module,
-    case lists:keyfind(exports, 1, M:module_info()) of false -> false;
+    case lists:keyfind(exports, 1, M:module_info()) of false -> wf:session(Id);
         {exports, Ex} -> case lists:keyfind(feed_states, 1, Ex) of
             {feed_states, 0} ->
                 case lists:keyfind(Id, 1, M:feed_states()) of false -> wf:session(Id);
                     {Id, State} -> State end;
-            _ -> false end end.
+            _ -> wf:session(Id) end end.
 
 input_state(Id) ->
     M = ?CTX#context.module,
-    case lists:keyfind(exports, 1, M:module_info()) of false -> false;
+    case lists:keyfind(exports, 1, M:module_info()) of false -> wf:session(?FD_INPUT(Id));
         {exports, Ex} -> case lists:keyfind(input_states, 1, Ex) of
             {input_states, 0} ->
                 case lists:keyfind(Id, 1, M:input_states()) of false -> wf:session(?FD_INPUT(Id));
                     {Id, State} -> State end;
-            _ -> false end end.
+            _ -> wf:session(?FD_INPUT(Id)) end end.
 
 render_element(#feed_ui{state=S}=F) ->
     Title = F#feed_ui.title,
@@ -500,15 +500,17 @@ process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
 
 process_delivery([product, Id, updated], [{error,E}, #input_state{}=Is,_]) ->
     wf:update(Is#input_state.alert_id, index:error(E));
-process_delivery([product, Id, updated], [#product{}=P, #input_state{}=Is])->
-    wf:update(Is#input_state.alert_id, index:success("updated")),
+process_delivery([product, Id, updated], [#product{}=P])->
     case feed_state(?FEED(product)) of #feed_state{}=S ->
         UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, P))),
         wf:session(medias, []),
         wf:replace(?EN_ROW(UiId), #feed_entry{entry=P, state=S}),
         wf:wire("Holder.run();");
     _ -> skip
-    end;
+    end,
+    case input_state(Id) of #input_state{}=Is ->
+        wf:update(Is#input_state.alert_id, index:success("updated"));
+    _-> skip end;
 process_delivery([entry, {_,Fid}, updated], [#entry{}=E])->
     case feed_state(Fid) of #feed_state{}=S ->
         UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),

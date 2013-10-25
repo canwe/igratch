@@ -11,16 +11,6 @@
 -include("records.hrl").
 -include("states.hrl").
 
-feed_states() ->
-    User = wf:user(),
-    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
-    case lists:keyfind(products, 1, Feeds) of false -> []; {_,Id} -> [{Id, ?MYGAMES_FEED(Id)}] end.
-
-input_states() ->
-    User = wf:user(),
-    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
-    case lists:keyfind(products, 1, Feeds) of false -> []; {_,Id} -> [{Id, ?MYGAMES_INPUT(Id)}] end.
-
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
 
 body()->
@@ -31,8 +21,11 @@ body()->
     index:header() ++ dashboard:page(Nav,
         case lists:keyfind(products, 1, Feeds) of false -> [];
         {_, Id} ->
-            FeedState = proplists:get_value(Id, feed_states()),
-            InputState = proplists:get_value(Id, input_states()),
+            FeedState = case wf:session(Id) of undefined ->
+                FS = ?MYGAMES_FEED(Id), wf:session(Id, FS), FS; FD -> FD end,
+
+            InputState = case wf:session(?FD_INPUT(Id)) of undefined ->
+                IS = ?MYGAMES_INPUT(Id), wf:session(?FD_INPUT(Id), IS), IS; IS -> IS end,
 
             #feed_ui{title= <<"my games">>,
                      icon="icon-gamepad",
@@ -43,21 +36,25 @@ body()->
 
 render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=product}=State}) ->
     Id = element(State#feed_state.entry_id, E),
+    error_logger:info_msg("Id:~p", [Id]),
     case kvs:get(product, Eid) of {error,_}-> wf:render(["no product"]);
     {ok, P} ->
         Fid = State#feed_state.container_id,
         UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
         From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-        InputState = (proplists:get_value(Fid, input_states()))#input_state{update=true},
+        InputState = (wf:session(?FD_INPUT(Fid)))#input_state{update=true},
 
         wf:render([#panel{class=[span3, "article-meta"], body=[
             #h4{class=[blue], body= <<"">>},
             #p{body=#link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
             #p{body=[#span{body= product_ui:to_date(E#entry.created)} ]},
-            #p{body=[#link{url="#",body=[
-                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))},
-                #i{class=["icon-comment-alt", "icon-2x"]} ]} ]},
-            #h4{body=[#span{class=["icon-usd"]}, float_to_list(P#product.price/100, [{decimals, 2}]) ]} ]},
+            #p{body=[
+                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(product, Eid))},
+                #i{class=["icon-comment-alt", "icon-large"]},
+
+                #i{class=["icon-usd", "icon-large"]},
+                #b{body=float_to_list(P#product.price/100, [{decimals, 2}])}
+            ]} ]},
 
             #panel{id=?EN_MEDIA(UiId), class=[span4,"media-pic"], body=#entry_media{media=E#entry.media, mode=reviews}},
 
