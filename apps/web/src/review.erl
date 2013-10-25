@@ -129,7 +129,7 @@ render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
             #link{class=["pull-left"], body=[Avatar]},
             #panel{class=["media-body"], body=[
                 #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
-                #p{body= wf:js_escape(C#comment.content)},
+                #p{body=wf:js_escape(C#comment.content)},
                 if State#feed_state.flat_mode == true -> []; true -> #p{class=["media-heading"], body=[InnerFeed]} end ]} ]},
         if State#feed_state.flat_mode == true -> InnerFeed; true -> [] end]);
 
@@ -141,6 +141,7 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
 event({read, _, Id})-> wf:redirect("/review?id="++Id);
+event({add_cart, P}) -> store:event({add_cart, P});
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event-> ~p, Tag ~p, Term ~p",[Name, Tag, Term]).
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
