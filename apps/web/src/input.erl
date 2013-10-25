@@ -171,8 +171,8 @@ control_event(Cid, Role) ->
 event({post, group, #input_state{}=Is}) ->
     User = wf:user(),
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
-    Name = wf:q(Is#input_state.title_id),
-    Description = wf:q(Is#input_state.body_id),
+    Name = escape(wf:q(Is#input_state.title_id)),
+    Description = escape(wf:q(Is#input_state.body_id)),
     Publicity = case wf:q(Is#input_state.scope_id) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
     Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
 
@@ -204,7 +204,7 @@ event({post, product, #input_state{}=Is}) ->
 
 event({post, comment, #input_state{}=Is}) ->
     error_logger:info_msg("=>comment entry:"),
-    Comment = wf:q(Is#input_state.body_id),
+    Comment = escape(wf:q(Is#input_state.body_id)),
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
 
@@ -220,7 +220,7 @@ event({post, comment, #input_state{}=Is}) ->
                 comment_id = Cid,
                 entry_id = {Eid, ?FEED(entry)},
                 feed_id = ?FEED(comment),
-                content = list_to_binary(Comment),
+                content = Comment,
                 media = Medias,
                 feeds=[{comments, kvs_feed:create()}],
                 created = now() },
@@ -239,7 +239,7 @@ event({post, EntryType, #input_state{}=Is})->
     error_logger:info_msg("=>post entry: ~p", [EntryType]),
     User = wf:user(),
     {Title, Desc} = if Is#input_state.collect_msg == true ->
-        {wf:q(Is#input_state.title_id), wf:q(Is#input_state.body_id)}; 
+        {escape(wf:q(Is#input_state.title_id)), escape(wf:q(Is#input_state.body_id))}; 
     true -> {Is#input_state.title, Is#input_state.description} end,
     error_logger:info_msg("Entry type: ~p", [EntryType]),
     R1 = if Is#input_state.show_recipients == true ->
@@ -282,8 +282,8 @@ event({post, EntryType, #input_state{}=Is})->
         to = R1,
         type=EntryType,
         media=Medias,
-        title=iolist_to_binary(Title),
-        description=iolist_to_binary(Desc),
+        title=Title,
+        description=Desc,
         shared="",
         created = now()
     },
@@ -314,12 +314,13 @@ event({hide_input, #input_state{}=S})->
     wf:wire(#jq{target=S#input_state.form_id,   method=[hide]}),
     wf:wire(#jq{target=S#input_state.toolbar_id,method=[fadeIn]});
 
-event({edit, P=#product{}, #feed_state{}, #input_state{}=S}) ->
+event({edit, P=#product{}, #input_state{}=S}) ->
     Groups = string:join([case kvs:get(group, G) of {error,_}-> "";
         {ok, #group{id=Id, name=Name}}-> "group"++wf:to_list(Id)++"="++wf:to_list(Name) end
         || #group_subscription{where=G} <- kvs_group:participate(P#product.id)], ","),
 
     Is = S#input_state{
+        body_id = wf:temp_id(),
         entry_id = P#product.id,
         control_title = <<"Update">>,
         title = P#product.title,
@@ -333,11 +334,12 @@ event({edit, P=#product{}, #feed_state{}, #input_state{}=S}) ->
 
 event({clear_input, #input_state{}=S})->
     Is = S#input_state{
+        body_id=wf:temp_id(),
         update=false,
-        %control_title = <<"Create">>,
+        control_title = <<"Create">>,
         price=undefined,
-        title=undefined,
-        description=undefined,
+        title= <<"">>,
+        description= <<"">>,
         medias=[]
     },
     wf:session(medias, []),
@@ -360,8 +362,8 @@ event({flush_input, #input_state{}=S}) ->
 event(E)-> error_logger:info_msg("INPUT:~p", [E]).
 
 to_product(#input_state{}=Is)->
-    Title = wf:q(Is#input_state.title_id),
-    Descr = wf:q(Is#input_state.body_id),
+    Title = escape(wf:q(Is#input_state.title_id)),
+    Descr = escape(wf:q(Is#input_state.body_id)),
     Price = product_ui:to_price(wf:q(Is#input_state.price_id)),
     Currency = wf:q(Is#input_state.currency_id),
     Medias = case wf:session(medias) of undefined -> []; L -> L end,
@@ -370,8 +372,8 @@ to_product(#input_state{}=Is)->
         Pos -> string:substr(Url, Pos+length(?ROOT)) end end,
 
     #product{
-        title = list_to_binary(Title),
-        brief = list_to_binary(Descr),
+        title = Title,
+        brief = Descr,
         cover = Cover,
         price = Price,
         currency = Currency}.
@@ -403,3 +405,10 @@ api_event(attach_media, Args, _Tag)->
 media(undefined)-> [];
 media(File)-> [#media{url = File,
     thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}].
+
+escape(Input) when is_list(Input) -> escape(list_to_binary(Input));
+escape(Input) when is_binary(Input) ->
+    R = [{"\r","\n"}, {"\n *",""}, {"^\\s*", ""}, {"^\n*", ""}, {"\n+$",""}, {" +"," "}],
+    lists:foldl(fun({Pt, Re}, Subj) ->
+        re:replace(Subj, Pt, Re, [global, {return, binary}]) end, Input, R).
+

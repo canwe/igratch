@@ -64,10 +64,10 @@ render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=pro
             #panel{class=[span4, "article-text"], body=[
                 #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
                     #link{style="color:#9b9c9e;", postback={read, product, Id}, body=E#entry.title}}},
-                #p{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description)}
+                #p{id=?EN_DESC(UiId), body=E#entry.description}
             ]},
             #panel{class=[span1], body=[
-                #link{body= <<"edit">>, class=[btn, "btn-block"], delegate=input, postback={edit, P, State, InputState}},
+                #link{body= <<"edit">>, class=[btn, "btn-block"], delegate=input, postback={edit, P, InputState}},
                 #link{body= <<"more">>, class=[btn, "btn-block"], postback={read, product, Id}} ]} ]) end;
 render_element(E)-> feed_ui:render_element(E).
 

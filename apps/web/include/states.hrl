@@ -1,5 +1,4 @@
 -include_lib("kvs/include/kvs.hrl").
-%-include_lib("feed_server/include/records.hrl").
 
 % My Games
 
