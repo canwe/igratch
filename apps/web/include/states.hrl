@@ -14,7 +14,6 @@
                                         entry_type=product,
                                         show_upload=true,
                                         show_price=true,
-                                        simple_body=true,
                                         class= "feed-table-header",
                                         control_title = <<"Create">>,
                                         post_btn = <<"create">>,
@@ -120,8 +119,7 @@
                                     placeholder_box= <<"description">>,
                                     show_recipients=false,
                                     show_scope=true,
-                                    show_media=false,
-                                    simple_body=true}).
+                                    show_media=false}).
 
 -define(ACL_FEED(Id), ?FD_STATE(Id)#feed_state{ container=acl,
                                                 entry_type=acl_entry,

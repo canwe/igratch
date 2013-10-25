@@ -156,7 +156,7 @@ event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
 
         end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 
-event({add_cart, #product{}=P, _}=M) ->
+event({add_cart, #product{}=P}=M) ->
     store:event(M),
     User = wf:user(),
     case lists:keyfind(wishlist, 1, User#user.feeds) of false -> ok;

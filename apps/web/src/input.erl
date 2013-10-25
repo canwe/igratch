@@ -72,7 +72,6 @@ body(#input_state{simple_body=true}=S)->
         placeholder=S#input_state.placeholder_box,
         body=S#input_state.description};
 body(#input_state{}=S)->
-    error_logger:info_msg("DESC:~p", [S#input_state.description]),
     #htmlbox{id=S#input_state.body_id, class=[span12],
         html = S#input_state.description,
         root=?ROOT, dir=?DIR,
@@ -173,11 +172,13 @@ event({post, group, #input_state{}=Is}) ->
     User = wf:user(),
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
     Name = wf:q(Is#input_state.title_id),
+    Description = wf:q(Is#input_state.body_id),
     Publicity = case wf:q(Is#input_state.scope_id) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
     Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
+
     Group = #group{id=Id,
                     name = Name,
-                    description = wf:q(Is#input_state.body_id),
+                    description = Description,
                     scope = Publicity,
                     creator = From,
                     owner = From,
@@ -209,7 +210,6 @@ event({post, comment, #input_state{}=Is}) ->
 
     R1 = Is#input_state.recipients,
     {_,_,{Eid,_,_}} = lists:nth(1,R1),
-%    error_logger:info_msg("[input]Recipients: ~p", [R1]),
     R2 = [ {user, From, {Eid, ?FEED(entry), {feed, ?FEED(comment)}}}],
 
     Recipients = lists:flatten([R1,R2]),
