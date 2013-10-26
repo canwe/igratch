@@ -130,7 +130,7 @@ render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
             #link{class=["pull-left"], body=[Avatar]},
             #panel{class=["media-body"], body=[
                 #p{class=["media-heading"], body=[#link{body= Author}, <<",">>, Date ]},
-                #p{body=wf:js_escape(C#comment.content)},
+                #p{body=C#comment.content},
                 if State#feed_state.flat_mode == true -> []; true -> #p{class=["media-heading"], body=[InnerFeed]} end ]} ]},
         if State#feed_state.flat_mode == true -> InnerFeed; true -> [] end]);
 
