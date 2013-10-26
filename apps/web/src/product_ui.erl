@@ -2,6 +2,7 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
+-include_lib("kvs/include/payments.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
@@ -55,7 +56,9 @@ render_element(#product_row{product=P}) ->
   element_tr:render_element(Row);
 
 render_element(#product_hero{product=P}) ->
-  Hero = #panel{class=["row-fluid"], body=[
+    Bought = lists:any(fun(#payment{product_id=PrId}) -> P#product.id==PrId end,
+        case wf:user() of undefined -> []; #user{email=Email}-> kvs_payment:payments(Email) end),
+    Hero = #panel{class=["row-fluid"], body=[
     #panel{class=[span6], body=[
     #panel{class=["hero-unit"], body=[
         #h2{body=P#product.title},
@@ -65,9 +68,15 @@ render_element(#product_hero{product=P}) ->
         ]},
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
         #panel{class=["btn-toolbar", "text-center"], body=[
-          #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
-            body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }],
-                postback={add_cart, P}}
+            if Bought ->
+                #link{class=[btn, "btn-large", "btn-success"],
+                    body=[#i{class=["icon-windows", "icon-large"]},<<" download">>],
+                    url="/static/css/index.css",
+                    download=["index.css"]};
+            true ->
+                #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
+                    body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }],
+                    postback={add_cart, P}} end
         ]}
       ]}
     ]},
