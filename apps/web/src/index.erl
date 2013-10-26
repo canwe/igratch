@@ -1,5 +1,6 @@
 -module(index).
 -compile(export_all).
+-compile({parse_transform, shen}).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/feeds.hrl").
@@ -10,15 +11,18 @@
 -include("records.hrl").
 -include("states.hrl").
 
-feed_states()->
-    [{?FEED(entry), ?ENTRIES_FEED}, {?FEED(comment), ?ACTIVE_FEED} ]++
-    [case lists:keyfind(feed, 1, Feeds) of false -> {ok, ok};
-    {_,Id} -> {Id, ?REVIEWS_FEED(Id)} end || #group{scope=Scope, feeds=Feeds} <- kvs:all(group), Scope==public].
+-jsmacro([on_show/0,show/1]).
 
-main() -> #dtl{file = "prod", ext="dtl", bindings=[ {title, <<"iGratch">>},
-                                                    {body, body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
+on_show() ->
+    X = jq("a[data-toggle=\"tab\"]"),
+    X:on("show", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
 
-body() -> 
+show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
+
+main() -> #dtl{file = "dev", ext="dtl", bindings=[ {title, <<"iGratch">>},
+                                                    {body, body()},
+                                                    {css,?INDEX_CSS},{less,?INDEX_LESS},{bootstrap,?INDEX_BOOTSTRAP}]}.
+body() ->
     wf:wire(#api{name=tabshow}),
     wf:wire("$('a[data-toggle=\"tab\"]').on('shown', function(e){"
         "id=$(e.target).attr('href');"
@@ -26,8 +30,17 @@ body() ->
         "else $(e.target).parent().parent().find('.text-warning').removeClass('text-warning');"
         "$(e.target).addClass('text-warning').siblings().removeClass('text-warning');"
         "tabshow(id);});"),
-    Tab = case wf:qs(<<"id">>) of undefined -> "all"; T ->  T end,
-    wf:wire(io_lib:format("$(document).ready(function(){$('a[href=\"#~s\"]').addClass('text-warning').tab('show');});",[Tab])),
+
+    Groups = lists:flatmap(fun(#group{scope=Scope, feeds=Feeds, name=Name})->
+        case lists:keyfind(feed,1, Feeds) of
+        {_,Fid} when Scope==public ->
+            case wf:session(Fid) of undefined -> wf:session(Fid, ?REVIEWS_FEED(Fid)), [{Name, Fid}];
+                _-> [{Name,Fid}] end; _ -> [] end end, kvs:all(group)),
+
+    All = case wf:session(?FEED(entry)) of undefined ->
+        FS = ?ENTRIES_FEED, wf:session(?FEED(entry),FS), FS; F->F end,
+    Discus = case wf:session(?FEED(comment)) of undefined ->
+        AS= ?ACTIVE_FEED, wf:session(?FEED(comment), AS),AS; A->A end,
 
     header() ++ [
         #section{class=["container-fluid", featured], body=#panel{id=carousel, class=[container], body=featured()}},
@@ -36,26 +49,26 @@ body() ->
             #panel{class=[container], body=[
                 #panel{class=["row-fluid"], body=[
                     #panel{class=[span8, "tab-content"], body=[
-                        [#panel{id=Id, class=["tab-pane"]} || #group{id=Id, scope=Scope} <- [#group{id=all,scope=public}|kvs:all(group)], Scope==public]
+                        #panel{id=all, class=["tab-pane", active], body=[
+                            #feed_ui{title= <<"Reviews">>, icon=["icon-tags "], state=All} ]},
+                        [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups]
                     ]},
                     #aside{class=[span4], body=[
                         #panel{class=[sidebar], body=[
                             #panel{class=["row-fluid"], body=[
-                                #h4{class=[blue], body= #link{url="#all", body= <<"TAGS">>, data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
-                                #p{class=[inline, tagcloud], body=[
-                                    [#link{url="#"++Id, body=[<<" ">>,Name],
-                                        data_fields=[{<<"data-toggle">>, <<"tab">>}, {<<"data-toggle">>, <<"tooltip">>}], title=Desc}
-                                    || #group{id=Id, name=Name, description=Desc, scope=Scope}<-kvs:all(group), Scope==public] ]} ]},
-                            #feed_ui{title= <<"Active discussion">>, icon="icon-comments-alt", class="comments-flat",
-                                state=?ACTIVE_FEED } ]}]}]}]}]}] ++ footer().
+                                #h4{class=[blue], body= #link{url="#all", body= <<"TAGS">>, 
+                                    data_fields=[{<<"data-toggle">>, <<"tab">>}] }},
 
-feed("all")->
-    #feed_ui{title= <<"Reviews">>, icon="icon-tags", state=?ENTRIES_FEED};
-feed(Group) ->
-    case kvs:get(group, Group) of {error,_}->[];
-    {ok, G}-> 
-        {_, Id} = lists:keyfind(feed, 1, element(#iterator.feeds, G)),
-        #feed_ui{title= G#group.name, icon="icon-tags", state=?REVIEWS_FEED(Id)} end.
+                                #p{class=[inline, tagcloud], body=[
+                                    [#link{url="#"++wf:to_list(Fid), body=[<<" ">>,Name],
+                                        data_fields=[{<<"data-toggle">>, <<"tab">>}]} || {Name, Fid} <- Groups] ]} ]},
+
+                            #feed_ui{   title= <<"Active discussion">>,
+                                        icon="icon-comments-alt",
+                                        class="comments-flat",
+                                        state=Discus} ]}]}]}]}]}] ++ footer().
+
+feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:session(Fid)}.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
@@ -173,7 +186,7 @@ alert(Msg, Class)->
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    wf:update(list_to_atom(Id), feed(Id)),
+    case Id of "all" -> []; _ -> wf:update(Id, feed(list_to_integer(Id))) end,
     wf:wire("Holder.run();");
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 

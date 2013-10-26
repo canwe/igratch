@@ -161,17 +161,22 @@ control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
   {exist, Size};
 control_event(Cid, Role) ->
     SearchTerm = wf:q(term),
-    Entries = [{element(#iterator.id, E), case Role of user-> element(#user.display_name, E); product-> element(#product.title, E); group-> element(#group.name, E); _ -> skip end}
+    Entries = [{wf:to_list(element(#iterator.id, E)),
+        wf:to_list(case Role of
+            user-> element(#user.display_name, E);
+            product-> element(#product.title, E);
+            group-> element(#group.name, E);
+        _ -> skip end)}
         || E <- kvs:entries(kvs:get(feed, ?FEED(Role)), Role, undefined)],
 
-    Data = [[list_to_binary(atom_to_list(Role)++Id++"="++wf:to_list(Name)), list_to_binary(wf:to_list(Name))]
-        || {Id, Name} <- Entries, string:str(string:to_lower(wf:to_list(Name)), string:to_lower(SearchTerm)) > 0],
+    Data = [[list_to_binary(wf:to_list(Role)++Id++"="++Name), list_to_binary(Name)]
+        || {Id, Name} <- Entries, string:str(string:to_lower(Name), string:to_lower(SearchTerm)) > 0],
     element_textboxlist:process_autocomplete(Cid, Data, SearchTerm).
 
 event({post, group, #input_state{}=Is}) ->
     User = wf:user(),
     From = case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
-    Name = escape(wf:q(Is#input_state.title_id)),
+    Name = wf:q(Is#input_state.title_id),
     Description = escape(wf:q(Is#input_state.body_id)),
     Publicity = case wf:q(Is#input_state.scope_id) of "scope" -> public; undefined -> public; S -> list_to_atom(S) end,
     Id = case Publicity of private -> Name; _ -> kvs:uuid() end,
