@@ -19,7 +19,7 @@ on_show() ->
 
 show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
-main() -> #dtl{file = "dev", ext="dtl", bindings=[ {title, <<"iGratch">>},
+main() -> #dtl{file = "prod", ext="dtl", bindings=[ {title, <<"iGratch">>},
                                                     {body, body()},
                                                     {css,?INDEX_CSS},{less,?INDEX_LESS},{bootstrap,?INDEX_BOOTSTRAP}]}.
 body() ->
