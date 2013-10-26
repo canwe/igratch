@@ -99,7 +99,7 @@ timestamp_label({Days, _}, _) -> io_lib:format("~p days ago", [Days]).
 shorten(undefined) -> <<"">>;
 shorten(Input) when is_list(Input) -> shorten(list_to_binary(Input));
 shorten(Input) when is_binary(Input) ->
-    R = [{"<img[^>]*>", "..."}, {"<p></p>", ""},
+    R = [{"<img[^>]*>", ""}, {"<p></p>", ""},
         {"<br[\\s+]/>", ""}, {"^\\s*", ""}, {"\n+$", ""}],
 
     lists:foldl(fun({Pt, Re}, Subj) ->
