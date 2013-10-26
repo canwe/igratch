@@ -498,8 +498,10 @@ process_delivery([entry, {Id, Fid}, added], [#entry{}=E]) ->
 
     case input_state(Fid) of #input_state{}=Is -> input:event({clear_input, Is}); _ -> skip end;
 
-process_delivery([product, Id, updated], [{error,E}, #input_state{}=Is,_]) ->
-    wf:update(Is#input_state.alert_id, index:error(E));
+process_delivery([product, Id, updated], [{error,E}]) ->
+    case input_state(Id) of #input_state{}=S ->
+        wf:update(S#input_state.alert_id, index:error(E));
+    _ -> skip end;
 process_delivery([product, Id, updated], [#product{}=P])->
     case feed_state(?FEED(product)) of #feed_state{}=S ->
         UiId = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, P))),
