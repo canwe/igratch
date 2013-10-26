@@ -1,9 +1,6 @@
 // Bootstrap Core variables
 @import "../bootstrap/less/variables.less";
 
-@import url(http://fonts.googleapis.com/css?family=Source+Sans+Pro);
-@import url(http://fonts.googleapis.com/css?family=Oswald:400,700);
-
 // Scaffolding
 // -------------------------
 @bodyBackground:        #dcdee0;
@@ -16,8 +13,20 @@
   font-style: normal;
   font-weight: 400;
   src: local('Source Sans Pro'), local('SourceSansPro-Regular'),
-    url(http://themes.googleusercontent.com/static/fonts/sourcesanspro/v5/ODelI1aHBYDBqgeIAH2zlBM0YzuT7MdOe03otPbuUS0.woff) format('woff');
+    url(/static/font/ODelI1aHBYDBqgeIAH2zlBM0YzuT7MdOe03otPbuUS0.woff) format('woff');
 }
+@font-face {
+    font-family: 'Oswald';
+    font-style: normal;
+    font-weight: 400;  
+    src: local('Oswald Regular'), local('Oswald-Regular'),
+        url(/static/font/-g5pDUSRgvxvOl5u-a_WHw.woff) format('woff');}
+
+@font-face {  font-family: 'Oswald';
+    font-style: normal;
+    font-weight: 700;
+    src: local('Oswald Bold'), local('Oswald-Bold'),
+    url(/static/font/bH7276GfdCjMjApa_dkG6T8E0i7KZn-EPnyo3HZu7kw.woff) format('woff');}
 
 @sourceSansProFontFamily:   "Source Sans Pro", sans-serif;
 @oswaldFontFamily:          'Oswald', sans-serif;

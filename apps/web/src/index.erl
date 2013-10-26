@@ -15,7 +15,8 @@ feed_states()->
     [case lists:keyfind(feed, 1, Feeds) of false -> {ok, ok};
     {_,Id} -> {Id, ?REVIEWS_FEED(Id)} end || #group{scope=Scope, feeds=Feeds} <- kvs:all(group), Scope==public].
 
-main() -> #dtl{file = "prod", ext="dtl", bindings=[{title, <<"iGratch">>},{body, body()}]}.
+main() -> #dtl{file = "prod", ext="dtl", bindings=[ {title, <<"iGratch">>},
+                                                    {body, body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
 
 body() -> 
     wf:wire(#api{name=tabshow}),
@@ -145,12 +146,8 @@ header() ->
           ]} ]} ]} ]} ]} ].
 
 footer() -> [
-  #footer{class=[igfoot],body=#panel{class=[container, "text-center"], body=[
-    #panel{body=[
-      #image{image= <<"/static/img/footer-highlight.png">>},
-      #image{image= <<"/static/img/footer-shadow.png">>}
-    ]},
-    #panel{body=[
+  #footer{class=[igfoot],body=#panel{class=[container], body=[
+    #panel{class=["footer-highlight", "text-center"], body=[
       #list{class=[icons, inline], body=[
         #li{body=#link{body= <<"About">>}},
         #li{body=#link{body= <<"Help">>}},

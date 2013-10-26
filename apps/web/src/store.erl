@@ -24,7 +24,7 @@ feed_states()-> [
     [case lists:keyfind(products, 1, Feeds) of false -> {ok, ok};
     {_,Id} -> {Id, ?STORE_FEED(Id)} end || #group{scope=Scope, feeds=Feeds} <- kvs:all(group), Scope==public] ].
 
-main() -> #dtl{file="prod", bindings=[{title,<<"Store">>},{body, body()}]}.
+main()->#dtl{file="prod", bindings=[{title,<<"Store">>},{body,body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
 
 body()->
     wf:wire(#api{name=tabshow}),

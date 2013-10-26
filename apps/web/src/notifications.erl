@@ -18,7 +18,9 @@ show(E) ->
     D = jq(document),
     D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
-main()-> case wf:user() of undefined -> wf:redirect("/"); _-> #dtl{file="prod", bindings=[{title,<<"notifications">>},{body, body()}]} end.
+main()-> case wf:user() of undefined -> wf:redirect("/");
+    _-> #dtl{file="prod", bindings=[{title,<<"notifications">>},
+                                    {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]} end.
 
 body()->
     wf:wire(#api{name=tabshow}),

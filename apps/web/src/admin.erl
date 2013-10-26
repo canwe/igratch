@@ -28,7 +28,7 @@ feed_states() ->
 
 input_states() -> [{?FEED(group), ?GROUPS_INPUT}].
 
-main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body,body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
 
 body() ->
     User = case wf:user() of undefined -> #user{}; U -> U end,

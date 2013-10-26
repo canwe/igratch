@@ -11,7 +11,8 @@
 -include("records.hrl").
 -include("states.hrl").
 
-main()-> #dtl{file="prod", bindings=[{title,<<"buy mobile">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"buy mobile">>},
+                                     {body, body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
 
 body() ->
   % payment confirmation data PID/Order

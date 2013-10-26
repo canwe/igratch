@@ -20,7 +20,7 @@ input_states()->
 
 title() -> <<"My reviews">>.
 
-main()-> #dtl{file="prod", bindings=[{title, title()},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title, title()},{body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
 
 body()->
     User = wf:user(),

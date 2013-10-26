@@ -10,7 +10,8 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Profile">>},{body,body()}]}].
+main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Profile">>},
+                                                     {body,body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}].
 
 body() ->
     Who = case wf:user() of undefined -> #user{}; U -> U end,

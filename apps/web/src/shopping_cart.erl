@@ -21,7 +21,8 @@ feed_states() ->
 
     Cart++Wishlist.
 
-main() -> #dtl{file="prod", bindings=[{title,<<"shopping cart">>},{body, body()}]}.
+main() -> #dtl{file="prod", bindings=[{title,<<"shopping cart">>},
+                                      {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
 
 body()-> index:header() ++ [
     #section{class=[section], body=[

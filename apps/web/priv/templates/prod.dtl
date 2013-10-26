@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>{{title}}</title>
-  <meta name="author" content="Андрей">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <link href="/static/images/favicon.ico" rel="shortcut icon" >
-  <link href="/static/css/igratch.css" rel="stylesheet" type="text/css"/>
+    <title>{{title}}</title>
+    <meta name="author" content="Андрей">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="/static/images/favicon.ico" rel="shortcut icon" >
+    <link href= {{css}} rel="stylesheet" type="text/css"/>
 </head>
 <body>
-  {{body}}
-  <script>{{script}}</script>
-  <div id="n2ostatus" style="display:none"></div>
-  <script src="/static/js/all.min.js"></script>
-  <script src="/static/js/bootstrap.min.js"></script>
-  <script src="/static/js/holder.js"></script>
+    {{body}}
+    <script>{{script}}</script>
+    <div id="n2ostatus" style="display:none"></div>
+    <script src="/static/js/all.min.js"></script>
+    <script src={{bootstrap}}></script>
+    <script src="/static/js/holder.js"></script>
 </body>
 </html>

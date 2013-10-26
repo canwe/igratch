@@ -11,7 +11,8 @@
 -include("records.hrl").
 -include("states.hrl").
 
-main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},
+                                     {body,body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
 
 body()->
     User = wf:user(),

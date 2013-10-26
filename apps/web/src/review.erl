@@ -10,7 +10,8 @@
 -include("records.hrl").
 -include("states.hrl").
 
-main() -> #dtl{file="prod", bindings=[{title,<<"review">>},{body, body()}]}.
+main() -> #dtl{file="prod", bindings=[{title,<<"review">>},
+                                      {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
 
 feed_states() -> [].
 input_states()-> [].

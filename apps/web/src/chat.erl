@@ -2,9 +2,10 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
+-include("records.hrl").
 
-main() -> 
-  [ #dtl{file = "prod", ext="dtl", bindings=[{title,<<"Login">>},{body,body()}]} ].
+main() -> [#dtl{file = "prod", ext="dtl", bindings=[{title,<<"Login">>},
+                                                    {body,body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]} ].
 
 message(Who,What) ->
     N=string:join(string:tokens(What,"\n")," "),

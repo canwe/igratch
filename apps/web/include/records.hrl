@@ -1,6 +1,12 @@
 -include_lib("kvs/include/kvs.hrl").
 
 -define(ROOT, code:priv_dir(web)).
+-define(CSS, "/static/css/igratch.css").
+-define(LESS, "/static/igratch/igratch.less").
+-define(REVIEWS_CSS, "/static/css/reviews.css").
+-define(REVIEWS_LESS, "/static/igratch/reviews.less").
+-define(BOOTSTRAP, "/static/js/bootstrap.min.js").
+-define(REVIEWS_BOOTSTRAP, "/static/js/reviews-bs.min.js").
 -define(PAGE_SIZE, 4).
 -define(ID_COMMENTS(Id),Id++"c").
 -define(ID_CM_COUNT(Id),Id++"cc").

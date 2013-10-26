@@ -4,7 +4,7 @@
 -include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
 
-main()-> #dtl{file="prod", bindings=[{title,<<"fake">>},{body, body()}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"fake">>},{body, body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
 
 body() -> index:header() ++ [
   #section{body=#panel{class=[container], body=#panel{class=["row-fluid"], body=[

@@ -23,7 +23,8 @@ show(E) ->
 feed_states() -> [].
 input_states() -> [].
 
-main() -> #dtl{file="prod", bindings=[{title,<<"product">>},{body, body()}]}.
+main() -> #dtl{file="prod", bindings=[{title,<<"product">>},
+                                      {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
 
 body() ->
     Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
@@ -60,7 +61,11 @@ body() ->
         ]}},
         #section{class=[section], body=#panel{class=[container], body=#panel{class=["row-fluid"], body=[
           #panel{class=[span9], body= #panel{class=["tab-content"], body=[
-            #panel{id=Feed, class=["tab-pane"], body=[]} || {Feed, _} <- P#product.feeds]}},
+            begin
+            Active = if Feed == reviews -> "active"; true -> "" end,
+            #panel{id=Feed, class=["tab-pane", Active], body=[
+                if Feed == reviews -> feed(P, Fid); true -> [] end
+            ]} end || {Feed, _}=Fid <- P#product.feeds]}},
           #panel{class=[span3], body=aside()}
         ]}}} ];
       {error, E} -> #panel{class=[alert, "alert-danger","alert-block"], body=[
@@ -203,7 +208,7 @@ api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
     error_logger:info_msg("Show tab ~p", [Id]),
     P = wf:session(product),
-    case lists:keyfind(list_to_atom(Id), 1, element(#iterator.feeds, P)) of false -> ok;
+    case lists:keyfind(list_to_atom(Id), 1, P#product.feeds) of false -> ok;
     {_,_}=Tab -> wf:update(list_to_atom(Id), feed(P, Tab)) end,
     wf:wire("Holder.run();");
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
