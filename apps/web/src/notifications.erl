@@ -20,65 +20,82 @@ show(E) ->
 
 main()-> case wf:user() of undefined -> wf:redirect("/");
     _-> #dtl{file="prod", bindings=[{title,<<"notifications">>},
-                                    {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]} end.
+                                    {body, body()},{css,?DIRECT_CSS},{less,?LESS},{bootstrap, ?DIRECT_BOOTSTRAP}]} end.
 
 body()->
     wf:wire(#api{name=tabshow}),
     wf:wire(on_shown()),
-    wf:wire(show(case wf:qs(<<"tab">>) of undefined -> "'notifications'"; T ->  "'"++wf:to_list(T)++"'" end)),
 
     Nav = {wf:user(), notifications, subnav()},
     index:header() ++ dashboard:page(Nav,
         #panel{class=[span9, "tab-content"], style="min-height:400px;", body=[
-            #panel{id=Id, class=["tab-pane"], body=[]} || Id <- [notifications,sent,archive]] }) ++ index:footer().
+            #panel{id=notifications, class=["tab-pane", active], body=feed(notifications)},
+            [#panel{id=Id, class=["tab-pane"], body=[]} || Id <- [sent,archive]]] }) ++ index:footer().
 
 subnav()-> [{sent, "sent"}, {archive, "archive"}].
 
-feed(notifications)->
-    User = wf:user(),
-    {_, Id} = lists:keyfind(direct, 1, element(#iterator.feeds, User)),
-    State = ?DIRECT_STATE(Id),
-    Is = #input_state{
-        role=user,
-        entry_type=direct,collapsed=true, show_media = false,
-        placeholder_rcp= <<"E-mail/User">>,
-        placeholder_ttl= <<"Subject">>,
-        class= "feed-table-header",
-        expand_btn= <<"compose">>
-    },
-    #feed_ui{title=title(notification), icon=icon(notification), state=State, header=[
-        #input{
-            icon="",
-            state=Is
-           }],
-        selection_ctl=[
-            #link{class=[btn], body=#i{class=["icon-archive"]},
-            data_fields=?TOOLTIP, title= <<"archive">>, postback={archive, State}}
-        ]};
 feed(Feed)->
-    error_logger:info_msg("Show feed: ~p", [Feed]),
-    Feeds = case wf:user() of undefined -> []; User -> element(#iterator.feeds, User) end,
-    case lists:keyfind(Feed, 1, Feeds) of false -> index:error("404");
+    error_logger:info_msg("Show ~p", [Feed]),
+    User = wf:user(),
+    case lists:keyfind(case Feed of notifications -> direct; _-> Feed end, 1, element(#iterator.feeds, User)) of false->
+        index:error("No feed "++wf:to_list(Feed));
     {_, Id} ->
-        #feed_ui{title=title(Feed), icon=icon(Feed),
-            state=?DIRECT_STATE(Id),
-            header=[#tr{class=["feed-table-header"], cells=[]}]};
-    R -> error_logger:info_msg("EE: ~p", [R]) end.
+        State = case wf:session(Id) of undefined ->
+            Fs = ?DIRECT_STATE(Id), wf:session(Id, Fs), Fs; FS->FS end,
+        InputState = case wf:session(?FD_INPUT(Id)) of undefined ->
+            Is = ?DIRECT_INPUT(Id), wf:session(?FD_INPUT(Id), Is), Is; IS->IS end,
+        #feed_ui{title=title(Feed),
+                 icon=icon(Feed),
+                 state=State,
+                 header=[case Feed of notifications ->
+                    #input{icon="", state=InputState}; _-> #tr{class=["feed-table-header"]} end],
+                 selection_ctl=case Feed of notifications -> [
+                    #link{class=[btn], body=#i{class=["icon-archive"]},
+                    data_fields=?TOOLTIP, title= <<"archive">>, postback={archive, State}}];_-> [] end } end.
 
 title(sent)-> <<"Sent Messages ">>;
-title(notification)-> <<"Notification ">>;
+title(notifications)-> <<"Notifications ">>;
 title(archive)-> <<"Archive ">>;
 title(_) -> <<"">>.
 
 icon(sent)-> "icon-envelope";
-icon(notification)-> "icon-envelope-alt";
+icon(notifications)-> "icon-envelope-alt";
 icon(archive) -> "icon-archive";
 icon(_)-> "".
+
+% Render direct messages
+
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State})->
+    Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+    User = wf:user(),
+    From = case kvs:get(user, E#entry.from) of {ok, U} -> U#user.display_name; {error, _} -> E#entry.from end,
+    IsAdmin = case User of undefined -> false; 
+        Us when Us#user.email==User#user.email -> true; 
+        _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
+
+    wf:render([
+        #p{body=[#small{body=["[", product_ui:to_date(E#entry.created), "] "]},
+            #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
+            <<" ">>,
+            E#entry.title,
+            case E#entry.type of {feature, _}-> #b{body=io_lib:format(" ~p", [E#entry.type])}; _-> [] end ]},
+        #p{body= E#entry.description},
+        #panel{id=?EN_TOOL(Id), body= case E#entry.type of {feature, _} when IsAdmin ->
+            #panel{class=["btn-toolbar"], body=[
+                #link{class=[btn, "btn-success"], body= <<"allow">>,
+                    postback={allow, E#entry.from, E#entry.entry_id, E#entry.type}, delegate=admin},
+                #link{class=[btn, "btn-info"], body= <<"reject">>, 
+                    postback={cancel, E#entry.from, E#entry.entry_id, E#entry.type}, delegate=admin} ]};
+        _ -> [] end }]);
+render_element(E)->feed_ui:render_element(E).
+
+% Events
 
 control_event(_, _) -> ok.
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    wf:update(list_to_atom(Id), feed(list_to_atom(Id)));
+    case list_to_atom(Id) of notifications -> ok;
+    _-> wf:update(list_to_atom(Id), feed(list_to_atom(Id))) end;
 api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
@@ -88,17 +105,14 @@ event({archive, #feed_state{selected_key=Selected, visible_key=Visible}}) ->
     User = wf:user(),
     case lists:keyfind(archive, 1, User#user.feeds) of false -> ok;
     {_,Fid} ->
-        [case kvs:get(entry, Id) of {error,_} -> ok; 
+        [case kvs:get(entry, Id) of {error,_} -> ok;
         {ok, E} ->
             msg:notify( [kvs_feed, user, User#user.email, entry, Eid, add],
                         [E#entry{id={Eid, Fid}, feed_id=Fid}]),
 
-            msg:notify( [kvs_feed, user, User#user.email, entry, {Eid, FeedId}, delete], [])
+            msg:notify( [kvs_feed, User#user.email, entry, delete], [E])
         end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
-event(Event) ->
-    User = case wf:user() of undefined -> #user{}; U -> U end,
-    IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,
-    if IsAdmin -> admin:event(Event); true -> ok end.
+event(_) -> ok.
 
 process_delivery(R,M) ->
     wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),

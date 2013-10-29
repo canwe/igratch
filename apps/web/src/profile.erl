@@ -10,8 +10,8 @@
 -include("records.hrl").
 -include("states.hrl").
 
-main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Profile">>},
-                                                     {body,body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}].
+main() -> [#dtl{file = "prod",  ext="dtl", bindings=[
+    {title,<<"Profile">>},{body,body()},{css,?PROFILE_CSS},{less,?LESS},{bootstrap, ?PROFILE_BOOTSTRAP}]}].
 
 body() ->
     Who = case wf:user() of undefined -> #user{}; U -> U end,
@@ -19,25 +19,27 @@ body() ->
         Val -> case kvs:get(user, binary_to_list(Val)) of {error, not_found} -> #user{}; {ok, Usr1} -> Usr1 end end,
     Nav = {What, profile, []},
 
-    Is = #input_state{
-        class=["feed-table-header"],
-        placeholder_ttl= <<"Subject">>,
-        entry_type = direct,
-        collapsed = true,
-        show_media = false,
-        show_recipients = false,
-        expand_btn= <<"Write message">> ,
-        recipients=[{user, What#user.email, lists:keyfind(direct, 1, What#user.feeds)}]},
-
     index:header() ++ dashboard:page(Nav, [
         if What#user.email == undefined -> index:error("There is no user "++wf:to_list(wf:qs(<<"id">>))++"!");
         true -> [
             dashboard:section(profile, profile_info(Who, What, "icon-2x"), "icon-user"),
             if Who == What -> payments(What);
             true -> [
-                #input{state=Is, icon=""},
+                case lists:keyfind(direct, 1,What#user.feeds) of false -> [];
+                {_,Fid} ->
+                    InputState = case wf:session(?FD_INPUT(Fid)) of undefined ->
+                        Is = ?DIRECT_INPUT(Fid)#input_state{
+                            show_recipients = false,
+                            expand_btn= <<"Write message">> ,
+                            recipients=[{user, What#user.email, {direct, Fid}}]},
+                        wf:session(?FD_INPUT(Fid), Is), Is; IS->IS end,
+                    #input{state=InputState, icon=""}
+                end,
                 case lists:keyfind(feed, 1, element(#iterator.feeds, What)) of false -> [];
-                {_, Id} -> #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=?REVIEW_STATE(Id)} end ] end ] end ])  ++ index:footer().
+                {_, Fid} ->
+                    FeedState = case wf:session(Fid) of undefined -> 
+                        Fs = ?REVIEWS_FEED(Fid), wf:session(Fid, Fs), Fs; FS->FS end,
+                    #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=FeedState} end ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) -> 
 %    error_logger:info_msg("Avatar: ~p", [Who#user.avatar]),
@@ -67,18 +69,21 @@ profile_info(Who, #user{} = What, Size) ->
 profile_info(Who, What, Size) -> case kvs:get(user, What) of {ok, U}-> profile_info(Who,U,Size); _-> [] end.
 
 features(Who, What, Size) ->
-  Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
-  Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
-  Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
-  AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) == allow,
+    Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
+    Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
+    Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
+    AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) == allow,
+    %error_logger:info_msg("Who:~p What: ~p Writer:~p", [Who, What, Writer]),
   [#p{body=[
-  if AmIAdmin -> #link{class=["text-warning"],
-      data_fields=?TOOLTIP, title= <<"disable user">>,
-      postback={disable, What},
-      body = #span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-user"]}, #i{class=["icon-ban-circle", "text-error"]} ]} };
-  true ->  #link{class=["text-warning"],
-      data_fields=?TOOLTIP, title= <<"user">>,
-      body=#span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE},#i{class=["icon-user"]}]}} end,
+    #link{class=["text-warning"],
+        data_fields=?TOOLTIP,
+        title = if AmIAdmin -> <<"disable user">>; true -> <<"user">> end,
+        postback = if AmIAdmin -> {disable,What}; true -> undefined end,
+        body=#span{class=["icon-stack", Size], body=[
+            #i{class=?STACK_BASE},#i{class=["icon-user"]},
+            if AmIAdmin ->  #i{class=["icon-ban-circle", "text-error"]}; true -> [] end
+        ]}},
+
   if AmIAdmin andalso Writer -> #link{class=["text-success"],
     data_fields=?TOOLTIP, title= <<"revoke reviewer">>,
     postback={revoke, reviewer, What#user.email},
@@ -92,7 +97,8 @@ features(Who, What, Size) ->
     postback={request, reviewer}};
   true -> []
   end,
-  if AmIAdmin andalso Dev -> #link{class=[],
+
+  if AmIAdmin andalso Dev -> #link{
     postback={revoke, developer, What#user.email},
     data_fields=?TOOLTIP, title= <<"revoke developer">>,
     body=#span{class=["icon-stack", Size], body=[#i{class=["icon-circle", "icon-stack-base", "icon-2x"]},#i{class=["icon-barcode", "icon-light"]}, #i{class=["icon-ban-circle", "text-error"]}  ]}};
@@ -106,16 +112,17 @@ features(Who, What, Size) ->
   true -> []
   end,
   if Admin ->
-  #link{
-    data_fields=?TOOLTIP, title= <<"administrator">>,
-    body=#span{class=["icon-stack", Size, blue], body=[#i{class=?STACK_BASE},#i{class=["icon-wrench icon-light"]}]}}; true->[] end
+     #link{data_fields=?TOOLTIP, title= <<"administrator">>,
+            body=#span{class=["icon-stack", Size, blue],
+            body=[#i{class=?STACK_BASE},#i{class=["icon-wrench", "icon-light"]}]}}; true->[] end
   ]}].
 
 payments(What) ->
   dashboard:section([
     #h3{class=[blue], body= <<"Payments">>},
     #table{class=[table, "table-hover", payments],
-      header=[#tr{cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>}, #th{body= <<"Price">>}, #th{body= <<"Game">>}]}],
+      header=[#tr{class=["feed-table-header"],
+                cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>}, #th{body= <<"Price">>}, #th{body= <<"Game">>}]}],
       body=[[begin
         #tr{cells= [
           #td{body= [product_ui:to_date(Py#payment.start_time)]},
@@ -131,6 +138,8 @@ preview_medias(#media{} = M)-> [
     #panel{id=apply_ctl, class=["btn-toolbar", "text-center"],body=[
         #link{class=[btn],body= <<"apply">>, postback={apply_image, M}},
         #link{class=[btn],body= <<"cancel">>, postback={close_image}} ]}].
+
+% Event
 
 api_event(attach_media, Args, _Tag)->
   Props = n2o_json:decode(Args),
@@ -217,15 +226,19 @@ event({request, Feature}) ->
             {ok, U} -> {Type, Accessor, lists:keyfind(direct, 1, U#user.feeds)} end
             || #acl_entry{accessor={Type,Accessor}, action=Action} <- kvs:entries(Acl, acl_entry, undefined), Action =:= allow]),
 
-        Is = #input_state{
-            collect_msg = false,
-            show_recipients = false,
-            entry_type = {feature, Feature},
-            recipients = Recipients,
-            title = "Feature <b>"++ wf:to_list(Feature)++"</b> request",
-            description = wf:to_list(Feature) ++ " requested!"},
-        input:event({post, {feature, Feature}, Is}),
-        wf:update(alerts, index:error(wf:to_list(Feature) ++" requested")) end;
+        case lists:keyfind(direct, 1, User#user.feeds) of false -> skip;
+        {_,Fid} ->
+            Is = ?DIRECT_INPUT(Fid)#input_state{
+                entry_type = {feature, Feature},
+                collect_msg = false,
+                show_recipients = false,
+                title = "Feature <b>"++ wf:to_list(Feature)++"</b> request",
+                recipients = [Recipients],
+                description = wf:to_list(Feature) ++ " requested!"},
+
+            input:event({post, {feature, Feature}, Is}),
+
+            wf:update(alerts, index:error(wf:to_list(Feature) ++" requested")) end end;
 event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) ->
     User = case wf:user() of undefined -> #user{}; U -> U end,

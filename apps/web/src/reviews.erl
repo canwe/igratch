@@ -58,7 +58,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
     Id = element(State#feed_state.entry_id, E),
     UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
     {FromId, From} = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
-
+    error_logger:info_msg("media:~p", [E#entry.media]),
     wf:render([#panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
         #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
@@ -75,7 +75,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
             #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
                 #link{style="color:#9b9c9e;", body=E#entry.title, url="/review?id="++wf:to_list(Eid)}}},
 
-            #p{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(E#entry.description))},
+            #p{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description)},
             #panel{id=?EN_TOOL(UiId), class=[more], body=[
                 #link{body=[<<"read more">>], url="/review?id="++wf:to_list(Eid)} ]}]}]);
 

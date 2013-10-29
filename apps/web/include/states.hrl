@@ -38,6 +38,7 @@
 
 -define(ACTIVE_FEED, ?FD_STATE(?FEED(comment))#feed_state{  flat_mode=true,
                                                             view=comment,
+                                                            delegate=review,
                                                             entry_type=comment,
                                                             entry_id=#comment.comment_id}).
 
@@ -83,7 +84,8 @@
                                                   post_collapse = true,
                                                   role=comment,
                                                   class= ["comment-reply"],
-                                                  expand_btn= [<<"reply">>, #i{class=["icon-reply"]}]}).
+                                                  expand_btn= [<<"reply">>, #i{class=["icon-reply"]}],
+                                                  expand_class=[]}).
 
 % Cart
 
@@ -129,7 +131,7 @@
                                     fid = ?FEED(group),
                                     entry_type=group,
                                     control_title= <<"Add category">>,
-                                    placeholder_ttl= <<"name">>, 
+                                    placeholder_ttl= <<"name">>,
                                     show_recipients=false,
                                     show_scope=true,
                                     show_media=false}).
@@ -150,15 +152,21 @@
                                                                  enable_traverse=true,
                                                                  html_tag=table}).
 
-% 0000000000000000
--define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{
-    view=direct,
-    html_tag=panel,
-    enable_selection=true,
-    enable_traverse=true}).
 
--define(REVIEW_STATE(Id), ?FD_STATE(Id)#feed_state{
-    view = review,
-    html_tag= panel}).
 
+-define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{ view=direct,
+                                                    delegate = notifications,
+                                                    enable_selection=true,
+                                                    enable_traverse=true}).
+
+-define(DIRECT_INPUT(Id), #input_state{ id=?FD_INPUT(Id),
+                                        role=user,
+                                        entry_type=direct,
+                                        collapsed=true,
+                                        show_media = false,
+                                        upload_dir = ?DIR(case wf:user() of undefined -> "anonymous"; #user{email=E}->E end),
+                                        placeholder_rcp= <<"E-mail/User">>,
+                                        placeholder_ttl= <<"Subject">>,
+                                        class= ["feed-table-header"],
+                                        expand_btn= <<"compose">>}).
 

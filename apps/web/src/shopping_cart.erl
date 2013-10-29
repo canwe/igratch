@@ -126,20 +126,22 @@ event({select, Sel, #feed_state{view=cart}=S})->
 event({to_wishlist, #product{}=P, #feed_state{}=S})->
     User = wf:user(),
     Fid = S#feed_state.container_id,
-    Is = #input_state{
-        collect_msg = false,
-        show_recipients = false,
-        entry_type = wishlist,
-        entry_id = P#product.id,
-        title = P#product.title,
-        description = P#product.brief,
-        medias=[media(P#product.cover)]},
+    case kvs:get(entry, {P#product.id, Fid}) of {error,_}-> ok;
+    {ok, E} ->
+        Is = #input_state{
+            collect_msg = false,
+            show_recipients = false,
+            entry_type = wishlist,
+            entry_id = P#product.id,
+            title = P#product.title,
+            description = P#product.brief,
+            medias=[media(P#product.cover)]},
 
-    error_logger:info_msg("Input ~p ~p", [P#product.id, Fid]),
+            error_logger:info_msg("Input ~p ~p", [P#product.id, Fid]),
 
-    input:event({post, wishlist, Is}),
+            input:event({post, wishlist, Is}),
 
-    msg:notify( [kvs_feed, user, User#user.email, entry, {P#product.id, Fid}, delete], []   );
+            msg:notify( [kvs_feed, User#user.email, entry, delete], [E, Is]) end;
 
 event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
     Selection = sets:from_list(wf:session(Selected)),
@@ -151,7 +153,7 @@ event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
             msg:notify( [kvs_feed, user, User#user.email, entry, Eid, add],
                         [E#entry{id={Eid, Fid}, feed_id=Fid}]),
 
-            msg:notify( [kvs_feed, user, User#user.email, entry, {Eid, FeedId}, delete], [])
+            msg:notify( [kvs_feed, User#user.email, entry, delete], [E])
 
         end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 
@@ -159,7 +161,9 @@ event({add_cart, #product{}=P}=M) ->
     store:event(M),
     User = wf:user(),
     case lists:keyfind(wishlist, 1, User#user.feeds) of false -> ok;
-    {_,Fid} -> msg:notify([kvs_feed, user, User#user.email, entry, {P#product.id, Fid}, delete], []) end;
+    {_,Fid} ->
+        case kvs:get(entry, {P#product.id, Fid}) of {error,_}-> ok;
+        {ok, E} -> msg:notify([kvs_feed, User#user.email, entry, delete], [E]) end end;
 
 event({checkout, #feed_state{selected_key=Selected, visible_key=Visible}}) ->
     wf:redirect("/checkout?sid="++Selected++"&vid="++Visible);

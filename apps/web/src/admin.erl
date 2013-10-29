@@ -20,26 +20,22 @@ show(E) ->
     D = jq(document),
     D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
-feed_states() ->
-    [{?FEED(group), ?GROUPS_FEED}, {?FEED(user), ?USERS_FEED}, {?FEED(product), ?PRODUCTS_VIEW_FEED}] ++
-    [{Id, ?ACL_FEED(Id)} || #acl{id=Id} <- kvs:all(acl)].
-
-input_states() -> [{?FEED(group), ?GROUPS_INPUT}].
-
-main()-> #dtl{file="prod", bindings=[{title,<<"admin">>},{body,body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
+main()-> #dtl{file="prod",
+              bindings=[{title,<<"admin">>},{body,body()},{css,?ADMIN_CSS},{less,?LESS},{bootstrap,?ADMIN_BOOTSTRAP}]}.
 
 body() ->
     User = case wf:user() of undefined -> #user{}; U -> U end,
     wf:wire(#api{name=tabshow}),
     wf:wire(on_shown()),
-    wf:wire(show(case wf:qs(<<"tab">>) of undefined -> "'categories'"; T ->  "'"++wf:to_list(T)++"'" end)),
 
     Nav = {User, admin, subnav()},
     IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,
     index:header() ++ dashboard:page(Nav, [
         #panel{class=[span9, "tab-content"], style="min-height:400px;",
-            body = if IsAdmin -> [#panel{id=Id, class=["tab-pane"]} 
-                || Id <-[categories, acl, users, products] ];true -> [] end} ]) ++ index:footer().
+            body = if IsAdmin -> [
+                #panel{id=categories, class=["tab-pane", active], body=tab(categories)},
+                [#panel{id=Id, class=["tab-pane"]} || Id <-[acl, users, products]] 
+            ];true -> [] end} ]) ++ index:footer().
 
 subnav() -> [
     {categories, "categories"},
@@ -48,11 +44,17 @@ subnav() -> [
     {products, "products"}
   ].
 
-tab(categories) -> [
-    #input{state=proplists:get_value(?FEED(group), input_states()), icon="icon-tags"},
+tab(categories) ->
+    GroupsFeed = ?FEED(group),
+    InputState = case wf:session(?FD_INPUT(GroupsFeed)) of undefined -> 
+        Is = ?GROUPS_INPUT, wf:session(?FD_INPUT(GroupsFeed), ?GROUPS_INPUT), Is; IS -> IS end,
+    FeedState = case wf:session(GroupsFeed) of undefined ->
+        Fs = ?GROUPS_FEED, wf:session(GroupsFeed, Fs), Fs; FS -> FS end,
+
+    [#input{state=InputState, icon="icon-tags"},
 
     #feed_ui{title= <<"Categories ">>,
-        icon="icon-list", state=proplists:get_value(?FEED(group), feed_states()),
+        icon="icon-list", state=FeedState,
         header=[#tr{class=["feed-table-header"], cells=[
             #th{body= <<"">>},
             #th{body= <<"id">>},
@@ -62,7 +64,8 @@ tab(categories) -> [
 
 tab(acl)->
     {AclEn, Acl} = lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
-        State = proplists:get_value(Aid, feed_states()),
+        State = case wf:session(Aid) of undefined ->
+            S = ?ACL_FEED(Aid), wf:session(Aid, S), S; Fs -> Fs end,
 
         B = #panel{id=wf:to_list(R)++wf:to_list(N), class=["tab-pane"], body=[
             #feed_ui{title=wf:to_list(Aid)++" entries",
@@ -86,7 +89,9 @@ tab(acl)->
     #panel{class=["tab-content"], body=[AclEn]} ];
 
 tab(users)->
-    State = proplists:get_value(?FEED(user), feed_states()),
+    UsrFeed = ?FEED(user),
+    State = case wf:session(UsrFeed) of undefined ->
+        S = ?USERS_FEED, wf:session(UsrFeed, S), S; FS -> FS end,
 
     #feed_ui{title= <<"Users ">>, icon="icon-user", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
@@ -95,54 +100,57 @@ tab(users)->
             #th{body= <<"last login">>}]} ]};
 
 tab(products)->
-    State = proplists:get_value(?FEED(product), feed_states()),
+    State = ?PRODUCTS_VIEW_FEED,
+    wf:session(?FEED(product), State),
 
     #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State, header=[
         #tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}, #th{}]}]};
-
 tab(_)-> [].
 
-feature_reply(#user{}=Whom, Feature, Msg, Eid, #feed_state{}=S) ->
+feature_reply(#user{}=Whom, Feature, Msg, Eid) ->
     case lists:keyfind(direct, 1, Whom#user.feeds) of false -> skip;
-        {_,Id}=Feed ->
-            Type = direct,
-            Is = #input_state{
+        {_,Fid}=Feed ->
+            Is = ?DIRECT_INPUT(Fid)#input_state{
                 collect_msg = false,
                 show_recipients = false,
-                entry_type = direct,
-                recipients = [{user, Whom#user.email, Feed}],
                 title = "Re: Feature <b>"++ wf:to_list(Feature)++"</b> request",
+                recipients = [{user, Whom#user.email, Feed}],
                 description = Msg},
-            input:event({post, Type, Is}),
+            input:event({post, direct, Is}),
+            error_logger:info_msg("entry reply to: ~p", [Eid]),
+            case Eid of undefined -> ok;
+            _ -> User = wf:user(),
+                case lists:keyfind(direct, 1, User#user.feeds) of false -> ok;
+                {_,Did}->
+                    error_logger:info_msg("Entry delete: ~p", [Eid]),
+                    msg:notify( [kvs_feed, User#user.email, entry, delete],
+                                [#entry{id={Eid, Did}, entry_id=Eid, feed_id=Did}, Is]) end end end.
 
-            User = wf:user(),
-            Recipients = [{user, User#user.email, lists:keyfind(direct,1, User#user.feeds)}],
-            [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete],
-                        [#entry{id={Eid, Fid}, entry_id=Eid, feed_id=Fid}, Is, ?FD_STATE(Fid,S)])
-                || {RouteType, To, {_,Fid}} <- Recipients] end.
+% Events
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    wf:update(list_to_atom(Id), tab(list_to_atom(Id)));
+    case list_to_atom(Id) of categories -> ok; Tab -> wf:update(Tab, tab(Tab)) end;
 api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({view, Id}) -> error_logger:info_msg("redirect"), wf:redirect("/profile?id="++Id);
 event({disable, What})-> error_logger:info_msg("ban user ~p", [What]);
-event({allow, Whom, Eid, Feature, #feed_state{}=S}) ->
+event({allow, Whom, Eid, Feature}) ->
     case kvs:get(user, Whom) of {error, not_found} -> skip;
     {ok, U} ->
         kvs_acl:define_access({user, Whom}, Feature, allow),
-        feature_reply(U, Feature, <<"Your request accepted!">>, Eid, S) end;
-event({cancel, Whom, Eid, Feature, #feed_state{}=S}) ->
+        feature_reply(U, Feature, <<"Your request accepted!">>, Eid) end;
+event({cancel, Whom, Eid, Feature}) ->
+    error_logger:info_msg("Cancel ~p", [Eid]),
     case kvs:get(user, Whom) of {error, not_found} -> skip;
-    {ok, U} -> feature_reply(U, Feature, <<"Your request is prohibited!">>, Eid, S) end;
+    {ok, U} -> feature_reply(U, Feature, <<"Your request is prohibited!">>, Eid) end;
 event({revoke, Feature, Whom})->
     case kvs:get(user, Whom) of {error, not_found} -> skip;
     {ok, U} ->
         kvs_acl:define_access({user, U#user.email}, {feature, Feature}, disable),
-        feature_reply(U, Feature, <<"Your role disabled!">>, undefined, #feed_state{entry_id=#entry.entry_id}) end;
+        feature_reply(U, Feature, <<"Your role disabled!">>, undefined) end;
 event(_) -> ok.
 
 process_delivery(R,M) ->

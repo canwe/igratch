@@ -139,8 +139,7 @@ process_delivery(R,M) ->
         {ok, #feed{entries_count=C}}-> wf:update(?USR_CART(User#user.id), integer_to_list(C)) end end,
     feed_ui:process_delivery(R,M).
 
-
-media(undefined)-> undefined;
+media(undefined)-> #media{};
 media(File)-> #media{url = File,
     thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}.
 

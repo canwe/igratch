@@ -31,7 +31,9 @@ body() ->
                     msg:notify([kvs_payment, user, User#user.email, set_state], {Id, Status, paypal}),
 
                     if Status == done ->
-                        msg:notify([kvs_feed, user, Email, entry, {P#product.id, Cid}, delete], []);true -> ok end
+                        case kvs:get(entry, {P#product.id, Cid}) of {error,_}-> ok;
+                        {ok, E} -> 
+                            msg:notify([kvs_feed, Email, delete], [E]) end;true -> ok end
                  end || #payment{id=Id, product=P, user_id=Email} <- Order],
 
                 case Status of done -> wf:redirect("/profile");

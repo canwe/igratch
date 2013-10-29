@@ -18,8 +18,10 @@ sidenav({What, Active, Tabs})->
         begin
             SubTabs = if Active == Page -> [
                 if Tabs /= [] -> #li{class=[divider]}; true-> [] end,
-                [#li{body=[#link{url= "#"++wf:to_list(Id), data_fields=[{<<"data-toggle">>, <<"tab">>}], body= Label}]} || {Id, Label} <- Tabs]]; true -> [] end,
-            Class = if Active == Page andalso SubTabs == [] -> [active]; true -> [] end,
+                [#li{body=[#link{url= "#"++wf:to_list(Id),
+                    data_fields=[{<<"data-toggle">>, <<"tab">>}], body= Label}]} || {Id, Label} <- Tabs]]; true -> [] end,
+
+            Class = if Active == Page -> [active]; true -> [] end,
 
             PageFeed = lists:keyfind(Feed, 1, if What==undefined->[];true -> What#user.feeds end),
             Badge = if PageFeed /= false -> {_, Fid} = PageFeed,

@@ -210,9 +210,9 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
         #figure{class=["thumbnail-figure"], body=[
             #carousel{items=[#entry_media{media=Media, mode=blog} || Media <- E#entry.media]},
             if length(E#entry.media) > 1 ->
-                #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=wf:js_escape(E#entry.title)}}]}; true -> [] end ]},
+                #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=E#entry.title}}]}; true -> [] end ]},
 
-        #panel{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(E#entry.description)), data_fields=[{<<"data-html">>, true}]},
+        #panel{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description), data_fields=[{<<"data-html">>, true}]},
 
         #footer{class=["blog-footer", "row-fluid"], body=[
             #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
@@ -231,11 +231,11 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
   Tid = ?EN_TITLE(E#entry.entry_id), Did = ?EN_DESC(E#entry.entry_id), Toid = ?EN_TOOL(E#entry.entry_id),
   Dir = "static/"++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
-  wf:replace(Tid, #textbox{id=Tid, value=wf:js_escape(Title)}),
-  wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=wf:js_escape(Desc), root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE}]}),
+  wf:replace(Tid, #textbox{id=Tid, value=Title}),
+  wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=Desc, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE}]}),
   wf:update(Toid, #panel{class=["btn-toolbar"], body=[
     #link{postback={save_entry, E, ProdId}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
-    #link{postback={cancel_entry, E#entry{title=wf:js_escape(Title), description=wf:js_escape(Desc)}}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
+    #link{postback={cancel_entry, E#entry{title=Title, description=Desc}}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
   ]});
 event({save_entry, #entry{}=E, ProductId})->
   Title = wf:q(?EN_TITLE(E#entry.entry_id)),
@@ -267,7 +267,7 @@ event({remove_entry, E=#entry{}, ProductId}) ->
 
   error_logger:info_msg("Recipients: ~p", [Recipients]),
 
-  [msg:notify([kvs_feed, RouteType, To, entry, Fid, delete], [E, (wf:user())#user.email]) || {RouteType, To, Fid} <- Recipients];
+  [msg:notify([kvs_feed, To, entry, delete], [E#entry{id={E#entry.entry_id, Fid}, feed_id=Fid}, (wf:user())#user.email]) || {RouteType, To, Fid} <- Recipients];
 
 event({read, entry, Id})-> wf:redirect("/review?id="++Id);
 event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
@@ -303,8 +303,8 @@ control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
 process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc, media=Media}=E) ->
   wf:session(medias, []),
   Tid = ?EN_TITLE(Id), Did = ?EN_DESC(Id),
-  wf:replace(Tid, #span{id =Tid, body=wf:js_escape(Title)}),
-  wf:replace(Did, #panel{id=Did, body=wf:js_escape(Desc), data_fields=[{<<"data-html">>, true}]}),
+  wf:replace(Tid, #span{id =Tid, body=Title}),
+  wf:replace(Did, #panel{id=Did, body=Desc, data_fields=[{<<"data-html">>, true}]}),
   wf:update(?EN_MEDIA(Id), #entry_media{media=Media, mode=reviews}),
   wf:update(?EN_TOOL(Id), feed:controls(E)),
   wf:wire("Holder.run();");
