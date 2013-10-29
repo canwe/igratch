@@ -63,9 +63,6 @@ render_element(#product_hero{product=P}) ->
     #panel{class=["hero-unit"], body=[
         #h2{body=P#product.title},
         #p{body=P#product.brief},
-        #list{class=[unstyled], body=[
-          #li{body= <<"Game rating: Ages 16+">>}
-        ]},
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
         #panel{class=["btn-toolbar", "text-center"], body=[
             if Bought ->

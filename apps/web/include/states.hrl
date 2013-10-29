@@ -113,6 +113,7 @@
                                      delegate_query = product,
                                      img_tool = undefined,
                                      entry_type=bundles,
+                                     class=["feed-table-header"],
                                      control_title = <<"upload file">>}).
 
 -define(FILE_STATE(Id), ?FD_STATE(Id)#feed_state{view=files,enable_selection=true,delegate=product}).
