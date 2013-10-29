@@ -37,10 +37,10 @@ body()->
     #section{class=[section], body=[
         #panel{class=[container], body=[
             #panel{class=["row-fluid"], body=[
-                #panel{class=[span12, "page-header-sm"], body=[
+                #h4{class=[span12, "page-header-sm"], body=[
                     #link{url="#all", body=[#i{class=["icon-home"]}], data_fields=?DATA_TAB},
-                    [[<<" / ">>, #link{url="#"++wf:to_list(Fid), body=[
-                        #i{class=["icon-asterisk"]}, Name], data_fields=?DATA_TAB}] || {Name,Fid} <- Groups] ]} ]},
+                    #small{body=[[<<" / ">>, #link{url="#"++wf:to_list(Fid), body=[
+                        #i{class=["icon-asterisk"]}, Name], data_fields=?DATA_TAB}] || {Name,Fid} <- Groups]} ]} ]},
 
             #panel{class=["row-fluid"], body=[
                 #panel{class=[span9, "tab-content"], body=[
