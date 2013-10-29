@@ -4,9 +4,10 @@
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/products.hrl").
+-include_lib("kvs/include/payments.hrl").
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
--include_lib("feed_server/include/records.hrl").
+-include_lib("kernel/include/file.hrl").
 -include("records.hrl").
 -include("states.hrl").
 
@@ -20,59 +21,66 @@ show(E) ->
     D = jq(document),
     D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
-feed_states() -> [].
-input_states() -> [].
-
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>},
                                       {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
+
+-define(FILE_DIR, "static/"++ case wf:user() of undefined-> "anonymous"; User -> User#user.email end ++"/files").
 
 body() ->
     Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
     wf:wire(#api{name=tabshow}),
     wf:wire(on_shown()),
-    wf:wire(show(case wf:qs(<<"tab">>) of undefined -> "'reviews'"; T ->  "'"++wf:to_list(T)++"'" end)),
+    User = wf:user(),
 
     index:header()++[
     #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, binary_to_list(Id)) of
-      {ok, P} ->
+    {ok, P} ->
         wf:session(product, P),
-        [
-        #panel{class=["row-fluid", "page-header"], body=[
-          #h4{class=[span9], style="line-height:30px;", body= [
-            #link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, #small{body=[[
-            begin
-              Name = case kvs:get(group,I) of {ok, G}-> G#group.name; _ -> "noname" end,
-              [<<" | ">>, #link{url="/store?id="++I, body=[#span{class=["icon-asterisk"]},Name]}]
-            end
-          ] || #group_subscription{where=I} <- kvs_group:participate(P#product.id)]} ]},
+        Owner = case User of undefined -> false; _ -> P#product.owner == User#user.email end,
 
-          #panel{class=[span3, "input-append"], style="margin:10px 0", body=[
-            #textbox{id="search-button", placeholder= <<"Search">>},
-            #button{class=[btn], body= <<"Go!">>}
-          ]}
-        ]},
+        [#panel{class=["row-fluid", "page-header"], body=[
+            #h4{class=[span9], style="line-height:30px;", body= [
+                #link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, 
+                #small{body=[[begin
+                    Name = case kvs:get(group,I) of {ok, G}-> G#group.name; _ -> "noname" end,
+                    [<<" | ">>, #link{url="/store?id="++I, body=[#span{class=["icon-asterisk"]},Name]}]
+                end] || #group_subscription{where=I} <- kvs_group:participate(P#product.id)]} ]},
+
+            #panel{class=[span3, "input-append"], style="margin:10px 0", body=[
+                #textbox{id="search-button", placeholder= <<"Search">>},
+                #button{class=[btn], body= <<"Go!">>} ]} ]},
+
         #section{class=[section, alt], body=#panel{class=[container], body=[
             #product_hero{product=P},
             #list{class=[nav, "nav-tabs", "sky-nav", "entry-type-tabs"], body=[
-                #li{body=#link{data_fields=?DATA_TAB, url= "#"++wf:to_list(Feed), body=wf:to_list(Feed)}}
-                || {Feed, _Fid} <- P#product.feeds, Feed /= comments ]}
+                [#li{class= if Feed == reviews -> ["active"]; true -> [] end,
+                    body=#link{data_fields=?DATA_TAB, url= "#"++wf:to_list(Feed), body=wf:to_list(Feed)}}
+                    || {Feed, _Fid} <- P#product.feeds, Feed /= comments andalso Feed /= bundles],
+                if Owner -> [
+                    #li{body=#link{data_fields=?DATA_TAB, url="#files", body= <<"files">> }},
+                    #li{body=#link{data_fields=?DATA_TAB, url="#finance", body= <<"finance">> }}]; true -> [] end
+            ]} ]}},
 
-        ]}},
-        #section{class=[section], body=#panel{class=[container], body=#panel{class=["row-fluid"], body=[
-          #panel{class=[span9], body= #panel{class=["tab-content"], body=[
-            begin
-            Active = if Feed == reviews -> "active"; true -> "" end,
-            #panel{id=Feed, class=["tab-pane", Active], body=[
-                if Feed == reviews -> feed(P, Fid); true -> [] end
-            ]} end || {Feed, _}=Fid <- P#product.feeds]}},
-          #panel{class=[span3], body=aside()}
-        ]}}} ];
-      {error, E} -> #panel{class=[alert, "alert-danger","alert-block"], body=[
+        #section{class=[section], body=
+            #panel{class=[container], body=
+                #panel{class=["row-fluid"], body=[
+                    #panel{class=[span9], body=
+                        #panel{class=["tab-content"], body=[
+                            [begin
+                                Active = if Feed == reviews -> "active"; true -> "" end,
+                                #panel{id=Feed, class=["tab-pane", Active], body=[
+                                    if Feed == reviews -> feed(P, Fid); true -> [] end]}
+                            end || {Feed, _}=Fid <- P#product.feeds, Feed /= bundles],
+                            if Owner -> [
+                                #panel{id=files, class=["tab-pane"], body=files(P)},
+                                #panel{id=finance, class=["tab-pane"], body=payments(P)}]; true -> [] end
+                        ]}},
+                    #panel{class=[span3], body=aside()} ]}}} 
+        ];
+    {error, E} -> #panel{class=[alert, "alert-danger","alert-block"], body=[
         #button{class=[close], data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>},
-        #strong{body= atom_to_list(E)} ]}
-    end
-  }}]++index:footer().
+        #strong{body= atom_to_list(E)} ]} end }}]++index:footer().
 
 feed(#product{} = P, {Tab, Id})->
     User = case wf:user() of undefined -> #user{}; U -> U end,
@@ -91,26 +99,67 @@ feed(#product{} = P, {Tab, Id})->
             #input{icon="", state = Is};
         true -> [] end]}.
 
+payments(P) -> [
+    #table{class=[table, "table-hover", payments],
+      header=[#tr{cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>}, #th{body= <<"Price">>}, #th{body= <<"User">>}]}],
+      body=[[begin
+        #tr{cells= [
+          #td{body= [product_ui:to_date(Py#payment.start_time)]},
+          #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],body= [atom_to_list(Py#payment.state)]},
+          #td{body=[case Cur of "USD"-> #span{class=["icon-usd"]}; _ -> #span{class=["icon-money"]} end, float_to_list(Price/100, [{decimals, 2}])]},
+          #td{body=#link{body=User, url= "/profile?id="++wf:to_list(User)}}]}
+      end || #payment{user_id=User, product=#product{price=Price, currency=Cur}} = Py <-kvs:all_by_index(payment, product_id, P#product.id) ]]}
+    ].
+
+files(P)->
+    case lists:keyfind(bundles, 1, P#product.feeds) of false->[];
+    {_,Fid}->
+        State = ?FD_STATE(Fid)#feed_state{view=files,
+            enable_selection=true,
+            delegate=product},
+
+        Is = #input_state{id=?FD_INPUT(Fid),
+            fid=Fid,
+            show_upload = true,
+            show_recipients = false,
+            show_title = false,
+            show_body=true,
+            media_thumbs = false,
+            upload_title= <<"Title">>,
+            upload_dir= ?FILE_DIR,
+            post_upload = attach_file,
+            delegate_query = product,
+            img_tool = undefined,
+            entry_type=bundles,
+            recipients=[{product, P#product.id, lists:keyfind(bundles, 1, P#product.feeds)}],
+            control_title = <<"upload file">>
+        },
+        wf:session(Fid, State),
+        wf:session(?FD_INPUT(Fid),Is),
+
+        #feed_ui{title="product files", state=State, header=[#input{state=Is}]} end.
+
 aside()->
     DiscussionState = ?FD_STATE(?FEED(comment))#feed_state{
         flat_mode=true,
         view=comment,
         entry_type=comment,
         entry_id=#comment.comment_id},
+
     EntriesState = ?FD_STATE(?FEED(entry))#feed_state{
         flat_mode=true,
         entry_id=#entry.entry_id},
 
     #aside{class=[sidebar], body=[
-      #panel{class=["sidebar-widget"], body=[
-        #feed_ui{
-            title = <<"More shooters">>,
-            state = EntriesState } ]},
+%      #panel{class=["sidebar-widget"], body=[
+%        #feed_ui{
+%            title = <<"More shooters">>,
+%            state = EntriesState } ]},
 
-      #panel{class=["sidebar-widget"], body=[
-        #feed_ui{
-            title = <<"Recent posts">>,
-            state = EntriesState } ]},
+%      #panel{class=["sidebar-widget"], body=[
+%        #feed_ui{
+%            title = <<"Recent posts">>,
+%            state = EntriesState } ]},
 
       #panel{class=["sidebar-widget"], body=[
         #feed_ui{
@@ -122,6 +171,16 @@ aside()->
 controls(#entry{type=Type} =  E) -> [
   #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
 
+
+% Render file entries
+
+render_element(#div_entry{entry=E, state=#feed_state{view=files}=S})->
+    Uid = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
+    Panel =#panel{class=["file-entry"],body=[
+        #p{id=?EN_DESC(Uid), body=E#entry.description},
+        [#entry_media{media=M, mode=files} ||M <- E#entry.media]
+    ]},
+    element_panel:render_element(Panel);
 
 % Render blog view
 
@@ -144,7 +203,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
 
         #footer{class=["blog-footer", "row-fluid"], body=[
             #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
-                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
+                #span{class=[?EN_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
                 postback={read, entry, Id}},
             #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}],
                 postback={read, entry, Eid}} ]} ]},
@@ -211,7 +270,21 @@ api_event(tabshow,Args,_) ->
     case lists:keyfind(list_to_atom(Id), 1, P#product.feeds) of false -> ok;
     {_,_}=Tab -> wf:update(list_to_atom(Id), feed(P, Tab)) end,
     wf:wire("Holder.run();");
+
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
+
+control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
+    FileName = filename:join([Root,Dir,binary_to_list(File)]),
+
+    {exist, case file:read_file_info(FileName) of {error, _} -> 0;
+    {ok, FileInfo} ->
+        Url = filename:join([Dir,binary_to_list(File)]),
+        Media = #media{id=element_upload:hash(FileName), url = Url, type ={attachment,MimeType}},
+        wf:session(medias, [Media]),
+        error_logger:info_msg("[product]query_file ~p", [Media]),
+        wf:update(Target, input:media_preview(Target, [Media])),
+        wf:wire("Holder.run();"),
+        FileInfo#file_info.size end}.
 
 process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc, media=Media}=E) ->
   wf:session(medias, []),

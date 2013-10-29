@@ -6,8 +6,6 @@
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/membership.hrl").
--include_lib("feed_server/include/records.hrl").
-
 -include("records.hrl").
 -include("states.hrl").
 
@@ -49,7 +47,7 @@ render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=pro
             #p{body=#link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
             #p{body=[#span{body= product_ui:to_date(E#entry.created)} ]},
             #p{body=[
-                #span{class=[?ID_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(product, Eid))},
+                #span{class=[?EN_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(product, Eid))},
                 #i{class=["icon-comment-alt", "icon-large"]},
 
                 #i{class=["icon-usd", "icon-large"]},

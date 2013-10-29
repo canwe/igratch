@@ -1,10 +1,8 @@
 -module(myreviews).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
--include_lib("feed_server/include/records.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kvs/include/users.hrl").
-
 -include("records.hrl").
 -include("states.hrl").
 

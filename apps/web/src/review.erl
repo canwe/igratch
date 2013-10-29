@@ -5,8 +5,6 @@
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/groups.hrl").
--include_lib("feed_server/include/records.hrl").
-
 -include("records.hrl").
 -include("states.hrl").
 
@@ -89,7 +87,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=detached}=Sta
 
         #panel{class=[comments, "row-fluid"], body=[
             #feed_ui{icon="icon-comments-alt",
-                title=[#span{class=[?ID_CM_COUNT(Eid)], body=[integer_to_list(kvs_feed:comments_count(entry, Eid))]}, <<" comments">>],
+                title=[#span{class=[?EN_CM_COUNT(Eid)], body=[integer_to_list(kvs_feed:comments_count(entry, Eid))]}, <<" comments">>],
                 state=CmState},
             #input{state=Is}
        ]}
@@ -123,7 +121,7 @@ render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
     wf:session(?FD_INPUT(Fid), Is),
 
     InnerFeed = #feed_ui{state=CmState, class="comments",  header=[
-        #input{state=Is, role=comment, class=["comment-reply"], expand_class=[]}]},
+        #input{state=Is, class=["comment-reply"]}]},
 
     wf:render([
         #panel{class=[media, "media-comment"], body=[

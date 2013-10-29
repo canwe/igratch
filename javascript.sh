@@ -19,4 +19,7 @@ create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/reviews-
 "/|jquery.tinymce.min.js|jquery-scrolltofixed.js|bootstrap-upload.js|bootstrap-carousel.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js|bootstrap-alert.js|bootstrap-affix.js"
 create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/index-bs.min.js \
 "/|jquery.tinymce.min.js|jquery-scrolltofixed.js|bootstrap-upload.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js|bootstrap-alert.js|bootstrap-affix.js"
+create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/login-bs.min.js \
+"/|jquery.tinymce.min.js|jquery-scrolltofixed.js|bootstrap-upload.js|bootstrap-carousel.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js|bootstrap-affix.js"
+
 create_script deps/n2o/priv/static/n2o apps/web/priv/static/js/all.min.js "/|all.js|zepto.js"

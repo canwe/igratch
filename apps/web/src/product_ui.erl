@@ -69,10 +69,15 @@ render_element(#product_hero{product=P}) ->
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
         #panel{class=["btn-toolbar", "text-center"], body=[
             if Bought ->
-                #link{class=[btn, "btn-large", "btn-success"],
-                    body=[#i{class=["icon-windows", "icon-large"]},<<" download">>],
-                    url="/static/css/index.css",
-                    download=["index.css"]};
+                case lists:keyfind(bundles, 1, P#product.feeds) of false -> [];
+                {_, Fid} ->
+                    case kvs:entries(kvs:get(feed, Fid), entry, 1) of [] -> [];
+                    [#entry{media=[#media{url=Url}]}] ->
+                        error_logger:info_msg("URL: ~p", [Url]),
+                        #link{class=[btn, "btn-large", "btn-success"],
+                                body=[#i{class=["icon-windows", "icon-large"]},<<" download">>],
+                                url=Url,
+                                download=[filename:basename(Url)]} end end;
             true ->
                 #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
                     body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }],

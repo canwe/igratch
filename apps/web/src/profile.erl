@@ -7,8 +7,8 @@
 -include_lib("kvs/include/acls.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include_lib("kernel/include/file.hrl").
--include_lib("feed_server/include/records.hrl").
 -include("records.hrl").
+-include("states.hrl").
 
 main() -> [#dtl{file = "prod",  ext="dtl", bindings=[{title,<<"Profile">>},
                                                      {body,body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}].

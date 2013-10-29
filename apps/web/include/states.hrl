@@ -1,4 +1,5 @@
--include_lib("kvs/include/kvs.hrl").
+-include_lib("feed_ui/include/input.hrl").
+-include_lib("feed_ui/include/feed.hrl").
 
 % My Games
 
@@ -13,12 +14,12 @@
                                         entry_type=product,
                                         show_upload=true,
                                         show_price=true,
-                                        class= "feed-table-header",
+                                        upload_dir = ?DIR(case wf:user() of undefined -> "anonymous"; #user{email=E}->E end),
+                                        class= ["feed-table-header"],
                                         control_title = <<"Create">>,
                                         post_btn = <<"create">>,
                                         placeholder_rcp= <<"Categories">>,
-                                        placeholder_ttl= <<"Game title">>,
-                                        placeholder_box= <<"Brief description">> }).
+                                        placeholder_ttl= <<"Game title">> }).
 % My reviews
 -define(MYREVIEWS_FEED(Id), ?FD_STATE(Id)#feed_state{view=review,
                                                      %entry_id=#entry.entry_id,
@@ -31,7 +32,7 @@
                                           entry_type=review,
                                           control_title= <<"Submit review">>,
                                           placeholder_rcp= <<"Games">>,
-                                          class= "feed-table-header"}).
+                                          class= ["feed-table-header"]}).
 
 % Index 
 
@@ -69,7 +70,7 @@
                                                      show_title = false,
                                                      show_media = false,
                                                      control_title = <<"Add your comment">>,
-                                                     class = "comments-form"}).
+                                                     class = ["comments-form"]}).
 
 -define(REPLY_INPUT(Id, Recipients), #input_state{id=?FD_INPUT(Id),
                                                   fid = Id,
@@ -81,7 +82,7 @@
                                                   collapsed = true,
                                                   post_collapse = true,
                                                   role=comment,
-                                                  class= "comment-reply",
+                                                  class= ["comment-reply"],
                                                   expand_btn= [<<"reply">>, #i{class=["icon-reply"]}]}).
 
 % Cart
@@ -99,7 +100,7 @@
                                     fid = Id,
                                     role=product,
                                     placeholder_ttl= <<"Title">>,
-                                    class= "feed-table-header",
+                                    class= ["feed-table-header"],
                                     show_recipients=false,
                                     collapsed=true}).
 
@@ -115,7 +116,6 @@
                                     entry_type=group,
                                     control_title= <<"Add category">>,
                                     placeholder_ttl= <<"name">>, 
-                                    placeholder_box= <<"description">>,
                                     show_recipients=false,
                                     show_scope=true,
                                     show_media=false}).
@@ -135,3 +135,16 @@
                                                                  enable_selection=true,
                                                                  enable_traverse=true,
                                                                  html_tag=table}).
+
+% 0000000000000000
+-define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{
+    view=direct,
+    html_tag=panel,
+    enable_selection=true,
+    enable_traverse=true}).
+
+-define(REVIEW_STATE(Id), ?FD_STATE(Id)#feed_state{
+    view = review,
+    html_tag= panel}).
+
+
