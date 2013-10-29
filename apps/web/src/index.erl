@@ -9,11 +9,18 @@
 -include("records.hrl").
 -include("states.hrl").
 
--jsmacro([on_show/0,show/1]).
+-jsmacro([on_shown/0,show/1]).
 
-on_show() ->
+on_shown() ->
     X = jq("a[data-toggle=\"tab\"]"),
-    X:on("show", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
+    X:on("shown", fun(E) -> 
+        T = jq(E:at("target")),
+        Id = T:attr("href"),
+        case Id of all -> All = jq("a[href=\"#all\"]"), All:removeClass("text-warning");
+        _ -> P = T:parent(),PP = P:parent(),Tw =PP:find('.text-warning'), Tw:removeClass('text-warning') end,
+        T:addClass('text-warning'),
+        Sib = T:siblings(), Sib:removeClass('text-warning'),
+        tabshow(Id) end).
 
 show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 

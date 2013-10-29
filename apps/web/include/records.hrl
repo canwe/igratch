@@ -2,16 +2,19 @@
 
 -define(ROOT, code:priv_dir(web)).
 
--define(CSS, "/static/css/igratch.css").
--define(LESS, "/static/igratch/igratch.less").
--define(REVIEWS_CSS, "/static/css/reviews.css").
--define(REVIEWS_LESS, "/static/igratch/reviews.less").
--define(BOOTSTRAP, "/static/js/bootstrap.min.js").
--define(REVIEWS_BOOTSTRAP, "/static/js/reviews-bs.min.js").
--define(INDEX_CSS, "/static/css/index.css").
--define(INDEX_LESS, "/static/igratch/index.less").
--define(INDEX_BOOTSTRAP, "/static/js/index-bs.min.js").
--define(LOGIN_BOOTSTRAP, "/static/js/login-bs.min.js").
+-define(CSS,                "/static/css/igratch.css").
+-define(LESS,               "/static/igratch/igratch.less").
+-define(REVIEWS_CSS,        "/static/css/reviews.css").
+-define(REVIEWS_LESS,       "/static/igratch/reviews.less").
+-define(BOOTSTRAP,          "/static/js/bootstrap.min.js").
+-define(REVIEWS_BOOTSTRAP,  "/static/js/reviews-bs.min.js").
+-define(INDEX_CSS,          "/static/css/index.css").
+-define(INDEX_LESS,         "/static/igratch/index.less").
+-define(INDEX_BOOTSTRAP,    "/static/js/index-bs.min.js").
+-define(LOGIN_BOOTSTRAP,    "/static/js/login-bs.min.js").
+-define(PRODUCT_CSS,        "/static/css/igratch.css").
+-define(PRODUCT_BOOTSTRAP,  "/static/js/bootstrap.min.js").
+
 -define(PAGE_SIZE, 4).
 -define(BTN_INFO,       [btn, "btn-info"]).
 -define(BTN_SUCCESS,    [btn, "btn-success"]).

@@ -104,6 +104,19 @@
                                     show_recipients=false,
                                     collapsed=true}).
 
+-define(FILE_INPUT(Id), #input_state{id=?FD_INPUT(Id),
+                                     fid=Id,
+                                     show_upload = true,
+                                     show_recipients = false, show_title = false, show_body=true,
+                                     upload_title= <<"Title">>,
+                                     post_upload = attach_file,
+                                     delegate_query = product,
+                                     img_tool = undefined,
+                                     entry_type=bundles,
+                                     control_title = <<"upload file">>}).
+
+-define(FILE_STATE(Id), ?FD_STATE(Id)#feed_state{view=files,enable_selection=true,delegate=product}).
+
 % Admin
 
 -define(GROUPS_FEED, ?FD_STATE(?FEED(group))#feed_state{entry_type=group,
