@@ -22,7 +22,6 @@
                                         placeholder_ttl= <<"Game title">> }).
 % My reviews
 -define(MYREVIEWS_FEED(Id), ?FD_STATE(Id)#feed_state{view=review,
-                                                     %entry_id=#entry.entry_id,
                                                      enable_selection=true,
                                                      delegate=reviews}).
 
@@ -30,6 +29,7 @@
                                           fid = Id,
                                           role=product,
                                           entry_type=review,
+                                          upload_dir = ?DIR(case wf:user() of undefined -> "anonymous"; #user{email=E}->E end),
                                           control_title= <<"Submit review">>,
                                           placeholder_rcp= <<"Games">>,
                                           class= ["feed-table-header"]}).

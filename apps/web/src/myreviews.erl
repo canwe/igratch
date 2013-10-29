@@ -6,19 +6,10 @@
 -include("records.hrl").
 -include("states.hrl").
 
-feed_states()->
-    User = wf:user(),
-    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
-    case lists:keyfind(feed, 1, Feeds) of false -> []; {_, Id} -> [{Id, ?MYREVIEWS_FEED(Id)}] end.
-
-input_states()-> 
-    User = wf:user(),
-    Feeds = case User of undefined -> []; _-> element(#iterator.feeds, User) end,
-    case lists:keyfind(feed, 1, Feeds) of false -> []; {_, Id} -> [{Id, ?MYREVIEWS_INPUT(Id)}] end.
-
 title() -> <<"My reviews">>.
 
-main()-> #dtl{file="prod", bindings=[{title, title()},{body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
+main()-> #dtl{file="prod", bindings=[{title, title()},{body, body()},
+                                     {css,?MYREVIEW_CSS},{less,?LESS},{bootstrap, ?MYREVIEW_BOOTSTRAP}]}.
 
 body()->
     User = wf:user(),
@@ -28,9 +19,10 @@ body()->
     index:header() ++ dashboard:page(Nav,
         case lists:keyfind(feed, 1, Feeds) of false -> [];
         {_,Id}->
-            FeedState = proplists:get_value(Id, feed_states()),
-            InputState = proplists:get_value(Id, input_states()),
-
+            FeedState = case wf:session(Id) of undefined ->
+                Fs = ?MYREVIEWS_FEED(Id), wf:session(Id, Fs),Fs; FS -> FS end,
+            InputState = case wf:session(?FD_INPUT(Id)) of undefined -> 
+                Is = ?MYREVIEWS_INPUT(Id), wf:session(?FD_INPUT(Id), Is), Is; IS-> IS end,
             #feed_ui{title= title(),
                 icon="icon-list",
                 state=FeedState,

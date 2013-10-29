@@ -14,6 +14,8 @@
 -define(LOGIN_BOOTSTRAP,    "/static/js/login-bs.min.js").
 -define(PRODUCT_CSS,        "/static/css/igratch.css").
 -define(PRODUCT_BOOTSTRAP,  "/static/js/bootstrap.min.js").
+-define(MYREVIEW_CSS,        "/static/css/igratch.css").
+-define(MYREVIEW_BOOTSTRAP,  "/static/js/bootstrap.min.js").
 
 -define(PAGE_SIZE, 4).
 -define(BTN_INFO,       [btn, "btn-info"]).
