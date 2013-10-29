@@ -40,10 +40,10 @@ feed(Feed)->
     case lists:keyfind(case Feed of notifications -> direct; _-> Feed end, 1, element(#iterator.feeds, User)) of false->
         index:error("No feed "++wf:to_list(Feed));
     {_, Id} ->
-        State = case wf:session(Id) of undefined ->
-            Fs = ?DIRECT_STATE(Id), wf:session(Id, Fs), Fs; FS->FS end,
-        InputState = case wf:session(?FD_INPUT(Id)) of undefined ->
-            Is = ?DIRECT_INPUT(Id), wf:session(?FD_INPUT(Id), Is), Is; IS->IS end,
+        State = case wf:session({Id,?CTX#context.module}) of undefined ->
+            Fs = ?DIRECT_STATE(Id), wf:session({Id,?CTX#context.module}, Fs), Fs; FS->FS end,
+        InputState = case wf:session({?FD_INPUT(Id),?CTX#context.module}) of undefined ->
+            Is = ?DIRECT_INPUT(Id), wf:session({?FD_INPUT(Id),?CTX#context.module}, Is), Is; IS->IS end,
         #feed_ui{title=title(Feed),
                  icon=icon(Feed),
                  state=State,

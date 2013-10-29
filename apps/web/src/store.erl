@@ -17,61 +17,62 @@ on_show() ->
 
 show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
-feed_states()-> [
-    {?FEED(product), ?PRODUCTS_FEED} |
-    [case lists:keyfind(products, 1, Feeds) of false -> {ok, ok};
-    {_,Id} -> {Id, ?STORE_FEED(Id)} end || #group{scope=Scope, feeds=Feeds} <- kvs:all(group), Scope==public] ].
-
 main()->#dtl{file="prod", bindings=[{title,<<"Store">>},{body,body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
 
 body()->
     wf:wire(#api{name=tabshow}),
     wf:wire(on_show()),
-    wf:wire(show(case wf:qs(<<"id">>) of undefined -> "'all'"; T ->  "'"++wf:to_list(T)++"'" end)),
-    Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
+
+    Groups = lists:flatmap(fun(#group{scope=Scope, feeds=Feeds, name=Name})->
+        case lists:keyfind(products,1, Feeds) of
+        {_,Fid} when Scope==public ->
+            case wf:session({Fid,?CTX#context.module}) of undefined -> wf:session({Fid,?CTX#context.module}, ?STORE_FEED(Fid)), [{Name, Fid}];
+                _-> [{Name,Fid}] end; _ -> [] end end, kvs:all(group)),
+
+    All = case wf:session({?FEED(product),?CTX#context.module}) of undefined ->
+        FS = ?PRODUCTS_FEED, wf:session({?FEED(product),?CTX#context.module},FS), FS; F->F end,
 
     index:header() ++ [
     #section{class=[section], body=[
         #panel{class=[container], body=[
-            #link{url="#all", data_fields=?DATA_TAB},
+            #h4{class=[span12, "page-header-sm"], body=[
+                    #link{url="#all", body=[#i{class=["icon-home"]}], data_fields=?DATA_TAB},
+                    #small{body=[[<<" / ">>, #link{url="#"++wf:to_list(Fid), body=[
+                        #i{class=["icon-asterisk"]}, Name], data_fields=?DATA_TAB}] || {Name,Fid} <- Groups]} ]},
 
             #panel{class=["row-fluid"], body=[
                 #panel{class=[span9, "tab-content"], body=[
-                    #panel{id=all, class=["tab-pane"]},
-                    [#panel{id=Id, class=["tab-pane"]} || #group{id=Id} <- Groups] ]},
+                    #panel{id=all, class=["tab-pane", active], body=[
+                        #feed_ui{icon=["icon-home ", "icon-large ", "text-warning"],
+                                icon_url="#all",
+                                title=[],
+                                state=All}]},
+                    [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups]]},
                 #panel{class=[span3]}]} ]} ]} ] ++ index:footer().
 
-header(Groups, Current) -> [
-    lists:dropwhile(fun(E)-> E== <<" / ">> end, [begin [ <<" / ">>,
-        #link{url="#"++Id, body=[#span{class=["icon-asterisk"]}, Name],
-            data_fields=?DATA_TAB,
-            class=[if Current==Id-> "text-warning"; true -> "" end]}]
-    end || #group{id=Id, name=Name} <- Groups])].
+%header(Groups, Current) -> [
+%    lists:dropwhile(fun(E)-> E== <<" / ">> end, [begin [ <<" / ">>,
+%        #link{url="#"++Id, body=[#span{class=["icon-asterisk"]}, Name],
+%            data_fields=?DATA_TAB,
+%            class=[if Current==Id-> "text-warning"; true -> "" end]}]
+%    end || #group{id=Id, name=Name} <- Groups])].
 
-feed(Group) ->
-    Groups = [G || #group{scope=Scope}=G <- kvs:all(group), Scope==public],
-    State = case kvs:get(group, Group) of {error,_} -> ?PRODUCTS_FEED;
-        {ok, G} -> case lists:keyfind(products, 1, element(#iterator.feeds, G)) of false -> false;
-            {_, Id} -> ?STORE_FEED(Id) end end,
-
-    #feed_ui{icon=["icon-home ", "icon-large ", if Group =="all"-> "text-warning"; true-> "" end],
-        icon_url="#all",
-        title=[header(Groups, Group)],
-        state=State}.
+feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:session({Fid,?CTX#context.module})}.
 
 %% Render store elements
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}) ->
     case kvs:get(product, E#entry.entry_id) of {error, _} -> wf:render(#panel{body= <<"error displaying item">>});
     {ok, P} ->
         Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
-        store_element(Id, P, State) end;
+        store_element(Id, P) end;
 
 render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}=State}) ->
     Id = wf:to_list(erlang:phash2(element(#product.id, P))),
-    store_element(Id, P, State);
+    store_element(Id, P);
+
 render_element(E)-> error_logger:info_msg("[store] render -> feed_ui"),feed_ui:render_element(E).
 
-store_element(Id, P,State) ->
+store_element(Id, P) ->
     Media = media(P#product.cover),
 
     {FromId, From} = case kvs:get(user, P#product.owner) of
@@ -107,8 +108,7 @@ store_element(Id, P,State) ->
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    wf:update(list_to_atom(Id), feed(Id)),
-    wf:wire(on_show()),
+    case Id of "all" -> []; _ -> wf:update(Id, feed(list_to_integer(Id))) end,
     wf:wire("Holder.run();").
 
 event(init) -> wf:reg(?MAIN_CH),[];
@@ -127,6 +127,7 @@ event({add_cart, #product{}=P}) ->
             title = P#product.title,
             description = P#product.brief,
             medias=[media(P#product.cover)]},
+
         input:event({post, cart, Is}) end;
 
 event(Event) -> error_logger:info_msg("[store]Page event: ~p", [Event]), ok.

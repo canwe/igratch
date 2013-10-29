@@ -19,10 +19,10 @@ body()->
     index:header() ++ dashboard:page(Nav,
         case lists:keyfind(feed, 1, Feeds) of false -> [];
         {_,Id}->
-            FeedState = case wf:session(Id) of undefined ->
-                Fs = ?MYREVIEWS_FEED(Id), wf:session(Id, Fs),Fs; FS -> FS end,
-            InputState = case wf:session(?FD_INPUT(Id)) of undefined -> 
-                Is = ?MYREVIEWS_INPUT(Id), wf:session(?FD_INPUT(Id), Is), Is; IS-> IS end,
+            FeedState = case wf:session({Id,?CTX#context.module}) of undefined ->
+                Fs = ?MYREVIEWS_FEED(Id), wf:session({Id,?CTX#context.module}, Fs),Fs; FS -> FS end,
+            InputState = case wf:session({?FD_INPUT(Id),?CTX#context.module}) of undefined -> 
+                Is = ?MYREVIEWS_INPUT(Id), wf:session({?FD_INPUT(Id),?CTX#context.module}, Is), Is; IS-> IS end,
             #feed_ui{title= title(),
                 icon="icon-list",
                 state=FeedState,

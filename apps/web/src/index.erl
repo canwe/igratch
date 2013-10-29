@@ -39,13 +39,13 @@ body() ->
     Groups = lists:flatmap(fun(#group{scope=Scope, feeds=Feeds, name=Name})->
         case lists:keyfind(feed,1, Feeds) of
         {_,Fid} when Scope==public ->
-            case wf:session(Fid) of undefined -> wf:session(Fid, ?REVIEWS_FEED(Fid)), [{Name, Fid}];
+            case wf:session({Fid,?CTX#context.module}) of undefined -> wf:session({Fid,?CTX#context.module}, ?REVIEWS_FEED(Fid)), [{Name, Fid}];
                 _-> [{Name,Fid}] end; _ -> [] end end, kvs:all(group)),
 
-    All = case wf:session(?FEED(entry)) of undefined ->
-        FS = ?ENTRIES_FEED, wf:session(?FEED(entry),FS), FS; F->F end,
-    Discus = case wf:session(?FEED(comment)) of undefined ->
-        AS= ?ACTIVE_FEED, wf:session(?FEED(comment), AS),AS; A->A end,
+    All = case wf:session({?FEED(entry),?CTX#context.module}) of undefined ->
+        FS = ?ENTRIES_FEED, wf:session({?FEED(entry),?CTX#context.module},FS), FS; F->F end,
+    Discus = case wf:session({?FEED(comment),?CTX#context.module}) of undefined ->
+        AS= ?ACTIVE_FEED, wf:session({?FEED(comment),?CTX#context.module}, AS),AS; A->A end,
 
     header() ++ [
         #section{class=["container-fluid", featured], body=#panel{id=carousel, class=[container], body=featured()}},
@@ -73,7 +73,7 @@ body() ->
                                         class="comments-flat",
                                         state=Discus} ]}]}]}]}]}] ++ footer().
 
-feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:session(Fid)}.
+feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:session({Fid,?CTX#context.module})}.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
