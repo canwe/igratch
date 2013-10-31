@@ -36,9 +36,10 @@ body()->
     #section{class=[section], body=[
         #panel{class=[container], body=[
             #h4{class=[span12, "page-header-sm"], body=[
-                    #link{url="#all", body=[#i{class=["icon-home"]}], data_fields=?DATA_TAB},
-                    #small{body=[[<<" / ">>, #link{url="#"++wf:to_list(Fid), body=[
-                        #i{class=["icon-asterisk"]}, Name], data_fields=?DATA_TAB}] || {Name,Fid} <- Groups]} ]},
+                #link{url="#all", body=[#i{class=["icon-home", "icon-large", "text-warning"]}], data_fields=?DATA_TAB},
+                #small{body= string:join([wf:to_list(wf:render(
+                    #link{url="#"++wf:to_list(Fid),body=[#i{class=["icon-asterisk"]}, Name], data_fields=?DATA_TAB})) 
+                        || {Name,Fid} <- Groups], " / ")} ]},
 
             #panel{class=["row-fluid"], body=[
                 #panel{class=[span9, "tab-content"], body=[
@@ -50,13 +51,6 @@ body()->
                     [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups]]},
                 #panel{class=[span3]}]} ]} ]} ] ++ index:footer().
 
-%header(Groups, Current) -> [
-%    lists:dropwhile(fun(E)-> E== <<" / ">> end, [begin [ <<" / ">>,
-%        #link{url="#"++Id, body=[#span{class=["icon-asterisk"]}, Name],
-%            data_fields=?DATA_TAB,
-%            class=[if Current==Id-> "text-warning"; true -> "" end]}]
-%    end || #group{id=Id, name=Name} <- Groups])].
-
 feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:session({Fid,?CTX#context.module})}.
 
 %% Render store elements
@@ -66,7 +60,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}
         Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
         store_element(Id, P) end;
 
-render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}=State}) ->
+render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}}) ->
     Id = wf:to_list(erlang:phash2(element(#product.id, P))),
     store_element(Id, P);
 

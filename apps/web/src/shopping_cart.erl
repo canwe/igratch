@@ -1,85 +1,111 @@
 -module(shopping_cart).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
+-include_lib("kvs/include/payments.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/groups.hrl").
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 -include("states.hrl").
-
-feed_states() ->
-    User = wf:user(),
-
-    Cart = case lists:keyfind(cart, 1, element(#iterator.feeds, User)) of false -> [];
-    {_,Fid}-> [{Fid, ?CART_STATE(Fid)}] end,
-
-    Wishlist =case lists:keyfind(wishlist, 1, element(#iterator.feeds, User)) of false -> [];
-    {_, Wid} -> [{Wid, ?CART_STATE(Wid)#feed_state{view=store}}] end,
-
-    Cart++Wishlist.
+-include("paypal.hrl").
 
 main() -> #dtl{file="prod", bindings=[{title,<<"shopping cart">>},
-                                      {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
+                                      {body, body()},{css,?CART_CSS},{less,?LESS},{bootstrap, ?CART_BOOTSTRAP}]}.
 
-body()-> index:header() ++ [
+body()->
+    case wf:user() of undefined -> wf:redirect("/login");
+    User ->
+    State = case lists:keyfind(cart, 1, element(#iterator.feeds, User)) of false -> undefined;
+        {_, Cid} -> case wf:session({Cid, ?CTX#context.module}) of undefined ->
+            CS = ?CART_STATE(Cid), wf:session({Cid, ?CTX#context.module},CS), CS; Cs-> Cs end end,
+
+    WishState = case lists:keyfind(wishlist, 1, element(#iterator.feeds, User)) of false -> undefined;
+        {_, Wid} -> case wf:session({Wid, ?CTX#context.module}) of undefined ->
+            Ws = ?CART_STATE(Wid)#feed_state{view=store}, wf:session({Wid, ?CTX#context.module}, Ws), Ws; WS-> WS end end,
+
+    index:header() ++ [
     #section{class=[section], body=[
         #panel{class=[container], body=[
+            #h4{class=["row-fluid", "page-header-sm"], body=[
+                #link{class=?BTN_INFO, body= <<"continune shopping">>, url="/store"},
+                #small{id=alert, body=case wf:qs(<<"token">>) of undefined -> <<"">>; Tk ->
+                    case paypal:get_express_details([{"TOKEN", Tk}]) of {error,E} ->
+                        alert("payment " ++ proplists:get_value(?PP_TRANSACTION, E) 
+                            ++" "++ proplists:get_value(?PP_ACK, E)
+                            ++ " "++ proplists:get_value(?PP_ERROR_MSG,E));
+                    Details ->
+                        CorrelationId = proplists:get_value(?PP_TRANSACTION, Details),
+                        CheckoutStatus = proplists:get_value(?PP_STATUS, Details),
+                        alert("payment " ++ CorrelationId ++ " status:" ++CheckoutStatus) end end}]},
+
             #panel{class=["row-fluid"], body=[
-            case wf:user() of undefined -> wf:redirect("/login");
-            User -> States = feed_states(),
-                [
                 #panel{class=[span9], body=[
-                    case lists:keyfind(cart, 1, element(#iterator.feeds, User)) of false -> [];
-                    {_, CId} ->
-                        State = proplists:get_value(CId, States),
-                        #feed_ui{title= <<"shopping cart">>,
+                    #feed_ui{title= <<"shopping cart">>,
                             icon="icon-shopping-cart icon-large blue",
-                            selection_ctl=checkout_ctl(State),
-                            state=State,
-                            header=#panel{class=["btn-toolbar"], body=[
-                                #link{class=?BTN_INFO, body= <<"continune shopping">>, url="/store"}]}} end,
+                            state=State},
+
                     #panel{class=["hero-unit", "clearfix"], body= <<"">>},
-                    case lists:keyfind(wishlist, 1, element(#iterator.feeds, User)) of false -> [];
-                    {_, WId} ->
                         #feed_ui{title= <<"whish list">>,
                             icon="icon-list blue",
-                            state=proplists:get_value(WId, States),
-                            header=[]} end]},
+                            state=WishState,
+                            header=[]}]},
 
-                #panel{class=[span3], body=[
-                    #h3{class=["text-center"],body=#span{class=["text-warning"],body= <<"Order Summary">>}},
-                    #panel{id=?USR_ORDER(User#user.id), body=order_summary()}]} ] end ]}]}]}] ++ index:footer().
+                #panel{id=?USR_ORDER(State#feed_state.container_id), class=[span3], body=order_summary(State)} ]}]}]}
+    ] ++ index:footer() end.
 
-order_summary() -> order_summary(undefined).
-order_summary(S)->
-    {Items, Total} = order_products(S),
-    #panel{class=["well","pricing-table", "product-price", "text-center"], body=[
+order_summary(#feed_state{visible_key=Visible}=S) ->
+    case wf:session(Visible) of [] ->
+        case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_} -> ok;
+            {ok, Feed} -> Entries = kvs:entries(Feed, S#feed_state.entry_type, S#feed_state.page_size),
+                wf:session(Visible, [element(S#feed_state.entry_id, E)|| E<-Entries]) end; _-> ok end,
+
+    {Items, Total} = lists:mapfoldl(fun({Id,_}, In)->
+        case kvs:get(product,Id) of {error,_} -> {[], In};
+            {ok, #product{price=Price, title=Title}} -> {
+                [#panel{body=[#b{body=Title}, #span{class=["pull-right"], body=[
+                    #span{class=["icon-usd"]},
+                    float_to_list(Price/100, [{decimals,2}]) ]}]}
+                ], In+Price} end end,
+        0, [Pid || Pid <- ordsets:from_list(case wf:session(Visible) of undefined->[];I->I end)]),
+
+    #panel{class=[well, "pricing-table", "affix-top"],
+           style="width:230px",
+           data_fields=[{<<"data-spy">>, <<"affix">>}],
+           body=[
+        #h4{class=["text-warning", "text-center"], body= <<"Order Summary">>},
+        #hr{},
         Items,
-        #h3{body= <<"Estimated total: ">>},
-        #h3{class=["pricing-table-price", "product-price-price"], body=[
-            #span{class=["icon-usd"]}, float_to_list(Total/100, [{decimals, 2}]) ]},
-        #link{class=[btn, "btn-warning"], body= <<"checkout">>, postback={checkout, S}}
-    ]}.
+        if Total > 0 -> #hr{}; true -> [] end,
+        #panel{body=[
+            #b{body= <<"Estimated total: ">>},
+            #span{class=["pull-right"],
+                  body=[#i{class=["icon-usd"]}, float_to_list(Total/100, [{decimals,2}])]} ]},
+        #hr{},
+        #link{class=[btn, "btn-block", if Total == 0 -> disabled; true -> "" end],
+            postback={checkout, Visible},
+            body=[#image{image="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif"}]} 
+    ]};
+order_summary(undefined)->[].
 
-order_products(#feed_state{selected_key=Selected, visible_key=Visible})->
-    Selection = sets:from_list(wf:session(Selected)),
-    Products = lists:flatten([case kvs:get(product,Pid) of {error,_}->[];{ok, P}-> P end
-        || {Pid,_}=Id <- ordsets:from_list(wf:session(Visible)), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)]),
+alert(Msg) ->
+    #span{class=[alert, fade, in, "alert-danger"],
+        style ="margin-left:10px;",body=[
+        #span{body= Msg},
+        #link{class=[close], url="#", 
+              data_fields=[{<<"data-dismiss">>,<<"alert">>}],
+              style="float:none;top:0;",
+              body= <<"&times;">>}]}.
 
-    lists:mapfoldl(fun(#product{}=P, In)-> {
-        [#h4{body=P#product.title},
-         #list{class=["pricing-table-list", "product-price-list", unstyled], body=[
-            #li{body= [#span{class=["icon-usd"]},
-                float_to_list(P#product.price/100, [{decimals, 2}])]}]}],
-        In+P#product.price} end, 0, Products);
-order_products(undefined)-> {<<"">>, 0}.
+%% Render elements
 
-cart_item(P, State) ->
-    Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
-    wf:render([
-        #panel{id=?EN_MEDIA(Id), class=[span4, "media-pic"], style="margin:0;",
-            body=#entry_media{media=media(P#product.cover), mode=store}},
+render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=cart}=State}) ->
+    wf:render(case kvs:get(product, E#entry.entry_id) of
+    {ok, P} ->
+        Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
+        error_logger:info_msg("Id: ~p", [Id]),
+        [#panel{id=?EN_MEDIA(Id), class=[span4, "media-pic"], style="margin:0;",
+            body=#entry_media{media=store:media(P#product.cover), mode=store}},
 
         #panel{class=[span5, "article-text"], body=[
             #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=
@@ -90,38 +116,16 @@ cart_item(P, State) ->
         #panel{class=[span3, "text-center"], body=[
             #h3{style="",
                 body=[#span{class=["icon-usd"]}, float_to_list(P#product.price/100, [{decimals, 2}]) ]},
-                #link{class=?BTN_INFO, body= <<"to wishlist">>, postback={to_wishlist, P, State}}
-        ]} ]).
+                #link{class=?BTN_INFO, body= <<"to wishlist">>, postback={to_wishlist, P, State}} ]}];
 
-checkout_ctl(State) -> [
-    #link{id=?FD_CHKOUT(State#feed_state.container_id),
-        class=[btn, "btn-warning"], body= <<"checkout">>,
-        data_fields=?TOOLTIP, title= <<"checkout">>,
-        postback={checkout, State},
-        delegate=shopping_cart},
-    #link{class=?BTN_INFO, body= <<"to wishlist">>,
-        data_fields=?TOOLTIP, title= <<"wishlist">>,
-        postback={to_wishlist, State},
-        delegate=shopping_cart}].
-
-%% Render shopping cart elements
-
-render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=cart}=State}) ->
-    error_logger:info_msg("eeE~p", [element(State#feed_state.entry_id, E)]),
-    case kvs:get(product, E#entry.entry_id) of
-        {ok, P} -> cart_item(P, State);
-        {error,_}-> <<"item not available">> end;
-render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=cart}=State}) ->
-    cart_item(P, State);
+    {error,_} -> <<"item not available">> end);
 render_element(E)-> store:render_element(E).
+
+% Events
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, product, Id})-> wf:redirect("/product?id="++Id);
-event({select, Sel, #feed_state{view=cart}=S})->
-    User = wf:user(),
-    feed_ui:event({select, Sel, S}),
-    wf:update(?USR_ORDER(User#user.id), order_summary(S));
 
 event({to_wishlist, #product{}=P, #feed_state{}=S})->
     User = wf:user(),
@@ -135,7 +139,7 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
             entry_id = P#product.id,
             title = P#product.title,
             description = P#product.brief,
-            medias=[media(P#product.cover)]},
+            medias=[store:media(P#product.cover)]},
 
             error_logger:info_msg("Input ~p ~p", [P#product.id, Fid]),
 
@@ -155,7 +159,7 @@ event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
 
             msg:notify( [kvs_feed, User#user.email, entry, delete], [E])
 
-        end || {Eid,FeedId}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
+        end || {Eid,_}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 
 event({add_cart, #product{}=P}=M) ->
     store:event(M),
@@ -165,30 +169,40 @@ event({add_cart, #product{}=P}=M) ->
         case kvs:get(entry, {P#product.id, Fid}) of {error,_}-> ok;
         {ok, E} -> msg:notify([kvs_feed, User#user.email, entry, delete], [E]) end end;
 
-event({checkout, #feed_state{selected_key=Selected, visible_key=Visible}}) ->
-    wf:redirect("/checkout?sid="++Selected++"&vid="++Visible);
-
-event(E) -> feed_ui:event(E).
-
-process_delivery([entry,{_,Fid},_]=R, [#entry{}]=M) ->
-    error_logger:info_msg("Rou ~p", [R]),
+event({checkout, Visible}) ->
     User = wf:user(),
-    case feed_ui:feed_state(Fid) of #feed_state{}=S ->
+    {Req, {Total,_}} = lists:mapfoldl(fun({Id,_}, {T, In})->
+        case kvs:get(product,Id) of {error,_} -> {[], {T, In}};
+            {ok, #product{price=Price}=P} ->
+                Index = integer_to_list(In),
+                PmId = kvs_payment:payment_id(),
+                Pm = #payment{id=PmId,
+                        user_id = User#user.email,
+                        product_id=P#product.id,
+                        product = P,
+                        info = paypal},
+                msg:notify([kvs_payment, user, User#user.email, add], {Pm}),
+
+                {paypal:product_request(Index,PmId,P), {T+Price,In+1}} end end,
+        {0,0}, [I || I <- ordsets:from_list(wf:session(Visible))]),
+
+    case paypal:set_express_checkout(lists:flatten(?PP_PAYMENTREQUEST(Total)++Req)) of
+        {error,E} -> wf:update(alert, alert(E));_-> ok end;
+
+event(_) -> ok.
+
+process_delivery([entry, {_,Fid}, _]=R, [#entry{}|_]=M)->
+    User = wf:user(),
+    feed_ui:process_delivery(R,M),
+    case feed_ui:feed_state(Fid) of false -> ok;
+    State ->
+        wf:update(?USR_ORDER(State#feed_state.container_id), order_summary(State)),
         case lists:keyfind(cart, 1, User#user.feeds) of false -> ok;
-        {_, CFid} -> case kvs:get(feed, CFid) of
-            {ok, #feed{entries_count=C}} when C == 0 -> wf:update(?USR_CART(User#user.id), "");
-            {ok, #feed{entries_count=C}} -> wf:update(?USR_CART(User#user.id), integer_to_list(C));
-            _ -> ok end end,
-        wf:update(?USR_ORDER(User#user.id), order_summary(S)); _ -> skip end,
-    feed_ui:process_delivery(R,M);
+        {_,CFid} when Fid == CFid ->
+            case kvs:get(feed,Fid) of
+                {ok, #feed{entries_count=C}} when C == 0 -> wf:update(?USR_CART(User#user.id), "");
+                {ok, #feed{entries_count=C}} -> wf:update(?USR_CART(User#user.id), integer_to_list(C));
+                _ -> ok end;
+        _ -> ok end end;
 
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
-
-media(undefined)-> undefined;
-media(File)-> #media{url = File,
-    thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}.
-
-short_date(undefined) -> short_date(now());
-short_date(Date) ->
-    {{Y, M, D}, {_,_,_}} = calendar:now_to_datetime(Date),
-    io_lib:format("~s ~p, ~p", [?MONTH(M), D, Y]).

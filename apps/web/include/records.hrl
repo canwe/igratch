@@ -22,6 +22,8 @@
 -define(ADMIN_BOOTSTRAP,    "/static/js/bootstrap.min.js").
 -define(PROFILE_CSS,        "/static/css/igratch.css").
 -define(PROFILE_BOOTSTRAP,  "/static/js/bootstrap.min.js").
+-define(CART_CSS,           "/static/css/igratch.css").
+-define(CART_BOOTSTRAP,     "/static/js/bootstrap.min.js").
 
 -define(PAGE_SIZE, 4).
 -define(BTN_INFO,       [btn, "btn-info"]).
