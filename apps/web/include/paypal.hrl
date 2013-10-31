@@ -1,8 +1,8 @@
 -define(PP_USERNAME,    "stanp-facilitator_api1.clodot.com").
 -define(PP_PASSWORD,    "1381757776").
 -define(PP_SIGNATURE,   "A94NQXxLq.C9wiLuWrkiY.DrqDTVAyt3-GmOWOTrKTV8MkHBhw9KjRSM").
--define(PP_CANCEL_URL,  "http://localhost:8001/shopping_cart").
--define(PP_RETURN_URL,  "http://localhost:8001/checkout").
+-define(PP_CANCEL_URL,  "http://igratch.synrc.com/shopping_cart").
+-define(PP_RETURN_URL,  "http://igratch.synrc.com/checkout").
 -define(PP_NVP,         "https://api-3t.sandbox.paypal.com/nvp").
 -define(PP_WEBSCR,      "https://www.sandbox.paypal.com/cgi-bin/webscr").
 
