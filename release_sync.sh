@@ -50,3 +50,5 @@ for key in ${!apps[@]}; do
          ln -s  "$wd/${apps[$key]}/priv" "$wd/$key/priv"
     fi
 done
+
+echo $?

@@ -19,3 +19,4 @@ else
    release_node $NODE
 fi
 
+echo $?
