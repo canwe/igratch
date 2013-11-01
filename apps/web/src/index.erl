@@ -193,6 +193,16 @@ alert(Msg, Class)->
     #panel{class=[alert, Class, "alert-block", fade, in], body=[
     #link{class=[close], url="#", data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>}, #strong{body= Msg} ]}.
 
+alert_inline(Msg) ->
+    #span{class=[alert, fade, in, "alert-danger"],
+        style ="margin-left:10px;",body=[
+        #span{body= Msg},
+        #link{class=[close], url="#", 
+              data_fields=[{<<"data-dismiss">>,<<"alert">>}],
+              style="float:none;top:0;",
+              body= <<"&times;">>}]}.
+
+
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
     case Id of "all" -> []; _ -> wf:update(Id, feed(list_to_integer(Id))) end,

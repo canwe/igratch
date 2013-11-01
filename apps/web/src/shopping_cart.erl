@@ -31,13 +31,13 @@ body()->
                 #link{class=?BTN_INFO, body= <<"continune shopping">>, url="/store"},
                 #small{id=alert, body=case wf:qs(<<"token">>) of undefined -> <<"">>; Tk ->
                     case paypal:get_express_details([{"TOKEN", Tk}]) of {error,E} ->
-                        alert("payment " ++ proplists:get_value(?PP_TRANSACTION, E) 
+                        index:alert_inline("payment " ++ proplists:get_value(?PP_TRANSACTION, E) 
                             ++" "++ proplists:get_value(?PP_ACK, E)
                             ++ " "++ proplists:get_value(?PP_ERROR_MSG,E));
                     Details ->
                         CorrelationId = proplists:get_value(?PP_TRANSACTION, Details),
                         CheckoutStatus = proplists:get_value(?PP_STATUS, Details),
-                        alert("payment " ++ CorrelationId ++ " status:" ++CheckoutStatus) end end}]},
+                        index:alert_inline("payment " ++ CorrelationId ++ " status:" ++CheckoutStatus) end end}]},
 
             #panel{class=["row-fluid"], body=[
                 #panel{class=[span9], body=[
@@ -87,15 +87,6 @@ order_summary(#feed_state{visible_key=Visible}=S) ->
             body=[#image{image="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif"}]} 
     ]};
 order_summary(undefined)->[].
-
-alert(Msg) ->
-    #span{class=[alert, fade, in, "alert-danger"],
-        style ="margin-left:10px;",body=[
-        #span{body= Msg},
-        #link{class=[close], url="#", 
-              data_fields=[{<<"data-dismiss">>,<<"alert">>}],
-              style="float:none;top:0;",
-              body= <<"&times;">>}]}.
 
 %% Render elements
 
@@ -187,7 +178,7 @@ event({checkout, Visible}) ->
         {0,0}, [I || I <- ordsets:from_list(wf:cache(Visible))]),
 
     case paypal:set_express_checkout(lists:flatten(?PP_PAYMENTREQUEST(Total)++Req)) of
-        {error,E} -> wf:update(alert, alert(E));_-> ok end;
+        {error,E} -> wf:update(alert, index:alert_inline(E));_-> ok end;
 
 event(_) -> ok.
 

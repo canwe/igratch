@@ -143,4 +143,11 @@ event({read, _, Id})-> wf:redirect("/review?id="++Id);
 event({add_cart, P}) -> store:event({add_cart, P});
 event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
 api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event-> ~p, Tag ~p, Term ~p",[Name, Tag, Term]).
-process_delivery(R,M) -> feed_ui:process_delivery(R,M).
+
+process_delivery(R,M) ->
+    User = wf:user(),
+    case lists:keyfind(cart, 1, User#user.feeds) of false -> ok;
+    {_, Id} -> case kvs:get(feed,Id) of {error,_}-> ok;
+        {ok, #feed{entries_count=C}} when C==0 -> ok;
+        {ok, #feed{entries_count=C}}-> wf:update(?USR_CART(User#user.id), integer_to_list(C)) end end,
+    feed_ui:process_delivery(R,M).
