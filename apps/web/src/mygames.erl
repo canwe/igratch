@@ -58,8 +58,8 @@ render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=pro
 
             #panel{class=[span4, "article-text"], body=[
                 #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
-                    #link{style="color:#9b9c9e;", url=?URL_PRODUCT(Id), body=wf:js_escape(E#entry.title)}}},
-                #p{id=?EN_DESC(UiId), body=wf:js_escape(E#entry.description)}
+                    #link{style="color:#9b9c9e;", url=?URL_PRODUCT(Id), body=E#entry.title}}},
+                #p{id=?EN_DESC(UiId), body=E#entry.description}
             ]},
             #panel{class=[span1], body=[
                 #link{body= <<"edit">>, class=[btn, "btn-block"], delegate=input, postback={edit, P, InputState}},

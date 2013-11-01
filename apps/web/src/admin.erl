@@ -1,5 +1,4 @@
 -module(admin).
--compile({parse_transform, shen}).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
@@ -10,23 +9,13 @@
 -include("records.hrl").
 -include("states.hrl").
 
--jsmacro([on_shown/0,show/1]).
-
-on_shown() ->
-    X = jq("a[data-toggle=\"tab\"]"),
-    X:on("shown", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
-
-show(E) ->
-    D = jq(document),
-    D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
-
 main()-> #dtl{file="prod",
               bindings=[{title,<<"admin">>},{body,body()},{css,?ADMIN_CSS},{less,?LESS},{bootstrap,?ADMIN_BOOTSTRAP}]}.
 
 body() ->
     User = case wf:user() of undefined -> #user{}; U -> U end,
     wf:wire(#api{name=tabshow}),
-    wf:wire(on_shown()),
+    wf:wire(index:on_shown()),
 
     Nav = {User, admin, subnav()},
     IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,
