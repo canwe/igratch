@@ -73,9 +73,9 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
 
         #panel{class=[span5, "article-text"], body=[
             #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
-                #link{style="color:#9b9c9e;", body=E#entry.title, url="/review?id="++wf:to_list(Eid)}}},
+                #link{style="color:#9b9c9e;", body=wf:js_escape(E#entry.title), url=?URL_REVIEW(Eid)}}},
 
-            #p{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description)},
+            #p{id=?EN_DESC(UiId), body=product_ui:shorten(wf:js_escape(E#entry.description))},
             #panel{id=?EN_TOOL(UiId), class=[more], body=[
                 #link{body=[<<"read more">>], url=?URL_REVIEW(Eid)} ]}]}]);
 

@@ -63,7 +63,7 @@ render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=pro
             ]},
             #panel{class=[span1], body=[
                 #link{body= <<"edit">>, class=[btn, "btn-block"], delegate=input, postback={edit, P, InputState}},
-                #link{body= <<"more">>, class=[btn, "btn-block"], postback={read, product, Id}} ]} ]) end;
+                #link{body= <<"more">>, class=[btn, "btn-block"], url=?URL_PRODUCT(Id)} ]} ]) end;
 render_element(E)-> feed_ui:render_element(E).
 
 %% Events

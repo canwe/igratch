@@ -34,6 +34,7 @@
 -define(DATA_COLLAPSE,  [{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}]).
 -define(URL_PRODUCT(Id),"/product?id="++wf:to_list(Id)).
 -define(URL_REVIEW(Id), "/review?id="++wf:to_list(Id)).
+-define(URL_PROFILE(Id),"/profile?id="++wf:to_list(Id)).
 -define(MONTH(M),       element(M, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"})).
 
 -record(struct,         {lst=[]}).

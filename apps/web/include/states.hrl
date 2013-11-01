@@ -46,13 +46,13 @@
 
 -define(STORE_FEED(Id), ?FD_STATE(Id)#feed_state{view=store, enable_selection=false, delegate=store}).
 
--define(PRODUCTS_FEED, ?STORE_FEED(?FEED(product))#feed_state{entry_id = #product.id, entry_type=product}).
+-define(PRODUCTS_FEED, ?STORE_FEED(?FEED(product))#feed_state{entry_type=product}).
 
 % Reviews
 
--define(REVIEWS_FEED(Id), ?FD_STATE(Id)#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews}).
+-define(REVIEWS_FEED(Id), ?FD_STATE(Id)#feed_state{view=review, delegate=reviews}).
 
--define(ENTRIES_FEED, ?FD_STATE(?FEED(entry))#feed_state{view=review, entry_id=#entry.entry_id, delegate=reviews}).
+-define(ENTRIES_FEED, ?FD_STATE(?FEED(entry))#feed_state{view=review, delegate=reviews}).
 
 % Review
 -define(DETACHED_FEED(Id), ?FD_STATE(Id)#feed_state{view=detached, entry_id=#entry.entry_id, delegate=review}).

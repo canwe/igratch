@@ -31,14 +31,19 @@ body()->
 %% Render review elements
 
 render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=review}=State})->
-    wf:info("ok"),
     Id = element(State#feed_state.entry_id, E),
-    UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
-    {FromId, From} = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
-    error_logger:info_msg("media:~p", [E#entry.media]),
+    Fid = State#feed_state.container_id,
+    UiId = wf:to_list(erlang:phash2(Id)),
+    FromId = E#entry.from,
+    From = case kvs:get(user, E#entry.from) of
+        {ok, User} -> User#user.display_name;
+        {error, _} -> E#entry.from end,
+
+    InputState = (wf:cache({?FD_INPUT(Fid),?CTX#context.module}))#input_state{update=true},
+
     wf:render([#panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
-        #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
+        #p{class=[username], body= #link{body=From, url=?URL_PROFILE(FromId)}},
         #panel{body= product_ui:to_date(E#entry.created)},
         #p{body=[
             #link{url="#",body=[#span{class=[?EN_CM_COUNT(UiId)],
@@ -48,13 +53,17 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
         #panel{id=?EN_MEDIA(UiId), class=[span4, "media-pic"],
             body=#entry_media{media=E#entry.media, mode=reviews}},
 
-        #panel{class=[span5, "article-text"], body=[
+        #panel{class=[span4, "article-text"], body=[
             #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
-                #link{style="color:#9b9c9e;", body=E#entry.title, url="/review?id="++wf:to_list(Eid)}}},
+                #link{style="color:#9b9c9e;", body=wf:js_escape(E#entry.title), url=?URL_REVIEW(Eid)}}},
+            #p{id=?EN_DESC(UiId), body=wf:js_escape(product_ui:shorten(E#entry.description))}
+        ]},
 
-            #p{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description)},
-            #panel{id=?EN_TOOL(UiId), class=[more], body=[
-                #link{body=[<<"read more">>], url=?URL_REVIEW(Eid)} ]}]}]);
+        #panel{id=?EN_TOOL(UiId), class=[span1], body=[
+            #link{body= <<"edit">>, class=[btn, "btn-block"], delegate=input, postback={edit, E, InputState}},
+            #link{body= <<"more">>, class=[btn, "btn-block"], url=?URL_REVIEW(Eid)} ]}
+
+    ]);
 
 render_element(E)-> feed_ui:render_element(E).
 
