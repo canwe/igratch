@@ -34,14 +34,15 @@ body() ->
         #panel{class=[span9, "tab-content"], style="min-height:400px;",
             body = if IsAdmin -> [
                 #panel{id=categories, class=["tab-pane", active], body=tab(categories)},
-                [#panel{id=Id, class=["tab-pane"]} || Id <-[acl, users, products]] 
+                [#panel{id=Id, class=["tab-pane"]} || Id <-[acl, users, products, reviews]]
             ];true -> [] end} ]) ++ index:footer().
 
 subnav() -> [
     {categories, "categories"},
     {acl, "acl"},
     {users, "users"},
-    {products, "products"}
+    {products, "products"},
+    {reviews, "reviews"}
   ].
 
 tab(categories) ->
@@ -104,7 +105,15 @@ tab(products)->
     wf:cache({?FEED(product),?CTX#context.module}, State),
 
     #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State, header=[
-        #tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}, #th{}]}]};
+        #tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}, #th{body= <<"description">>}]}]};
+
+tab(reviews)->
+    State = ?REVIEWS_VIEW_FEED,
+    wf:cache({?FEED(entry),?CTX#context.module}, State),
+    #feed_ui{title= <<"Reviews">>, icon="icon-list", state=State, header=[
+        #tr{class=["feed-table-header"],
+            cells=[#th{},#th{body= <<"from">>},#th{body= <<"title">>},#th{body= <<"description">>}]}]};
+
 tab(_)-> [].
 
 feature_reply(#user{}=Whom, Feature, Msg, Eid) ->

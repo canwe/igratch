@@ -151,7 +151,11 @@
                                                                  enable_traverse=true,
                                                                  html_tag=table}).
 
-
+-define(REVIEWS_VIEW_FEED, ?FD_STATE(?FEED(entry))#feed_state{entry_type=entry,
+                                                              enable_selection=true,
+                                                              enable_traverse=true,
+                                                              del_by_index = true,
+                                                              html_tag=table}).
 
 -define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{ view=direct,
                                                     delegate = notifications,
