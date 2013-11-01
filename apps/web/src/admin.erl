@@ -46,10 +46,10 @@ subnav() -> [
 
 tab(categories) ->
     GroupsFeed = ?FEED(group),
-    InputState = case wf:session({?FD_INPUT(GroupsFeed),?CTX#context.module}) of undefined -> 
-        Is = ?GROUPS_INPUT, wf:session({?FD_INPUT(GroupsFeed),?CTX#context.module}, ?GROUPS_INPUT), Is; IS -> IS end,
-    FeedState = case wf:session({GroupsFeed,?CTX#context.module}) of undefined ->
-        Fs = ?GROUPS_FEED, wf:session({GroupsFeed,?CTX#context.module}, Fs), Fs; FS -> FS end,
+    InputState = case wf:cache({?FD_INPUT(GroupsFeed),?CTX#context.module}) of undefined -> 
+        Is = ?GROUPS_INPUT, wf:cache({?FD_INPUT(GroupsFeed),?CTX#context.module}, ?GROUPS_INPUT), Is; IS -> IS end,
+    FeedState = case wf:cache({GroupsFeed,?CTX#context.module}) of undefined ->
+        Fs = ?GROUPS_FEED, wf:cache({GroupsFeed,?CTX#context.module}, Fs), Fs; FS -> FS end,
 
     [#input{state=InputState, icon="icon-tags"},
 
@@ -64,8 +64,8 @@ tab(categories) ->
 
 tab(acl)->
     {AclEn, Acl} = lists:mapfoldl(fun(#acl{id={R,N}=Aid}, Ain) ->
-        State = case wf:session({Aid,?CTX#context.module}) of undefined ->
-            S = ?ACL_FEED(Aid), wf:session({Aid,?CTX#context.module}, S), S; Fs -> Fs end,
+        State = case wf:cache({Aid,?CTX#context.module}) of undefined ->
+            S = ?ACL_FEED(Aid), wf:cache({Aid,?CTX#context.module}, S), S; Fs -> Fs end,
 
         B = #panel{id=wf:to_list(R)++wf:to_list(N), class=["tab-pane"], body=[
             #feed_ui{title=wf:to_list(Aid)++" entries",
@@ -90,8 +90,8 @@ tab(acl)->
 
 tab(users)->
     UsrFeed = ?FEED(user),
-    State = case wf:session({UsrFeed,?CTX#context.module}) of undefined ->
-        S = ?USERS_FEED, wf:session({UsrFeed,?CTX#context.module}, S), S; FS -> FS end,
+    State = case wf:cache({UsrFeed,?CTX#context.module}) of undefined ->
+        S = ?USERS_FEED, wf:cache({UsrFeed,?CTX#context.module}, S), S; FS -> FS end,
 
     #feed_ui{title= <<"Users ">>, icon="icon-user", state=State,
         header=[#tr{class=["feed-table-header"], cells=[
@@ -101,7 +101,7 @@ tab(users)->
 
 tab(products)->
     State = ?PRODUCTS_VIEW_FEED,
-    wf:session({?FEED(product),?CTX#context.module}, State),
+    wf:cache({?FEED(product),?CTX#context.module}, State),
 
     #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State, header=[
         #tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}, #th{}]}]};

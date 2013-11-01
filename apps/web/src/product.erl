@@ -95,8 +95,8 @@ feed(#product{} = P, {Tab, Id})->
         recipients=[{product, P#product.id, {Tab,Id}}],
         expand_btn= "Write "++atom_to_list(Tab)},
 
-    wf:session({Id,?CTX#context.module}, State),
-    wf:session({?FD_INPUT(Id),?CTX#context.module}, Is),
+    wf:cache({Id,?CTX#context.module}, State),
+    wf:cache({?FD_INPUT(Id),?CTX#context.module}, Is),
 
     #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
         if User#user.email == P#product.owner orelse Tab == reviews -> #input{state = Is}; true -> [] end]}.
@@ -118,24 +118,24 @@ payments(#product{} = P)-> [
 files(#product{} = P)->
     case lists:keyfind(bundles, 1, P#product.feeds) of false-> [];
     {_,Fid}->
-        Fs = case wf:session({Fid,?CTX#context.module}) of undefined -> State = ?FILE_STATE(Fid), wf:session({Fid,?CTX#context.module}, State), State; S -> S end,
+        Fs = case wf:cache({Fid,?CTX#context.module}) of undefined -> State = ?FILE_STATE(Fid), wf:cache({Fid,?CTX#context.module}, State), State; S -> S end,
 
-        Is = case wf:session({?FD_INPUT(Fid),?CTX#context.module}) of undefined ->
+        Is = case wf:cache({?FD_INPUT(Fid),?CTX#context.module}) of undefined ->
             In = ?FILE_INPUT(Fid)#input_state{upload_dir= ?FILE_DIR,recipients=[{product,P#product.id,{bundles, Fid}}]},
-            wf:session({?FD_INPUT(Fid),?CTX#context.module}, In), In; S1 -> S1 end,
+            wf:cache({?FD_INPUT(Fid),?CTX#context.module}, In), In; S1 -> S1 end,
 
         #feed_ui{title="product files", state=Fs, header=[#input{state=Is}]} end.
 
 aside(#product{} = P, Groups)->
     ActiveFeed = case lists:keyfind(comments, 1, P#product.feeds) of false -> [];
     {_,Fid} ->
-        AS = case wf:session({Fid,?CTX#context.module}) of undefined ->
+        AS = case wf:cache({Fid,?CTX#context.module}) of undefined ->
             Fs = ?FD_STATE(Fid)#feed_state{
                 flat_mode=true,
                 view=comment,
                 entry_type=comment,
                 entry_id=#comment.comment_id},
-            wf:session({Fid,?CTX#context.module}, Fs), Fs;
+            wf:cache({Fid,?CTX#context.module}, Fs), Fs;
         AF -> AF end,
         #feed_ui{title= <<"Product discussion">>, 
                 icon="icon-comments-alt", 
@@ -144,9 +144,9 @@ aside(#product{} = P, Groups)->
 
     GroupFeeds = [begin
         {_,Gfid} = Fd,
-        GS = case wf:session({Gfid,?CTX#context.module}) of undefined ->
+        GS = case wf:cache({Gfid,?CTX#context.module}) of undefined ->
             Gfs = ?FD_STATE(Gfid)#feed_state{view=group, flat_mode = true, entry_id = #entry.entry_id, delegate=product},
-            wf:session({Gfid,?CTX#context.module}, Gfs), Gfs; GF -> GF end,
+            wf:cache({Gfid,?CTX#context.module}, Gfs), Gfs; GF -> GF end,
 
             #feed_ui{title= "More " ++ wf:to_list(Name),
                 icon = "icon-list",
@@ -294,14 +294,14 @@ control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
     {ok, FileInfo} ->
         Url = filename:join([Dir,binary_to_list(File)]),
         Media = #media{id=element_upload:hash(FileName), url = Url, type ={attachment,MimeType}},
-        wf:session(medias, [Media]),
+        wf:cache(medias, [Media]),
         error_logger:info_msg("[product]query_file ~p", [Media]),
         wf:update(Target, input:media_preview(Target, [Media])),
         wf:wire("Holder.run();"),
         FileInfo#file_info.size end}.
 
 process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc, media=Media}=E) ->
-  wf:session(medias, []),
+  wf:cache(medias, []),
   Tid = ?EN_TITLE(Id), Did = ?EN_DESC(Id),
   wf:replace(Tid, #span{id =Tid, body=Title}),
   wf:replace(Did, #panel{id=Did, body=Desc, data_fields=[{<<"data-html">>, true}]}),

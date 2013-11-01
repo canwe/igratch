@@ -17,12 +17,12 @@ body()->
     case wf:user() of undefined -> wf:redirect("/login");
     User ->
     State = case lists:keyfind(cart, 1, element(#iterator.feeds, User)) of false -> undefined;
-        {_, Cid} -> case wf:session({Cid, ?CTX#context.module}) of undefined ->
-            CS = ?CART_STATE(Cid), wf:session({Cid, ?CTX#context.module},CS), CS; Cs-> Cs end end,
+        {_, Cid} -> case wf:cache({Cid, ?CTX#context.module}) of undefined ->
+            CS = ?CART_STATE(Cid), wf:cache({Cid, ?CTX#context.module},CS), CS; Cs-> Cs end end,
 
     WishState = case lists:keyfind(wishlist, 1, element(#iterator.feeds, User)) of false -> undefined;
-        {_, Wid} -> case wf:session({Wid, ?CTX#context.module}) of undefined ->
-            Ws = ?CART_STATE(Wid)#feed_state{view=store}, wf:session({Wid, ?CTX#context.module}, Ws), Ws; WS-> WS end end,
+        {_, Wid} -> case wf:cache({Wid, ?CTX#context.module}) of undefined ->
+            Ws = ?CART_STATE(Wid)#feed_state{view=store}, wf:cache({Wid, ?CTX#context.module}, Ws), Ws; WS-> WS end end,
 
     index:header() ++ [
     #section{class=[section], body=[
@@ -55,10 +55,10 @@ body()->
     ] ++ index:footer() end.
 
 order_summary(#feed_state{visible_key=Visible}=S) ->
-    case wf:session(Visible) of [] ->
+    case wf:cache(Visible) of [] ->
         case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_} -> ok;
             {ok, Feed} -> Entries = kvs:entries(Feed, S#feed_state.entry_type, S#feed_state.page_size),
-                wf:session(Visible, [element(S#feed_state.entry_id, E)|| E<-Entries]) end; _-> ok end,
+                wf:cache(Visible, [element(S#feed_state.entry_id, E)|| E<-Entries]) end; _-> ok end,
 
     {Items, Total} = lists:mapfoldl(fun({Id,_}, In)->
         case kvs:get(product,Id) of {error,_} -> {[], In};
@@ -67,7 +67,7 @@ order_summary(#feed_state{visible_key=Visible}=S) ->
                     #span{class=["icon-usd"]},
                     float_to_list(Price/100, [{decimals,2}]) ]}]}
                 ], In+Price} end end,
-        0, [Pid || Pid <- ordsets:from_list(case wf:session(Visible) of undefined->[];I->I end)]),
+        0, [Pid || Pid <- ordsets:from_list(case wf:cache(Visible) of undefined->[];I->I end)]),
 
     #panel{class=[well, "pricing-table", "affix-top"],
            style="width:230px",
@@ -148,7 +148,7 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
             msg:notify( [kvs_feed, User#user.email, entry, delete], [E, Is]) end;
 
 event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
-    Selection = sets:from_list(wf:session(Selected)),
+    Selection = sets:from_list(wf:cache(Selected)),
     User = wf:user(),
     case lists:keyfind(wishlist, 1, User#user.feeds) of false -> ok;
     {_,Fid} ->
@@ -159,7 +159,7 @@ event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
 
             msg:notify( [kvs_feed, User#user.email, entry, delete], [E])
 
-        end || {Eid,_}=Id <- wf:session(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
+        end || {Eid,_}=Id <- wf:cache(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
 
 event({add_cart, #product{}=P}=M) ->
     store:event(M),
@@ -184,7 +184,7 @@ event({checkout, Visible}) ->
                 msg:notify([kvs_payment, user, User#user.email, add], {Pm}),
 
                 {paypal:product_request(Index,PmId,P), {T+Price,In+1}} end end,
-        {0,0}, [I || I <- ordsets:from_list(wf:session(Visible))]),
+        {0,0}, [I || I <- ordsets:from_list(wf:cache(Visible))]),
 
     case paypal:set_express_checkout(lists:flatten(?PP_PAYMENTREQUEST(Total)++Req)) of
         {error,E} -> wf:update(alert, alert(E));_-> ok end;

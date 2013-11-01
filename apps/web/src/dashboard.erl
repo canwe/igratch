@@ -14,7 +14,10 @@
 
 sidenav({What, Active, Tabs})->
     Who = wf:user(),
-    #panel{class=["dash-sidebar-menu"], body=#list{class=[nav, "nav-list","dash-sidebar-nav", "affix-top"], data_fields=[{<<"data-spy">>, <<"affix">>}], body=[
+    #panel{class=["dash-sidebar-menu"], body=
+        #list{  class=[nav, "nav-list","dash-sidebar-nav", "affix-top"],
+                data_fields=[{<<"data-spy">>, <<"affix">>}], 
+                body=[
         begin
             SubTabs = if Active == Page -> [
                 if Tabs /= [] -> #li{class=[divider]}; true-> [] end,

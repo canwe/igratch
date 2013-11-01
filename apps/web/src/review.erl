@@ -78,8 +78,8 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=detached}=Sta
 
     Is = ?COMMENTS_INPUT(Fid, Recipients),
     CmState = ?COMMENTS_FEED(Fid)#feed_state{recipients=Recipients},
-    wf:session({Fid,?CTX#context.module}, CmState),
-    wf:session({?FD_INPUT(Fid),?CTX#context.module}, Is),
+    wf:cache({Fid,?CTX#context.module}, CmState),
+    wf:cache({?FD_INPUT(Fid),?CTX#context.module}, Is),
 
     Entry = #panel{class=["blog-post"], body=[
         #h3{class=[blue], body=[#span{id=?EN_TITLE(Eid), body=E#entry.title, data_fields=[{<<"data-html">>, true}]} ]},
@@ -115,10 +115,10 @@ render_element(#div_entry{entry=#comment{}=C, state=#feed_state{}=State})->
     CmState = ?FD_STATE(Fid, State)#feed_state{recipients=Recipients,
         show_title=State#feed_state.show_title andalso not State#feed_state.flat_mode,
         show_header=State#feed_state.show_header andalso not State#feed_state.flat_mode},
-    wf:session({Fid,?CTX#context.module}, CmState),
+    wf:cache({Fid,?CTX#context.module}, CmState),
 
     Is = ?REPLY_INPUT(Fid, Recipients),
-    wf:session({?FD_INPUT(Fid),?CTX#context.module}, Is),
+    wf:cache({?FD_INPUT(Fid),?CTX#context.module}, Is),
 
     InnerFeed = #feed_ui{state=CmState, class="comments",  header=[
         #input{state=Is, class=["comment-reply"]}]},

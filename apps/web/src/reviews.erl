@@ -27,11 +27,11 @@ body()->
     Groups = lists:flatmap(fun(#group{scope=Scope, feeds=Feeds, name=Name})->
         case lists:keyfind(feed,1, Feeds) of
         {_,Fid} when Scope==public ->
-            case wf:session({Fid,?CTX#context.module}) of undefined -> wf:session({Fid,?CTX#context.module}, ?REVIEWS_FEED(Fid)), [{Name, Fid}];
+            case wf:cache({Fid,?CTX#context.module}) of undefined -> wf:cache({Fid,?CTX#context.module}, ?REVIEWS_FEED(Fid)), [{Name, Fid}];
                 _-> [{Name,Fid}] end; _ -> [] end end, kvs:all(group)),
 
-    All = case wf:session({?FEED(entry),?CTX#context.module}) of undefined ->
-        FS = ?ENTRIES_FEED, wf:session({?FEED(entry),?CTX#context.module},FS), FS; F->F end,
+    All = case wf:cache({?FEED(entry),?CTX#context.module}) of undefined ->
+        FS = ?ENTRIES_FEED, wf:cache({?FEED(entry),?CTX#context.module},FS), FS; F->F end,
 
     index:header() ++ [
     #section{class=[section], body=[
@@ -50,7 +50,7 @@ body()->
                     [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups] ]},
                 #panel{class=[span3], body=[<<"">>]} ]} ]}]} ] ++ index:footer().
 
-feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:session({Fid,?CTX#context.module})}.
+feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:cache({Fid,?CTX#context.module})}.
 
 %% Render review elements
 

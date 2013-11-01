@@ -26,11 +26,11 @@ body()->
     Groups = lists:flatmap(fun(#group{scope=Scope, feeds=Feeds, name=Name})->
         case lists:keyfind(products,1, Feeds) of
         {_,Fid} when Scope==public ->
-            case wf:session({Fid,?CTX#context.module}) of undefined -> wf:session({Fid,?CTX#context.module}, ?STORE_FEED(Fid)), [{Name, Fid}];
+            case wf:cache({Fid,?CTX#context.module}) of undefined -> wf:cache({Fid,?CTX#context.module}, ?STORE_FEED(Fid)), [{Name, Fid}];
                 _-> [{Name,Fid}] end; _ -> [] end end, kvs:all(group)),
 
-    All = case wf:session({?FEED(product),?CTX#context.module}) of undefined ->
-        FS = ?PRODUCTS_FEED, wf:session({?FEED(product),?CTX#context.module},FS), FS; F->F end,
+    All = case wf:cache({?FEED(product),?CTX#context.module}) of undefined ->
+        FS = ?PRODUCTS_FEED, wf:cache({?FEED(product),?CTX#context.module},FS), FS; F->F end,
 
     index:header() ++ [
     #section{class=[section], body=[
@@ -51,7 +51,7 @@ body()->
                     [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups]]},
                 #panel{class=[span3]}]} ]} ]} ] ++ index:footer().
 
-feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:session({Fid,?CTX#context.module})}.
+feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:cache({Fid,?CTX#context.module})}.
 
 %% Render store elements
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}) ->

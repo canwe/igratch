@@ -27,18 +27,18 @@ body() ->
             true -> [
                 case lists:keyfind(direct, 1,What#user.feeds) of false -> [];
                 {_,Fid} ->
-                    InputState = case wf:session({?FD_INPUT(Fid),?CTX#context.module}) of undefined ->
+                    InputState = case wf:cache({?FD_INPUT(Fid),?CTX#context.module}) of undefined ->
                         Is = ?DIRECT_INPUT(Fid)#input_state{
                             show_recipients = false,
                             expand_btn= <<"Write message">> ,
                             recipients=[{user, What#user.email, {direct, Fid}}]},
-                        wf:session({?FD_INPUT(Fid),?CTX#context.module}, Is), Is; IS->IS end,
+                        wf:cache({?FD_INPUT(Fid),?CTX#context.module}, Is), Is; IS->IS end,
                     #input{state=InputState, icon=""}
                 end,
                 case lists:keyfind(feed, 1, element(#iterator.feeds, What)) of false -> [];
                 {_, Fid} ->
-                    FeedState = case wf:session({Fid,?CTX#context.module}) of undefined -> 
-                        Fs = ?REVIEWS_FEED(Fid), wf:session({Fid,?CTX#context.module}, Fs), Fs; FS->FS end,
+                    FeedState = case wf:cache({Fid,?CTX#context.module}) of undefined -> 
+                        Fs = ?REVIEWS_FEED(Fid), wf:cache({Fid,?CTX#context.module}, Fs), Fs; FS->FS end,
                     #feed_ui{title= <<"Recent activity">>, icon="icon-list", state=FeedState} end ] end ] end ])  ++ index:footer().
 
 profile_info(Who, #user{} = What, Size) -> 

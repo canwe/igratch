@@ -20,11 +20,11 @@ body()->
     index:header() ++ dashboard:page(Nav,
         case lists:keyfind(products, 1, Feeds) of false -> [];
         {_, Id} ->
-            FeedState = case wf:session({Id,?CTX#context.module}) of undefined ->
-                FS = ?MYGAMES_FEED(Id), wf:session({Id,?CTX#context.module}, FS), FS; FD -> FD end,
+            FeedState = case wf:cache({Id,?CTX#context.module}) of undefined ->
+                FS = ?MYGAMES_FEED(Id), wf:cache({Id,?CTX#context.module}, FS), FS; FD -> FD end,
 
-            InputState = case wf:session({?FD_INPUT(Id),?CTX#context.module}) of undefined ->
-                IS = ?MYGAMES_INPUT(Id), wf:session({?FD_INPUT(Id),?CTX#context.module}, IS), IS; IS -> IS end,
+            InputState = case wf:cache({?FD_INPUT(Id),?CTX#context.module}) of undefined ->
+                IS = ?MYGAMES_INPUT(Id), wf:cache({?FD_INPUT(Id),?CTX#context.module}, IS), IS; IS -> IS end,
 
             #feed_ui{title= <<"my games">>,
                      icon="icon-gamepad",
@@ -40,7 +40,7 @@ render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=pro
         Fid = State#feed_state.container_id,
         UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
         From = case kvs:get(user, E#entry.from) of {ok, User} -> User#user.display_name; {error, _} -> E#entry.from end,
-        InputState = (wf:session({?FD_INPUT(Fid),?CTX#context.module}))#input_state{update=true},
+        InputState = (wf:cache({?FD_INPUT(Fid),?CTX#context.module}))#input_state{update=true},
 
         wf:render([#panel{class=[span3, "article-meta"], body=[
             #h4{class=[blue], body= <<"">>},
