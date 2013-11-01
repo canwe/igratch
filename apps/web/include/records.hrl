@@ -32,7 +32,8 @@
 -define(TOOLTIP,        [{<<"data-toggle">>,<<"tooltip">>}]).
 -define(DATA_TAB,       [{<<"data-toggle">>,<<"tab">>}]).
 -define(DATA_COLLAPSE,  [{<<"data-toggle">>, <<"collapse">>}, {<<"data-target">>, <<".nav-collapse">>}]).
--define(URL_PRODUCT(Id),"/product?id="++Id).
+-define(URL_PRODUCT(Id),"/product?id="++wf:to_list(Id)).
+-define(URL_REVIEW(Id), "/review?id="++wf:to_list(Id)).
 -define(MONTH(M),       element(M, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"})).
 
 -record(struct,         {lst=[]}).

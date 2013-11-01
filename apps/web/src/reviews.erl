@@ -77,7 +77,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
 
             #p{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description)},
             #panel{id=?EN_TOOL(UiId), class=[more], body=[
-                #link{body=[<<"read more">>], url="/review?id="++wf:to_list(Eid)} ]}]}]);
+                #link{body=[<<"read more">>], url=?URL_REVIEW(Eid)} ]}]}]);
 
 render_element(E)-> feed_ui:render_element(E).
 
@@ -90,7 +90,6 @@ api_event(tabshow,Args,_) ->
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read, _, Id})-> wf:redirect("/review?id="++Id);
-event(Event) -> error_logger:info_msg("[reviews]Page event: ~p", [Event]), ok.
+event(_) -> ok.
 
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).

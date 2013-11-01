@@ -23,7 +23,7 @@
 % My reviews
 -define(MYREVIEWS_FEED(Id), ?FD_STATE(Id)#feed_state{view=review,
                                                      enable_selection=true,
-                                                     delegate=reviews}).
+                                                     delegate = myreviews}).
 
 -define(MYREVIEWS_INPUT(Id), #input_state{id=?FD_INPUT(Id),
                                           fid = Id,

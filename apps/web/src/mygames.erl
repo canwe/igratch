@@ -58,7 +58,7 @@ render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=pro
 
             #panel{class=[span4, "article-text"], body=[
                 #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
-                    #link{style="color:#9b9c9e;", postback={read, product, Id}, body=wf:js_escape(E#entry.title)}}},
+                    #link{style="color:#9b9c9e;", url=?URL_PRODUCT(Id), body=wf:js_escape(E#entry.title)}}},
                 #p{id=?EN_DESC(UiId), body=wf:js_escape(E#entry.description)}
             ]},
             #panel{class=[span1], body=[
@@ -70,7 +70,6 @@ render_element(E)-> feed_ui:render_element(E).
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
-event(Event) -> error_logger:info_msg("[mygames]Page event: ~p", [Event]), ok.
+event(_) -> ok.
 
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
