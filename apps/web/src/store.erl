@@ -51,8 +51,6 @@ body()->
                     [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups]]},
                 #panel{class=[span3]}]} ]} ]} ] ++ index:footer().
 
-feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:cache({Fid,?CTX#context.module})}.
-
 %% Render store elements
 render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=store}=State}) ->
     case kvs:get(product, E#entry.entry_id) of {error, _} -> wf:render(#panel{body= <<"error displaying item">>});
@@ -102,7 +100,7 @@ store_element(Id, P) ->
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    case Id of "all" -> []; _ -> wf:update(Id, feed(list_to_integer(Id))) end,
+    case Id of "all" -> []; _ -> wf:update(Id, index:feed(list_to_integer(Id))) end,
     wf:wire("Holder.run();").
 
 event(init) -> wf:reg(?MAIN_CH),[];

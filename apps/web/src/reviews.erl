@@ -50,15 +50,12 @@ body()->
                     [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups] ]},
                 #panel{class=[span3], body=[<<"">>]} ]} ]}]} ] ++ index:footer().
 
-feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:cache({Fid,?CTX#context.module})}.
-
 %% Render review elements
 
 render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=review}=State})->
     Id = element(State#feed_state.entry_id, E),
     UiId = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
     {FromId, From} = case kvs:get(user, E#entry.from) of {ok, User} -> {E#entry.from, User#user.display_name}; {error, _} -> {E#entry.from,E#entry.from} end,
-    error_logger:info_msg("media:~p", [E#entry.media]),
     wf:render([#panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
         #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
@@ -85,7 +82,7 @@ render_element(E)-> feed_ui:render_element(E).
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    case Id of "all" -> []; _ -> wf:update(Id, feed(list_to_integer(Id))) end,
+    case Id of "all" -> []; _ -> wf:update(Id, index:feed(list_to_integer(Id))) end,
     wf:wire("Holder.run();").
 
 event(init) -> wf:reg(?MAIN_CH),[];

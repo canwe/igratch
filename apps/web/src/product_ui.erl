@@ -7,60 +7,12 @@
 -include_lib("kvs/include/feeds.hrl").
 -include("records.hrl").
 
-render_element(#product_cart{product=P}) ->
-  From = P#product.owner,
-
-  Entry = #panel{class=["row-fluid", article], style="margin-bottom:10px;padding-bottom:10px;", body=[
-    #panel{class=[span12, username], body=[
-      <<"From: ">>,#link{body=From}
-    ]},
-    #panel{class=[span12], body =[
-      #panel{class=["row-fluid"], body=[
-        #panel{class=[span3], style="position:relative;", body=[
-          #link{class=[thumbnail], body=[
-            #image{image= case P#product.cover of undefined -> <<"holder.js/100%x100/text:no cover">>;
-              Th ->
-                Ext = filename:extension(Th),
-                Name = filename:basename(Th, Ext),
-                Dir = filename:dirname(Th),
-                filename:join([Dir, "thumbnail", Name++"_270x124"++Ext]) end}
-          ]}
-        ]},
-        #panel{class=[span6], style="overflow:hidden", body=[
-          #h3{body= P#product.title},
-          #p{body= [P#product.brief,
-            #link{class=[more], body=[<<"view ">>, #i{class=["icon-double-angle-right", "icon-large"]}], url="/product?id="++P#product.id }
-          ]}
-        ]},
-        #panel{class=[span2], body=[ #h4{body= <<"Quantity:">>}, #textbox{class=[span12], value=1, disabled=true},
-          #link{class=[more], body=[#span{class=["icon-remove-circle"]}, <<" remove">>]}
-        ]},
-        #panel{class=[span1], body=[#span{class=["icon-usd"]}, #b{body=float_to_list(P#product.price/100, [{decimals, 2}])}  ]} 
-      ]}
-    ]}
-  ]},
-
-  element_panel:render_element(Entry);
-
-render_element(#product_row{product=P}) ->
-  Date = to_date(P#product.created),
-
-  Row = #tr{id=wf:temp_id(), postback={product_feed, P#product.id},cells=[
-    #td{body=[
-      #h4{body = P#product.title},
-      #p{body=[#span{style="display:block;", body = P#product.creator}, #small{body= Date}]},
-      #link{url="#",body=[ #i{class=["icon-eye-open", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"1024">>} ]},
-      #link{url="#",body=[ #i{class=["icon-comments-alt", "icon-large"]}, #span{class=[badge, "badge-info"], body= <<"10">>} ]} ]},
-    #td{body= P#product.brief}
-  ]},
-  element_tr:render_element(Row);
-
 render_element(#product_hero{product=P}) ->
     Bought = lists:any(fun(#payment{product_id=PrId}) -> P#product.id==PrId end,
         case wf:user() of undefined -> []; #user{email=Email}-> kvs_payment:payments(Email) end),
     Hero = #panel{class=["row-fluid"], body=[
     #panel{class=[span6], body=[
-    #panel{class=["hero-unit"], body=[
+    #panel{class=["hero-unit", "product-hero"], body=[
         #h2{body=P#product.title},
         #p{body=P#product.brief},
         #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},

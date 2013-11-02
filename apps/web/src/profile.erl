@@ -239,7 +239,6 @@ event({request, Feature}) ->
             input:event({post, {feature, Feature}, Is}),
 
             wf:update(alerts, index:error(wf:to_list(Feature) ++" requested")) end end;
-event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
 event(Event) ->
     User = case wf:user() of undefined -> #user{}; U -> U end,
     IsAdmin = kvs_acl:check_access(User#user.email, {feature, admin})==allow,

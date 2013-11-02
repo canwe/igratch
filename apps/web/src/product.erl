@@ -1,5 +1,4 @@
 -module(product).
--compile({parse_transform, shen}).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/users.hrl").
@@ -11,16 +10,6 @@
 -include("records.hrl").
 -include("states.hrl").
 
--jsmacro([on_shown/0,show/1]).
-
-on_shown() ->
-    X = jq("a[data-toggle=\"tab\"]"),
-    X:on("shown", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
-
-show(E) -> 
-    D = jq(document),
-    D:ready(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
-
 main() -> #dtl{file="prod", bindings=[{title,<<"product">>}, {body, body()},
                                       {css,?PRODUCT_CSS}, {less,?LESS}, {bootstrap, ?PRODUCT_BOOTSTRAP}]}.
 
@@ -28,15 +17,15 @@ main() -> #dtl{file="prod", bindings=[{title,<<"product">>}, {body, body()},
 
 body() ->
     Id = case wf:qs(<<"id">>) of undefined -> <<"no">>; I-> I end,
-    wf:wire(#api{name=tabshow}),
-    wf:wire(on_shown()),
-    User = wf:user(),
     index:header()++[
     #section{class=[section], body=#panel{class=[container], body=
     case kvs:get(product, binary_to_list(Id)) of
     {ok, P} ->
+        wf:wire(#api{name=tabshow}),
+        wf:wire(index:on_shown()),
+
         wf:session(product, P),
-        Owner = case User of undefined -> false; _ -> P#product.owner == User#user.email end,
+        Owner = case wf:user() of undefined -> false; U -> P#product.owner == U#user.email end,
         Groups = lists:flatmap(fun(#group_subscription{where=G})->
             case kvs:get(group,G) of
                 {error,_}-> [];
@@ -47,7 +36,7 @@ body() ->
 
         [#panel{class=["row-fluid", "page-header-sm"], style="padding:0", body=[
             #h4{class=[span9], style="line-height:30px;margin-left:5px;", body= [
-                #link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"}, 
+                #link{url= <<"/reviews">>, body= <<"Categories ">>, style="color:#999"},
                 #small{body=[
                     [<<" | ">>, #link{url="/store?id="++Gid, body=[#span{class=["icon-asterisk"]},Name]}]
                  || {Gid, Name, _} <- Groups]} ]},
@@ -60,8 +49,9 @@ body() ->
             #product_hero{product=P},
             #list{class=[nav, "nav-tabs", "sky-nav", "entry-type-tabs"], body=[
                 [#li{class= if Feed == reviews -> ["active"]; true -> [] end,
-                    body=#link{data_fields=?DATA_TAB, url= "#"++wf:to_list(Feed), body=wf:to_list(Feed)}}
-                    || {Feed, _} <- UsrFeeds],
+                    body=#link{data_fields=?DATA_TAB,
+                        url= "#"++wf:to_list(Feed), body=wf:to_list(Feed)}} || {Feed, _} <- UsrFeeds],
+
                 if Owner -> [
                     #li{body=#link{data_fields=?DATA_TAB, url="#files",   body= <<"files">> }},
                     #li{body=#link{data_fields=?DATA_TAB, url="#finance", body= <<"finance">> }}]; true -> [] end
@@ -72,11 +62,10 @@ body() ->
                 #panel{class=["row-fluid"], body=[
                     #panel{class=[span9], body=
                         #panel{class=["tab-content"], body=[
-                            [begin
-                                Active = if Feed == reviews -> "active"; true -> "" end,
-                                #panel{id=Feed, class=["tab-pane", Active], body=[
-                                    if Feed == reviews -> feed(P, Fid); true -> [] end]}
-                            end || {Feed, _}=Fid <- UsrFeeds],
+                            [if Feed == reviews ->
+                                #panel{id=reviews, class=["tab-pane", active], body=feed(P,Fid,false)};
+                             true ->
+                                #panel{id=Feed, class=["tab-pane"], body=feed(P,Fid)} end || {Feed,_}=Fid <- UsrFeeds],
                             if Owner -> [
                                 #panel{id=files,   class=["tab-pane"], body=files(P)},
                                 #panel{id=finance, class=["tab-pane"], body=payments(P)}]; true -> [] end ]}},
@@ -86,7 +75,8 @@ body() ->
         #button{class=[close], data_fields=[{<<"data-dismiss">>,<<"alert">>}], body= <<"&times;">>},
         #strong{body= atom_to_list(E)} ]} end }}]++index:footer().
 
-feed(#product{} = P, {Tab, Id})->
+feed(#product{} = P, {Tab, Id}) -> feed(#product{} = P, {Tab, Id}, true).
+feed(#product{} = P, {Tab, Id},Escape) ->
     User = case wf:user() of undefined -> #user{}; U -> U end,
 
     State = ?BLOG_STATE(Id)#feed_state{enable_selection=User#user.email == P#product.owner},
@@ -98,27 +88,28 @@ feed(#product{} = P, {Tab, Id})->
     wf:cache({Id,?CTX#context.module}, State),
     wf:cache({?FD_INPUT(Id),?CTX#context.module}, Is),
 
-    #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State, header=[
+    #feed_ui{title=wf:to_list(Tab), icon="icon-circle", state=State#feed_state{js_escape=Escape}, header=[
         if User#user.email == P#product.owner orelse Tab == reviews -> #input{state = Is}; true -> [] end]}.
 
 payments(#product{} = P)-> [
     #table{class=[table, "table-hover", payments],
-      header=[#tr{cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>}, #th{body= <<"Price">>}, #th{body= <<"User">>}]}],
+      header=[#tr{cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>},#th{body= <<"Price">>},#th{body= <<"User">>}]}],
       body=[[begin
-        #tr{cells= [
-          #td{body= [product_ui:to_date(Py#payment.start_time)]},
+        #tr{cells=[
+          #td{body=[product_ui:to_date(Py#payment.start_time)]},
           #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],
                 body= [atom_to_list(Py#payment.state)]},
           #td{body=[case Cur of "USD"-> #span{class=["icon-usd"]}; _ -> #span{class=["icon-money"]} end,
                 float_to_list(Price/100, [{decimals, 2}])]},
-          #td{body=#link{body=User, url= "/profile?id="++wf:to_list(User)}}]}
+          #td{body=#link{body=User, url= ?URL_PROFILE(User)}}]}
       end || #payment{user_id=User, product=#product{price=Price, currency=Cur}} = Py
         <- kvs:all_by_index(payment, product_id, P#product.id) ]]}].
 
 files(#product{} = P)->
     case lists:keyfind(bundles, 1, P#product.feeds) of false-> [];
     {_,Fid}->
-        Fs = case wf:cache({Fid,?CTX#context.module}) of undefined -> State = ?FILE_STATE(Fid), wf:cache({Fid,?CTX#context.module}, State), State; S -> S end,
+        Fs = case wf:cache({Fid,?CTX#context.module}) of undefined ->
+            State = ?FILE_STATE(Fid), wf:cache({Fid,?CTX#context.module}, State), State; S -> S end,
 
         Is = case wf:cache({?FD_INPUT(Fid),?CTX#context.module}) of undefined ->
             In = ?FILE_INPUT(Fid)#input_state{upload_dir= ?FILE_DIR,recipients=[{product,P#product.id,{bundles, Fid}}]},
@@ -159,7 +150,8 @@ aside(#product{} = P, Groups)->
       #panel{class=["sidebar-widget"], body=ActiveFeed} ]}.
 
 controls(#entry{type=Type} =  E) -> [
-  #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
+  #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, 
+    #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
 
 
 % Render elements of the page feeds
@@ -183,7 +175,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=group, flat_m
 
             #panel{class=[span6, "article-text"], style="height:5em",  body=[
                 #h4{body=#span{id=?EN_TITLE(Id), class=[title], body=
-                #link{style="color:#9b9c9e;", body=P#product.title, postback={read, product, P#product.id}}}},
+                #link{style="color:#9b9c9e;", body=P#product.title, url=?URL_PRODUCT(P#product.id)}}},
 
             #p{id=?EN_DESC(Id), body=product_ui:shorten(P#product.brief)} ]},
 
@@ -217,9 +209,9 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
         #footer{class=["blog-footer", "row-fluid"], body=[
             #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
                 #span{class=[?EN_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(entry, Id))}],
-                postback={read, entry, Id}},
+                url=?URL_REVIEW(Id)},
             #link{class=["pull-right"], body= [<<"read more ">>, #i{class=["icon-double-angle-right", "icon-large"]}],
-                postback={read, entry, Eid}} ]} ]},
+                url=?URL_REVIEW(Eid)} ]} ]},
     element_panel:render_element(Entry);
 render_element(E)-> feed_ui:render_element(E).
 
@@ -267,11 +259,9 @@ event({remove_entry, E=#entry{}, ProductId}) ->
 
   error_logger:info_msg("Recipients: ~p", [Recipients]),
 
-  [msg:notify([kvs_feed, To, entry, delete], [E#entry{id={E#entry.entry_id, Fid}, feed_id=Fid}, (wf:user())#user.email]) || {RouteType, To, Fid} <- Recipients];
+  [msg:notify([kvs_feed, To, entry, delete], [E#entry{id={E#entry.entry_id, Fid}, feed_id=Fid}]) || {_, To, Fid} <- Recipients];
 
-event({read, entry, Id})-> wf:redirect("/review?id="++Id);
 event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
-event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event({add_cart, P}) ->
     store:event({add_cart, P}),
     wf:redirect("/shopping_cart");
@@ -279,10 +269,10 @@ event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    error_logger:info_msg("Show tab ~p", [Id]),
     P = wf:session(product),
     case lists:keyfind(list_to_atom(Id), 1, P#product.feeds) of false -> ok;
-    {_,_}=Tab -> wf:update(list_to_atom(Id), feed(P, Tab)) end,
+        {reviews,_} -> ok;
+        Tab -> wf:update(list_to_atom(Id), feed(P, Tab)) end,
     wf:wire("Holder.run();");
 
 api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).

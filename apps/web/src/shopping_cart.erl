@@ -119,10 +119,9 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({read, product, Id})-> wf:redirect("/product?id="++Id);
 
 event({to_wishlist, #product{}=P, #feed_state{}=S})->
-    User = wf:user(),
-    Fid = S#feed_state.container_id,
-    case kvs:get(entry, {P#product.id, Fid}) of {error,_}-> ok;
+    case kvs:get(entry, {P#product.id, S#feed_state.container_id}) of {error,_}-> ok;
     {ok, E} ->
+        User = wf:user(),
         Is = #input_state{
             collect_msg = false,
             show_recipients = false,
@@ -132,25 +131,9 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
             description = P#product.brief,
             medias=[store:media(P#product.cover)]},
 
-            error_logger:info_msg("Input ~p ~p", [P#product.id, Fid]),
-
             input:event({post, wishlist, Is}),
 
-            msg:notify( [kvs_feed, User#user.email, entry, delete], [E, Is]) end;
-
-event({to_wishlist, #feed_state{selected_key=Selected, visible_key=Visible}})->
-    Selection = sets:from_list(wf:cache(Selected)),
-    User = wf:user(),
-    case lists:keyfind(wishlist, 1, User#user.feeds) of false -> ok;
-    {_,Fid} ->
-        [case kvs:get(entry, Id) of {error,_} -> ok; 
-        {ok, E} ->
-            msg:notify( [kvs_feed, user, User#user.email, entry, Eid, add],
-                        [E#entry{id={Eid, Fid}, feed_id=Fid}]),
-
-            msg:notify( [kvs_feed, User#user.email, entry, delete], [E])
-
-        end || {Eid,_}=Id <- wf:cache(Visible), sets:is_element(wf:to_list(erlang:phash2(Id)), Selection)] end;
+            msg:notify([kvs_feed, User#user.email, entry, delete], [E]) end;
 
 event({add_cart, #product{}=P}=M) ->
     store:event(M),

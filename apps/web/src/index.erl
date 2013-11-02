@@ -77,7 +77,7 @@ body() ->
                                         class="comments-flat",
                                         state=Discus} ]}]}]}]}]}] ++ footer().
 
-feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=wf:cache({Fid,?CTX#context.module})}.
+feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=(wf:cache({Fid,?CTX#context.module}))#feed_state{js_escape=true}}.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of

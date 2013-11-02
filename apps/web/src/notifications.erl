@@ -17,23 +17,26 @@ body()->
     Nav = {wf:user(), notifications, subnav()},
     index:header() ++ dashboard:page(Nav,
         #panel{class=[span9, "tab-content", "dash-tab-content"], body=[
-            #panel{id=notifications, class=["tab-pane", active], body=feed(notifications)},
+            #panel{id=notifications, class=["tab-pane", active], body=feed(notifications, false)},
             [#panel{id=Id, class=["tab-pane"]} || Id <- [sent,archive]]] }) ++ index:footer().
 
 subnav()-> [{sent, "sent"}, {archive, "archive"}].
 
-feed(Feed)->
+feed(Feed, Escape)->
     User = wf:user(),
     case lists:keyfind(case Feed of notifications -> direct; F-> F end, 1, element(#iterator.feeds, User)) of false ->
         index:error("No feed "++wf:to_list(Feed));
     {_, Id} ->
         State = case wf:cache({Id,?CTX#context.module}) of undefined ->
             Fs = ?DIRECT_STATE(Id), wf:cache({Id,?CTX#context.module}, Fs), Fs; FS->FS end,
-        InputState = case wf:cache({?FD_INPUT(Id),?CTX#context.module}) of undefined ->
-            Is = ?DIRECT_INPUT(Id), wf:cache({?FD_INPUT(Id),?CTX#context.module}, Is), Is; IS->IS end,
+
+        InFid = case lists:keyfind(sent,1,element(#iterator.feeds,User)) of false -> Id; {_,Fid} -> Fid end,
+        InputState = case wf:cache({?FD_INPUT(InFid),?CTX#context.module}) of undefined ->
+            Is = ?DIRECT_INPUT(InFid), wf:cache({?FD_INPUT(InFid),?CTX#context.module}, Is), Is; IS->IS end,
+
         #feed_ui{title=title(Feed),
                  icon=icon(Feed),
-                 state=State,
+                 state=State#feed_state{js_escape=Escape},
                  header=[case Feed of notifications ->
                     #input{icon="", state=InputState}; _-> #tr{class=["feed-table-header"]} end],
                  selection_ctl=case Feed of notifications -> [
@@ -83,7 +86,7 @@ api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
     wf:info("Show tab ~p", [Id]),
     case list_to_atom(Id) of notifications -> ok;
-    _-> wf:update(list_to_atom(Id), feed(list_to_atom(Id))) end;
+    _-> wf:update(list_to_atom(Id), feed(list_to_atom(Id), true)) end;
 api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];

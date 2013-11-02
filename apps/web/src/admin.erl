@@ -60,7 +60,7 @@ tab(acl)->
         B = #panel{id=wf:to_list(R)++wf:to_list(N), class=["tab-pane"], body=[
             #feed_ui{title=wf:to_list(Aid)++" entries",
                 icon="icon-list",
-                state=State,
+                state=State#feed_state{js_escape=true},
                 header=[#tr{class=["feed-table-header"], cells=[
                     #th{body= <<"id">>},
                     #th{body= <<"accessor">>},
@@ -83,7 +83,7 @@ tab(users)->
     State = case wf:cache({UsrFeed,?CTX#context.module}) of undefined ->
         S = ?USERS_FEED, wf:cache({UsrFeed,?CTX#context.module}, S), S; FS -> FS end,
 
-    #feed_ui{title= <<"Users ">>, icon="icon-user", state=State,
+    #feed_ui{title= <<"Users ">>, icon="icon-user", state=State#feed_state{js_escape=true},
         header=[#tr{class=["feed-table-header"], cells=[
             #th{body= <<"email">>},
             #th{body= <<"roles">>},
@@ -93,13 +93,13 @@ tab(products)->
     State = ?PRODUCTS_VIEW_FEED,
     wf:cache({?FEED(product),?CTX#context.module}, State),
 
-    #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State, header=[
+    #feed_ui{title= <<"Products">>, icon="icon-gamepad", state=State#feed_state{js_escape=true}, header=[
         #tr{class=["feed-table-header"], cells=[#th{body= <<"">>},#th{body= <<"title">>}, #th{body= <<"description">>}]}]};
 
 tab(reviews)->
     State = ?REVIEWS_VIEW_FEED,
     wf:cache({?FEED(entry),?CTX#context.module}, State),
-    #feed_ui{title= <<"Reviews">>, icon="icon-list", state=State, header=[
+    #feed_ui{title= <<"Reviews">>, icon="icon-list", state=State#feed_state{js_escape=true}, header=[
         #tr{class=["feed-table-header"],
             cells=[#th{},#th{body= <<"from">>},#th{body= <<"title">>},#th{body= <<"description">>}]}]};
 

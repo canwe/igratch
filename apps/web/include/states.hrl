@@ -163,9 +163,10 @@
                                                     enable_traverse=true}).
 
 -define(DIRECT_INPUT(Id), #input_state{ id=?FD_INPUT(Id),
+                                        fid = Id,
                                         role=user,
                                         entry_type=direct,
-                                        collapsed=true,
+                                        collapsed = true,
                                         show_media = false,
                                         upload_dir = ?DIR(case wf:user() of undefined -> "anonymous"; #user{email=E}->E end),
                                         placeholder_rcp= <<"E-mail/User">>,

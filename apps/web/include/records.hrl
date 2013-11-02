@@ -38,11 +38,6 @@
 -define(MONTH(M),       element(M, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"})).
 
 -record(struct,         {lst=[]}).
--record(info_more,      {toolbar, category, fid, module, delegate, mode}).
--record(product_figure, {?ELEMENT_BASE(product_ui), product}).
--record(product_row,    {?ELEMENT_BASE(product_ui), product}).
--record(product_cart,   {?ELEMENT_BASE(product_ui), product}).
--record(product_line,   {?ELEMENT_BASE(product_ui), product, meta, controls}).
 -record(product_hero,   {?ELEMENT_BASE(product_ui), product}).
 
 -define(USR_CART(Id),   wf:to_list(erlang:phash2(Id))++"cart").
