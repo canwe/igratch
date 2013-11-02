@@ -12,6 +12,7 @@
 -define(INDEX_LESS,         "/static/igratch/index.less").
 -define(INDEX_BOOTSTRAP,    "/static/js/index-bs.min.js").
 -define(LOGIN_BOOTSTRAP,    "/static/js/login-bs.min.js").
+-define(LOGIN_CSS,          "/static/css/igratch.css").
 -define(PRODUCT_CSS,        "/static/css/igratch.css").
 -define(PRODUCT_BOOTSTRAP,  "/static/js/bootstrap.min.js").
 -define(MYREVIEW_CSS,       "/static/css/igratch.css").
@@ -24,6 +25,14 @@
 -define(PROFILE_BOOTSTRAP,  "/static/js/bootstrap.min.js").
 -define(CART_CSS,           "/static/css/igratch.css").
 -define(CART_BOOTSTRAP,     "/static/js/bootstrap.min.js").
+-define(CHECKOUT_CSS,       "/static/css/igratch.css").
+-define(CHECKOUT_BOOTSTRAP, "/static/js/bootstrap.min.js").
+-define(STORE_CSS,          "/static/css/igratch.css").
+-define(STORE_BOOTSTRAP,    "/static/js/bootstrap.min.js").
+-define(MYGAMES_CSS,        "/static/css/igratch.css").
+-define(MYGAMES_BOOTSTRAP,  "/static/js/bootstrap.min.js").
+-define(REVIEW_CSS,         "/static/css/igratch.css").
+-define(REVIEW_BOOTSTRAP,   "/static/js/bootstrap.min.js").
 
 -define(PAGE_SIZE, 4).
 -define(BTN_INFO,       [btn, "btn-info"]).
@@ -38,7 +47,7 @@
 -define(MONTH(M),       element(M, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"})).
 
 -record(struct,         {lst=[]}).
--record(product_hero,   {?ELEMENT_BASE(product_ui), product}).
+-record(product_hero,   {?ELEMENT_BASE(product), product}).
 
 -define(USR_CART(Id),   wf:to_list(erlang:phash2(Id))++"cart").
 -define(USR_ORDER(Id),  wf:to_list(erlang:phash2(Id))++"order").

@@ -1,6 +1,5 @@
 -module(reviews).
 -compile(export_all).
--compile({parse_transform, shen}).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
 -include_lib("kvs/include/users.hrl").
@@ -9,20 +8,12 @@
 -include("records.hrl").
 -include("states.hrl").
 
--jsmacro([on_show/0,show/1]).
-
-on_show() ->
-    X = jq("a[data-toggle=\"tab\"]"),
-    X:on("show", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
-
-show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
-
 main()-> #dtl{file="prod", bindings=[{title,<<"reviews">>}, {body, body()},
                                     {css, ?REVIEWS_CSS},{less, ?REVIEWS_LESS},{bootstrap, ?REVIEWS_BOOTSTRAP}]}.
 
 body()->
     wf:wire(#api{name=tabshow}),
-    wf:wire(on_show()),
+    wf:wire(index:on_shown()),
 
     Groups = lists:flatmap(fun(#group{scope=Scope, feeds=Feeds, name=Name})->
         case lists:keyfind(feed,1, Feeds) of
@@ -59,7 +50,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
     wf:render([#panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
         #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
-        #panel{body= product_ui:to_date(E#entry.created)},
+        #panel{body= index:to_date(E#entry.created)},
         #p{body=[
             #link{url=?URL_REVIEW(Eid),body=[#span{class=[?EN_CM_COUNT(UiId)],
                 body= integer_to_list(kvs_feed:comments_count(entry, Id))},
@@ -72,7 +63,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
             #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
                 #link{style="color:#9b9c9e;", body=E#entry.title, url=?URL_REVIEW(Eid)}}},
 
-            #p{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description)},
+            #p{id=?EN_DESC(UiId), body=index:shorten(E#entry.description)},
             #panel{id=?EN_TOOL(UiId), class=[more], body=[
                 #link{body=[<<"read more">>], url=?URL_REVIEW(Eid)} ]}]}]);
 

@@ -91,7 +91,7 @@
 
 -define(CART_STATE(Id), ?FD_STATE(Id)#feed_state{view=cart,
                                                 enable_selection=true,
-                                                delegate=shopping_cart}).
+                                                delegate=cart}).
 
 % Product
 
@@ -158,7 +158,7 @@
                                                               html_tag=table}).
 
 -define(DIRECT_STATE(Id), ?FD_STATE(Id)#feed_state{ view=direct,
-                                                    delegate = notifications,
+                                                    delegate = direct,
                                                     enable_selection=true,
                                                     enable_traverse=true}).
 

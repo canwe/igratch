@@ -10,7 +10,7 @@
 -include("states.hrl").
 
 main()-> #dtl{file="prod", bindings=[{title,<<"my games">>},
-                                     {body,body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
+                                     {body,body()},{css,?MYGAMES_CSS},{less,?LESS},{bootstrap,?MYGAMES_BOOTSTRAP}]}.
 
 body()->
     User = wf:user(),
@@ -45,7 +45,7 @@ render_element(#div_entry{entry=#entry{id={Eid,_}}=E, state=#feed_state{view=pro
         wf:render([#panel{class=[span3, "article-meta"], body=[
             #h4{class=[blue], body= <<"">>},
             #p{body=#link{body=From, url= "/profile?id="++wf:to_list(E#entry.from)}},
-            #p{body=[#span{body= product_ui:to_date(E#entry.created)} ]},
+            #p{body=[#span{body= index:to_date(E#entry.created)} ]},
             #p{body=[
                 #span{class=[?EN_CM_COUNT(UiId)], body=integer_to_list(kvs_feed:comments_count(product, Eid))},
                 #i{class=["icon-comment-alt", "icon-large"]},

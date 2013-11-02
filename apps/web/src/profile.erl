@@ -61,7 +61,7 @@ profile_info(Who, #user{} = What, Size) ->
                 #panel{body=[#label{body= <<"Mail:">>},
                     #link{url= if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
                         body=#strong{body= What#user.email}}]},
-                #panel{body=[#label{body= <<"Member since ">>}, #strong{body= product_ui:to_date(What#user.register_date)}]},
+                #panel{body=[#label{body= <<"Member since ">>}, #strong{body= index:to_date(What#user.register_date)}]},
                 #b{class=["text-success"], body=
                     if What#user.status==ok -> <<"Active">>; true-> atom_to_list(What#user.status) end},
                 features(Who, What, Size),
@@ -73,7 +73,6 @@ features(Who, What, Size) ->
     Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
     Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
     AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) == allow,
-    %error_logger:info_msg("Who:~p What: ~p Writer:~p", [Who, What, Writer]),
   [#p{body=[
     #link{class=["text-warning"],
         data_fields=?TOOLTIP,
@@ -125,7 +124,7 @@ payments(What) ->
                 cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>}, #th{body= <<"Price">>}, #th{body= <<"Game">>}]}],
       body=[[begin
         #tr{cells= [
-          #td{body= [product_ui:to_date(Py#payment.start_time)]},
+          #td{body= [index:to_date(Py#payment.start_time)]},
           #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],body= [atom_to_list(Py#payment.state)]},
           #td{body=[case Cur of "USD"-> #span{class=["icon-usd"]}; _ -> #span{class=["icon-money"]} end, float_to_list(Price/100, [{decimals, 2}])]},
           #td{body=#link{url=?URL_PRODUCT(Id),body= Title}} ]} 

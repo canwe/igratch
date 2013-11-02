@@ -8,7 +8,7 @@
 main() ->
   avz:callbacks(?LOGIN),
   [#dtl{file = "prod", ext="dtl", 
-        bindings=[{title,<<"Login">>},{body, body()},{css,?CSS},{less,?LESS},{bootstrap,?LOGIN_BOOTSTRAP}]} ].
+        bindings=[{title,<<"Login">>},{body, body()},{css,?LOGIN_CSS},{less,?LESS},{bootstrap,?LOGIN_BOOTSTRAP}]} ].
 
 body() ->
     index:header() ++ [

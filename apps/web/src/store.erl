@@ -1,5 +1,4 @@
 -module(store).
--compile({parse_transform, shen}).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
@@ -9,19 +8,12 @@
 -include("records.hrl").
 -include("states.hrl").
 
--jsmacro([on_show/0,show/1]).
-
-on_show() ->
-    X = jq("a[data-toggle=\"tab\"]"),
-    X:on("show", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
-
-show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
-
-main()->#dtl{file="prod", bindings=[{title,<<"Store">>},{body,body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
+main()->#dtl{file="prod", bindings=[{title,<<"Store">>},{body,body()},
+                                    {css,?STORE_CSS},{less,?LESS},{bootstrap, ?STORE_BOOTSTRAP}]}.
 
 body()->
     wf:wire(#api{name=tabshow}),
-    wf:wire(on_show()),
+    wf:wire(index:on_shown()),
 
     Groups = lists:flatmap(fun(#group{scope=Scope, feeds=Feeds, name=Name})->
         case lists:keyfind(products,1, Feeds) of
@@ -86,9 +78,9 @@ store_element(Id, P) ->
 
         #panel{class=[span5, "article-text"], body=[
             #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=
-                #link{style="color:#9b9c9e;", body=P#product.title, postback={read, product, P#product.id}}}},
+                #link{style="color:#9b9c9e;", body=P#product.title, url=?URL_PRODUCT(P#product.id)}}},
 
-            #p{id=?EN_DESC(Id), body=product_ui:shorten(P#product.brief)} ]},
+            #p{id=?EN_DESC(Id), body=index:shorten(P#product.brief)} ]},
 
         #panel{class=[span2, "text-center"], body=[
             #h3{style="",
@@ -105,9 +97,6 @@ api_event(tabshow,Args,_) ->
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({product_feed, Id})-> wf:redirect("/product?id=" ++ Id);
-event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
-event({checkout, Pid}) -> wf:redirect("/checkout?product_id="++Pid);
 event({add_cart, #product{}=P}) ->
     case wf:user() of undefined -> wf:redirect("/login");
     _->

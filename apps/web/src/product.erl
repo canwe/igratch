@@ -96,7 +96,7 @@ payments(#product{} = P)-> [
       header=[#tr{cells=[#th{body= <<"Date">>}, #th{body= <<"Status">>},#th{body= <<"Price">>},#th{body= <<"User">>}]}],
       body=[[begin
         #tr{cells=[
-          #td{body=[product_ui:to_date(Py#payment.start_time)]},
+          #td{body=[index:to_date(Py#payment.start_time)]},
           #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],
                 body= [atom_to_list(Py#payment.state)]},
           #td{body=[case Cur of "USD"-> #span{class=["icon-usd"]}; _ -> #span{class=["icon-money"]} end,
@@ -149,12 +149,45 @@ aside(#product{} = P, Groups)->
        [#panel{class=["sidebar-widget"], body=F} || F <- GroupFeeds],
       #panel{class=["sidebar-widget"], body=ActiveFeed} ]}.
 
-controls(#entry{type=Type} =  E) -> [
-  #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, 
-    #i{class=["icon-double-angle-right", "icon-large"]}], postback={read, Type, E#entry.id}} ].
+%controls(#entry{type=Type} =  E) -> [
+%  #link{body=[case Type of product -> <<"view ">>; _-> <<"read more ">> end, 
+%    #i{class=["icon-double-angle-right", "icon-large"]}], posback={read, Type, E#entry.id}} ].
 
 
 % Render elements of the page feeds
+
+render_element(#product_hero{product=P}) ->
+    Bought = lists:any(fun(#payment{product_id=PrId}) -> P#product.id==PrId end,
+        case wf:user() of undefined -> []; #user{email=Email}-> kvs_payment:payments(Email) end),
+    Hero = #panel{class=["row-fluid"], body=[
+    #panel{class=[span6], body=[
+    #panel{class=["hero-unit", "product-hero"], body=[
+        #h2{body=P#product.title},
+        #p{body=P#product.brief},
+        #panel{body=#span{class=["game-rating"], body=[#span{class=["star"]} || _ <- lists:seq(1,5)]}},
+        #panel{class=["btn-toolbar", "text-center"], body=[
+            if Bought ->
+                case lists:keyfind(bundles, 1, P#product.feeds) of false -> [];
+                {_, Fid} ->
+                    case kvs:entries(kvs:get(feed, Fid), entry, 1) of [] -> [];
+                    [#entry{media=[#media{url=Url}]}] ->
+                        error_logger:info_msg("URL: ~p", [Url]),
+                        #link{class=[btn, "btn-large", "btn-success"],
+                                body=[#i{class=["icon-windows", "icon-large"]},<<" download">>],
+                                url=Url,
+                                download=[filename:basename(Url)]} end end;
+            true ->
+                #button{class=[btn, "btn-large", "btn-inverse", "btn-info", "btn-buy", win],
+                    body= [<<"buy for ">>, #span{body= "$"++ float_to_list(P#product.price/100, [{decimals, 2}]) }],
+                    postback={add_cart, P}} end
+        ]}
+      ]}
+    ]},
+    #panel{class=[span6, "text-center"], body=[
+      #image{image=P#product.cover}
+    ]}
+  ]},
+  element_panel:render_element(Hero);
 
 render_element(#div_entry{entry=E, state=#feed_state{view=files}=S})->
     Uid = wf:to_list(erlang:phash2(element(S#feed_state.entry_id, E))),
@@ -177,7 +210,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=group, flat_m
                 #h4{body=#span{id=?EN_TITLE(Id), class=[title], body=
                 #link{style="color:#9b9c9e;", body=P#product.title, url=?URL_PRODUCT(P#product.id)}}},
 
-            #p{id=?EN_DESC(Id), body=product_ui:shorten(P#product.brief)} ]},
+            #p{id=?EN_DESC(Id), body=index:shorten(P#product.brief)} ]},
 
             #panel{class=[span12], body=[
                 #link{body=#i{class=["icon-windows"]}},
@@ -197,14 +230,14 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=blog}=State})
     Entry = #panel{class=["blog-post"], body=[
         #header{class=["blog-header"], body=[
             #h3{body=[#span{id=?EN_TITLE(UiId), body=E#entry.title, data_fields=[{<<"data-html">>, true}]}, 
-            #small{body=[<<" by ">>, #link{body=From}, product_ui:to_date(E#entry.created)]}]}]},
+            #small{body=[<<" by ">>, #link{body=From}, index:to_date(E#entry.created)]}]}]},
 
         #figure{class=["thumbnail-figure"], body=[
             #carousel{items=[#entry_media{media=Media, mode=blog} || Media <- E#entry.media]},
             if length(E#entry.media) > 1 ->
                 #figcaption{class=["thumbnail-title"], body=[#h4{body=#span{body=E#entry.title}}]}; true -> [] end ]},
 
-        #panel{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description), data_fields=[{<<"data-html">>, true}]},
+        #panel{id=?EN_DESC(UiId), body=index:shorten(E#entry.description), data_fields=[{<<"data-html">>, true}]},
 
         #footer{class=["blog-footer", "row-fluid"], body=[
             #link{body=[ #i{class=["icon-comments-alt", "icon-large"]},
@@ -219,53 +252,10 @@ render_element(E)-> feed_ui:render_element(E).
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-
-event({edit_entry, E=#entry{title=Title, description=Desc}, ProdId, MsId}) ->
-  Tid = ?EN_TITLE(E#entry.entry_id), Did = ?EN_DESC(E#entry.entry_id), Toid = ?EN_TOOL(E#entry.entry_id),
-  Dir = "static/"++case wf:user() of undefined -> "anonymous"; User -> User#user.email end,
-  wf:replace(Tid, #textbox{id=Tid, value=Title}),
-  wf:replace(Did, #panel{body=[#htmlbox{id=Did, html=Desc, root=?ROOT, dir=Dir, post_write=attach_media, img_tool=gm, post_target=MsId, size=?THUMB_SIZE}]}),
-  wf:update(Toid, #panel{class=["btn-toolbar"], body=[
-    #link{postback={save_entry, E, ProdId}, source=[Tid, Did], class=[btn, "btn-large", "btn-success"], body= <<"Save">>},
-    #link{postback={cancel_entry, E#entry{title=Title, description=Desc}}, class=[btn, "btn-large", "btn-info"], body= <<"Cancel">>}
-  ]});
-event({save_entry, #entry{}=E, ProductId})->
-  Title = wf:q(?EN_TITLE(E#entry.entry_id)),
-  Description = wf:q(?EN_DESC(E#entry.entry_id)),
-  User = wf:user(),
-
-  Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
-    #group_subscription{where=Where, type=member} <- kvs_group:participate(ProductId), E#entry.type==reviews],
-
-  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Id, lists:keyfind(feed, 1, Feeds)} || #group{id=Id, feeds=Feeds} <-Groups]] 
-    ++ if E#entry.type==reviews -> [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}];true-> [] end,
-
-  error_logger:info_msg("Recipients: ~p", [Recipients]),
-
-  [ msg:notify([kvs_feed, RouteType, To, entry, Fid, edit], E#entry{title=Title, description=Description}) || {RouteType, To, Fid} <- Recipients];
-
-event({cancel_entry, E=#entry{title=Title, description=Desc}}) ->
-  Tid = ?EN_TITLE(E#entry.entry_id), Did = ?EN_DESC(E#entry.entry_id),
-  wf:replace(Tid, #span{id=Tid, body=Title}),
-  wf:replace(Did, #panel{id=Did, body=Desc, data_fields=[{<<"data-html">>, true}]}),
-  wf:update(?EN_TOOL(E#entry.entry_id), []);
-
-event({remove_entry, E=#entry{}, ProductId}) ->
-  User = wf:user(),
-  Groups = [case kvs:get(group,Where) of {error,_}->[]; {ok,G} ->G end ||
-    #group_subscription{where=Where} <- kvs_group:participate(ProductId), E#entry.type == reviews],
-  Recipients = [{product, ProductId, {E#entry.type, E#entry.feed_id}} | [{group, Gid, lists:keyfind(feed, 1, Feeds)} || #group{id=Gid, feeds=Feeds} <-Groups]]
-  ++ [{user, User#user.email, lists:keyfind(feed,1, User#user.feeds)}],
-
-  error_logger:info_msg("Recipients: ~p", [Recipients]),
-
-  [msg:notify([kvs_feed, To, entry, delete], [E#entry{id={E#entry.entry_id, Fid}, feed_id=Fid}]) || {_, To, Fid} <- Recipients];
-
-event({read, product, Id})-> wf:redirect(?URL_PRODUCT(Id));
 event({add_cart, P}) ->
     store:event({add_cart, P}),
     wf:redirect("/shopping_cart");
-event(Event) -> error_logger:info_msg("[product]Page event: ~p", [Event]), [].
+event(_) -> ok.
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
@@ -274,8 +264,7 @@ api_event(tabshow,Args,_) ->
         {reviews,_} -> ok;
         Tab -> wf:update(list_to_atom(Id), feed(P, Tab)) end,
     wf:wire("Holder.run();");
-
-api_event(Name,Tag,Term) -> error_logger:info_msg("[product] api Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
+api_event(_,_,_) -> ok.
 
 control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
     FileName = filename:join([Root,Dir,binary_to_list(File)]),
@@ -285,18 +274,8 @@ control_event(_, {query_file, Root, Dir, File, MimeType, _PostWrite, Target})->
         Url = filename:join([Dir,binary_to_list(File)]),
         Media = #media{id=element_upload:hash(FileName), url = Url, type ={attachment,MimeType}},
         wf:cache(medias, [Media]),
-        error_logger:info_msg("[product]query_file ~p", [Media]),
         wf:update(Target, input:media_preview(Target, [Media])),
         wf:wire("Holder.run();"),
         FileInfo#file_info.size end}.
-
-process_delivery([_,_,entry,_,edit], #entry{entry_id=Id, title=Title, description=Desc, media=Media}=E) ->
-  wf:cache(medias, []),
-  Tid = ?EN_TITLE(Id), Did = ?EN_DESC(Id),
-  wf:replace(Tid, #span{id =Tid, body=Title}),
-  wf:replace(Did, #panel{id=Did, body=Desc, data_fields=[{<<"data-html">>, true}]}),
-  wf:update(?EN_MEDIA(Id), #entry_media{media=Media, mode=reviews}),
-  wf:update(?EN_TOOL(Id), feed:controls(E)),
-  wf:wire("Holder.run();");
 
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).

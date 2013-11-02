@@ -133,7 +133,6 @@ api_event(_,_,_) -> ok.
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({view, Id}) -> error_logger:info_msg("redirect"), wf:redirect("/profile?id="++Id);
 event({disable, What})-> error_logger:info_msg("ban user ~p", [What]);
 event({allow, Whom, Eid, Feature}) ->
     case kvs:get(user, Whom) of {error, not_found} -> skip;

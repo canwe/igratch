@@ -9,7 +9,7 @@
 -include("records.hrl").
 -include("states.hrl").
 
--jsmacro([on_shown1/0,show/1,on_shown/0]).
+-jsmacro([on_shown1/0,on_shown/0]).
 
 on_shown() ->
     X = jq("a[data-toggle=\"tab\"]"),
@@ -25,8 +25,6 @@ on_shown1() ->
         T:addClass('text-warning'),
         Sib = T:siblings(), Sib:removeClass('text-warning'),
         tabshow(Id) end).
-
-show(E) -> jq(fun() -> T = jq("a[href=\"#" ++ E ++ "\"]"), T:tab("show") end).
 
 main() -> #dtl{file = "prod", ext="dtl", bindings=[ {title, <<"iGratch">>},
                                                     {body, body()},
@@ -143,7 +141,7 @@ header() ->
                         {ok, #feed{entries_count=C}} -> integer_to_list(C) end end},
                     #span{class=["icon-stack"], title= <<"shopping cart">>, body=[
                         #i{class=["icon-check-empty","icon-stack-base"]},
-                        #i{class=["icon-shopping-cart"]}]}], url= <<"/shopping_cart">>} ]},
+                        #i{class=["icon-shopping-cart"]}]}], url= <<"/cart">>} ]},
 
                 #li{body=[
                   #link{class=["dropdown-toggle", "profile-picture"], data_fields=[{<<"data-toggle">>, <<"dropdown">>}],
@@ -155,8 +153,8 @@ header() ->
                     #li{body=#link{url="/profile",  body=[#i{class=["icon-user", "icon-large"]}, <<" Profile">>]}},
                     #li{body=#link{url="/myreviews",body=[#i{class=["icon-list", "icon-large"]}, <<" Reviews">>]}},
                     #li{body=#link{url="/mygames",  body=[#i{class=["icon-gamepad", "icon-large"]}, <<" Games">>]}},
-                    #li{body=#link{url="/notifications", body=[#i{class=["icon-envelope", "icon-large"]}, <<" Notifications">>]}},
-                    #li{body=#link{url="/shopping_cart", body=[#i{class=["icon-shopping-cart", "icon-large"]}, <<" Shopping Cart">>]}},
+                    #li{body=#link{url="/direct",   body=[#i{class=["icon-envelope", "icon-large"]}, <<" Notifications">>]}},
+                    #li{body=#link{url="/cart",     body=[#i{class=["icon-shopping-cart", "icon-large"]}, <<" Shopping Cart">>]}},
                     if IsAdmin ->
                         #li{body=#link{url="/admin", body=[#i{class=["icon-cog", "icon-large"]}, <<" Admin">>]}};
                     true -> [] end,
@@ -211,13 +209,25 @@ api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Na
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read,_, {Id,_}})-> wf:redirect("/review?id="++Id);
-event({read,_, Id})-> wf:redirect("/review?id="++Id);
 event({add_cart, P}) ->
     store:event({add_cart, P}),
-    wf:redirect("/shopping_cart");
+    wf:redirect("/cart");
 event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
+
+shorten(undefined) -> <<"">>;
+shorten(Input) when is_list(Input) -> shorten(list_to_binary(Input));
+shorten(Input) when is_binary(Input) ->
+    R = [{"<img[^>]*>", ""}, {"<p></p>", ""},
+        {"<br[\\s+]/>", ""}, {"^\\s*", ""}, {"\n+$", ""}],
+
+    lists:foldl(fun({Pt, Re}, Subj) ->
+        re:replace(Subj, Pt, Re, [global, {return, binary}]) end, Input, R).
+
+to_date(undefined) -> to_date(now());
+to_date(Date)->
+  {{Y, M, D}, {H,Mi,_}} = calendar:now_to_datetime(Date),
+  io_lib:format("~s ~p, ~p at ~p:~p", [?MONTH(M), D, Y, H,Mi ]).

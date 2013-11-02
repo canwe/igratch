@@ -44,7 +44,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
     wf:render([#panel{class=[span3, "article-meta"], body=[
         #h3{class=[blue], body= <<"">>},
         #p{class=[username], body= #link{body=From, url=?URL_PROFILE(FromId)}},
-        #panel{body= product_ui:to_date(E#entry.created)},
+        #panel{body= index:to_date(E#entry.created)},
         #p{body=[
             #link{url="#",body=[#span{class=[?EN_CM_COUNT(UiId)],
                 body= integer_to_list(kvs_feed:comments_count(entry, Id))},
@@ -56,7 +56,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
         #panel{class=[span4, "article-text"], body=[
             #h3{body=#span{id=?EN_TITLE(UiId), class=[title], body=
                 #link{style="color:#9b9c9e;", body=E#entry.title, url=?URL_REVIEW(Eid)}}},
-            #p{id=?EN_DESC(UiId), body=product_ui:shorten(E#entry.description)}
+            #p{id=?EN_DESC(UiId), body=index:shorten(E#entry.description)}
         ]},
 
         #panel{id=?EN_TOOL(UiId), class=[span1], body=[

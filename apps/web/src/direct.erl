@@ -1,4 +1,4 @@
--module(notifications).
+-module(direct).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
@@ -14,17 +14,17 @@ body()->
     wf:wire(#api{name=tabshow}),
     wf:wire(index:on_shown()),
 
-    Nav = {wf:user(), notifications, subnav()},
+    Nav = {wf:user(), direct, subnav()},
     index:header() ++ dashboard:page(Nav,
         #panel{class=[span9, "tab-content", "dash-tab-content"], body=[
-            #panel{id=notifications, class=["tab-pane", active], body=feed(notifications, false)},
+            #panel{id=direct, class=["tab-pane", active], body=feed(direct, false)},
             [#panel{id=Id, class=["tab-pane"]} || Id <- [sent,archive]]] }) ++ index:footer().
 
 subnav()-> [{sent, "sent"}, {archive, "archive"}].
 
 feed(Feed, Escape)->
     User = wf:user(),
-    case lists:keyfind(case Feed of notifications -> direct; F-> F end, 1, element(#iterator.feeds, User)) of false ->
+    case lists:keyfind(Feed, 1, element(#iterator.feeds, User)) of false ->
         index:error("No feed "++wf:to_list(Feed));
     {_, Id} ->
         State = case wf:cache({Id,?CTX#context.module}) of undefined ->
@@ -37,19 +37,19 @@ feed(Feed, Escape)->
         #feed_ui{title=title(Feed),
                  icon=icon(Feed),
                  state=State#feed_state{js_escape=Escape},
-                 header=[case Feed of notifications ->
+                 header=[case Feed of direct ->
                     #input{icon="", state=InputState}; _-> #tr{class=["feed-table-header"]} end],
-                 selection_ctl=case Feed of notifications -> [
+                 selection_ctl=case Feed of direct -> [
                     #link{class=[btn], body=#i{class=["icon-archive"]},
                     data_fields=?TOOLTIP, title= <<"archive">>, postback={archive, State}}];_-> [] end } end.
 
 title(sent)-> <<"Sent Messages ">>;
-title(notifications)-> <<"Notifications ">>;
+title(direct)-> <<"Notifications ">>;
 title(archive)-> <<"Archive ">>;
 title(_) -> <<"">>.
 
 icon(sent)-> "icon-envelope";
-icon(notifications)-> "icon-envelope-alt";
+icon(direct)-> "icon-envelope-alt";
 icon(archive) -> "icon-archive";
 icon(_)-> "".
 
@@ -64,7 +64,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=direct}=State
         _-> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
 
     wf:render([
-        #p{body=[#small{body=["[", product_ui:to_date(E#entry.created), "] "]},
+        #p{body=[#small{body=["[", index:to_date(E#entry.created), "] "]},
             #link{body= if From == User#user.email -> <<"you">>; true -> From end, url= "/profile?id="++E#entry.from},
             <<" ">>,
             E#entry.title,
@@ -85,7 +85,7 @@ control_event(_, _) -> ok.
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
     wf:info("Show tab ~p", [Id]),
-    case list_to_atom(Id) of notifications -> ok;
+    case list_to_atom(Id) of direct -> ok;
     _-> wf:update(list_to_atom(Id), feed(list_to_atom(Id), true)) end;
 api_event(_,_,_) -> ok.
 
@@ -106,6 +106,6 @@ event({archive, #feed_state{selected_key=Selected, visible_key=Visible}}) ->
 event(_) -> ok.
 
 process_delivery(R,M) ->
-    wf:update(sidenav, dashboard:sidenav({wf:user(), notifications, subnav()})),
+    wf:update(sidenav, dashboard:sidenav({wf:user(), direct, subnav()})),
     wf:wire(index:on_shown()),
     feed_ui:process_delivery(R,M).

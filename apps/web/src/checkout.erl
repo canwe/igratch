@@ -9,8 +9,8 @@
 -include("records.hrl").
 -include("states.hrl").
 
-main()-> #dtl{file="prod", bindings=[{title,<<"buy mobile">>},
-                                     {body, body()},{css,?CSS},{less,?LESS},{bootstrap,?BOOTSTRAP}]}.
+main()-> #dtl{file="prod", bindings=[{title,<<"Confirm Order">>},
+                                     {body, body()},{css,?CHECKOUT_CSS},{less,?LESS},{bootstrap,?CHECKOUT_BOOTSTRAP}]}.
 
 body() ->
     error_logger:info_msg("Token~p", [wf:qs(<<"token">>)]),
@@ -23,11 +23,11 @@ body() ->
             #h4{class=["row-fluid", "page-header-sm"], body=[#small{id=alert, body= <<"">>}]},
             case Token of undefined ->
                 error_logger:info_msg("[checkout]No token defined"),
-                wf:update(alert, shopping_cart:alert("No token defined")),
+                wf:update(alert, cart:alert("No token defined")),
                 [];
             _ when PayerId /= undefined ->
                 case paypal:get_express_details([{"TOKEN", Token}]) of {error, E}-> 
-                    wf:update(alert, shopping_cart:alert(E)),[];
+                    wf:update(alert, cart:alert(E)),[];
                 Details ->
                     wf:info("The order details ~p", [Details]),
                     #panel{class=["well", "pricing-table"], body=[
@@ -83,14 +83,14 @@ event({buy, Params, Order}) ->
     wf:info("BUY ~p", [Params]),
     User = wf:user(),
     case paypal:do_express_checkout(Params) of {error, E} ->
-        wf:update(alert, shopping_cart:alert(E)), ok;
+        wf:update(alert, cart:alert(E)), ok;
     Details ->
         T1 = wf:to_list(proplists:get_value("TOKEN", Params)),
         T2 = wf:to_list(proplists:get_value("TOKEN", Details)),
         if T1 == T2 ->
             case paypal:get_express_details([{"TOKEN", T2}]) of {error, E} ->
                 error_logger:info_msg("[checkout]Error geting the details:~p", [E]),
-                wf:update(alert, shopping_cart:alert(E)),
+                wf:update(alert, cart:alert(E)),
                 {error,E};
             Status ->
                 CheckoutStatus = proplists:get_value("CHECKOUTSTATUS", Status),
@@ -109,12 +109,12 @@ event({buy, Params, Order}) ->
                     wf:redirect("/profile");
                 true ->
                     wf:info("[checkout] Fail status: ~p", [Status]),
-                    wf:update(alert, shopping_cart:alert(Status)) end end;
+                    wf:update(alert, cart:alert(Status)) end end;
         true ->
             wf:info("[checkout] Fail, tokens doesn't match."),
-            wf:update(alert, shopping_cart:alert("tokens doesn't match")) end end;
+            wf:update(alert, cart:alert("tokens doesn't match")) end end;
 
-event({cancel, Token}) -> wf:redirect("/shopping_cart?token="++wf:to_list(Token));
+event({cancel, Token}) -> wf:redirect("/cart?token="++wf:to_list(Token));
 event(_) -> ok.
 
 process_delivery(_R, _M) -> skip.

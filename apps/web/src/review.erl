@@ -9,7 +9,7 @@
 -include("states.hrl").
 
 main() -> #dtl{file="prod", bindings=[{title,<<"review">>},
-                                      {body, body()},{css,?CSS},{less,?LESS},{bootstrap, ?BOOTSTRAP}]}.
+                                      {body, body()},{css,?REVIEW_CSS},{less,?LESS},{bootstrap, ?REVIEW_BOOTSTRAP}]}.
 
 body() ->
     Id = case wf:qs(<<"id">>) of undefined -> undefined; V -> binary_to_list(V) end,
@@ -37,13 +37,13 @@ body() ->
                             #label{body= <<"Mail:">>},
                             #link{url= if Email==undefined -> [];
                                 true-> iolist_to_binary(["mailto:", Email]) end, body=#small{body=Email}}]},
-                        #panel{body=[#label{body= <<"Member since ">>}, product_ui:to_date(U#user.register_date)]},
+                        #panel{body=[#label{body= <<"Member since ">>}, index:to_date(U#user.register_date)]},
                         #b{class=["text-success"],
                             body=if Status==ok-> <<"Active">>;true -> atom_to_list(Status) end}] end,"icon-user"),
 
                     dashboard:section([
                         #h3{class=[blue], body= <<"&nbsp;&nbsp;&nbsp;&nbsp;Acticle">>},
-                        #panel{body=product_ui:to_date(E#entry.created)},
+                        #panel{body=index:to_date(E#entry.created)},
                         #p{body=#link{url="#",body=[
                             #span{class=[?EN_CM_COUNT(Eid)], body=integer_to_list(kvs_feed:comments_count(entry, Eid))},
                             #i{class=["icon-comment-alt", "icon-2x"]} ]}}], "icon-eye-open"),
@@ -56,7 +56,8 @@ body() ->
                         #p{body=[#span{class=["icon-usd"]}, float_to_list(P#product.price/100, [{decimals, 2}])]},
 
                         #panel{class=["btn-toolbar", "text-center"], body=#button{class=[btn, "btn-warning"],
-                            body=[#span{class=["icon-shopping-cart"]},<<" add to cart">>],postback={add_cart, P}}}],
+                            body=[#span{class=["icon-shopping-cart"]},<<" add to cart">>],
+                            postback={add_cart, P}, delegate=store}}],
                         "icon-gamepad") end ]},
 
                 #panel{class=[span10], body=[
@@ -109,7 +110,7 @@ render_element(#div_entry{entry=#comment{entry_id={Eid,_}}=C, state=#feed_state{
                     width= <<"50px">>, height= <<"50px">>} end};
       {error, _}-> {<<"John">> ,#image{class=["media-objects","img-circle"], image= <<"holder.js/64x64">>}} end,
 
-    Date = product_ui:to_date(C#comment.created),
+    Date = index:to_date(C#comment.created),
 
     InnerFeed = case lists:keyfind(comments,1,C#comment.feeds) of false -> [];
     {_, Fid} ->
@@ -150,11 +151,8 @@ render_element(E)-> feed_ui:render_element(E).
 
 event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read, _, {Id,_}})-> wf:redirect("/review?id="++Id);
-event({read, _, Id})-> wf:redirect("/review?id="++Id);
-event({add_cart, P}) -> store:event({add_cart, P});
-event(Event) -> error_logger:info_msg("[review]event: ~p", [Event]), [].
-api_event(Name,Tag,Term) -> error_logger:info_msg("[review]api_event-> ~p, Tag ~p, Term ~p",[Name, Tag, Term]).
+event(_) -> ok.
+api_event(_,_,_) -> ok.
 
 process_delivery(R,M) ->
     User = wf:user(),

@@ -8,7 +8,7 @@
     {profile,       <<"profile">>,          undefined},
     {myreviews,     <<"reviews">>,          feed},
     {mygames,       <<"games">>,            products},
-    {notifications, <<"notifications">>,    direct},
+    {direct,        <<"notifications">>,    direct},
     {admin,         <<"admin">>,            undefined}
     ]).
 

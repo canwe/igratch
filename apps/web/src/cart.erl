@@ -1,4 +1,4 @@
--module(shopping_cart).
+-module(cart).
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/payments.hrl").
@@ -105,7 +105,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=cart}=State})
             #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=
                 #link{style="color:#9b9c9e;", body=P#product.title, url=?URL_PRODUCT(P#product.id)}}},
 
-            #p{id=?EN_DESC(Id), body=product_ui:shorten(P#product.brief)} ]},
+            #p{id=?EN_DESC(Id), body=index:shorten(P#product.brief)} ]},
 
         #panel{class=[span3, "text-center"], body=[
             #h3{style="",
@@ -119,7 +119,6 @@ render_element(E)-> store:render_element(E).
 
 event(init) -> wf:reg(?MAIN_CH),[];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
-event({read, product, Id})-> wf:redirect("/product?id="++Id);
 
 event({to_wishlist, #product{}=P, #feed_state{}=S})->
     case kvs:get(entry, {P#product.id, S#feed_state.container_id}) of {error,_}-> ok;
