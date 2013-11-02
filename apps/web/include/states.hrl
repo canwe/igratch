@@ -60,7 +60,7 @@
 -define(COMMENTS_FEED(Id), ?FD_STATE(Id)#feed_state{view=comment,
                                                     entry_type=comment,
                                                     entry_id=#comment.comment_id,
-                                                    show_title=false,
+                                                    show_title=true,
                                                     delegate=review}).
 
 -define(COMMENTS_INPUT(Id, Recipients), #input_state{id=?FD_INPUT(Id),

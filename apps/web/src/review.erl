@@ -125,7 +125,7 @@ render_element(#div_entry{entry=#comment{entry_id={Eid,_}}=C, state=#feed_state{
         CmState = ?FD_STATE(Fid, State)#feed_state{
             js_escape = false,
             recipients = Recipients,
-            show_title = State#feed_state.show_title  andalso not State#feed_state.flat_mode,
+            show_title = false,
             show_header= State#feed_state.show_header andalso not State#feed_state.flat_mode},
         wf:cache({Fid, ?CTX#context.module}, CmState),
 
