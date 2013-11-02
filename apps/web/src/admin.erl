@@ -103,6 +103,8 @@ tab(reviews)->
         #tr{class=["feed-table-header"],
             cells=[#th{},#th{body= <<"from">>},#th{body= <<"title">>},#th{body= <<"description">>}]}]};
 
+tab(payments)-> [];
+
 tab(_)-> [].
 
 feature_reply(#user{}=Whom, Feature, Msg, Eid) ->

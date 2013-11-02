@@ -254,7 +254,7 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({add_cart, P}) ->
     store:event({add_cart, P}),
-    wf:redirect("/shopping_cart");
+    wf:redirect("/cart");
 event(_) -> ok.
 
 api_event(tabshow,Args,_) ->

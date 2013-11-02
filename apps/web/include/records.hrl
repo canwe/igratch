@@ -20,11 +20,11 @@
 -define(DIRECT_CSS,         "/static/css/igratch.css").
 -define(DIRECT_BOOTSTRAP,   "/static/js/bootstrap.min.js").
 -define(ADMIN_CSS,          "/static/css/igratch.css").
--define(ADMIN_BOOTSTRAP,    "/static/js/bootstrap.min.js").
+-define(ADMIN_BOOTSTRAP,    "/static/js/admin-bs.min.js").
 -define(PROFILE_CSS,        "/static/css/igratch.css").
 -define(PROFILE_BOOTSTRAP,  "/static/js/bootstrap.min.js").
 -define(CART_CSS,           "/static/css/igratch.css").
--define(CART_BOOTSTRAP,     "/static/js/bootstrap.min.js").
+-define(CART_BOOTSTRAP,     "/static/js/cart-bs.min.js").
 -define(CHECKOUT_CSS,       "/static/css/igratch.css").
 -define(CHECKOUT_BOOTSTRAP, "/static/js/bootstrap.min.js").
 -define(STORE_CSS,          "/static/css/igratch.css").
