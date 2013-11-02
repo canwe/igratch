@@ -61,7 +61,7 @@ render_element(#div_entry{entry=#entry{entry_id=Eid}=E, state=#feed_state{view=r
         #p{class=[username], body= #link{body=From, url= "/profile?id="++wf:to_list(FromId)}},
         #panel{body= product_ui:to_date(E#entry.created)},
         #p{body=[
-            #link{url="#",body=[#span{class=[?EN_CM_COUNT(UiId)],
+            #link{url=?URL_REVIEW(Eid),body=[#span{class=[?EN_CM_COUNT(UiId)],
                 body= integer_to_list(kvs_feed:comments_count(entry, Id))},
                 #i{class=["icon-comment-alt", "icon-2x"]} ]} ]}]},
 

@@ -54,7 +54,9 @@ body()->
                 #panel{id=?USR_ORDER(State#feed_state.container_id), class=[span3], body=order_summary(State)} ]}]}]}
     ] ++ index:footer() end.
 
-order_summary(#feed_state{visible_key=Visible}=S) ->
+order_summary(S)-> order_summary(S,false).
+
+order_summary(#feed_state{visible_key=Visible}=S, Escape) ->
     case wf:cache(Visible) of [] ->
         case kvs:get(S#feed_state.container, S#feed_state.container_id) of {error,_} -> ok;
             {ok, Feed} -> Entries = kvs:entries(Feed, S#feed_state.entry_type, S#feed_state.page_size),
@@ -63,7 +65,8 @@ order_summary(#feed_state{visible_key=Visible}=S) ->
     {Items, Total} = lists:mapfoldl(fun({Id,_}, In)->
         case kvs:get(product,Id) of {error,_} -> {[], In};
             {ok, #product{price=Price, title=Title}} -> {
-                [#panel{body=[#b{body=Title}, #span{class=["pull-right"], body=[
+                [#panel{body=[#b{body=if Escape -> wf:js_escape(Title);true -> Title end},
+                    #span{class=["pull-right"], body=[
                     #span{class=["icon-usd"]},
                     float_to_list(Price/100, [{decimals,2}]) ]}]}
                 ], In+Price} end end,
@@ -86,7 +89,7 @@ order_summary(#feed_state{visible_key=Visible}=S) ->
             postback={checkout, Visible},
             body=[#image{image="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif"}]} 
     ]};
-order_summary(undefined)->[].
+order_summary(undefined,_)->[].
 
 %% Render elements
 
@@ -100,7 +103,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=cart}=State})
 
         #panel{class=[span5, "article-text"], body=[
             #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=
-                #link{style="color:#9b9c9e;", body=P#product.title, postback={read, product, P#product.id}}}},
+                #link{style="color:#9b9c9e;", body=P#product.title, url=?URL_PRODUCT(P#product.id)}}},
 
             #p{id=?EN_DESC(Id), body=product_ui:shorten(P#product.brief)} ]},
 
@@ -161,7 +164,7 @@ event({checkout, Visible}) ->
         {0,0}, [I || I <- ordsets:from_list(wf:cache(Visible))]),
 
     case paypal:set_express_checkout(lists:flatten(?PP_PAYMENTREQUEST(Total)++Req)) of
-        {error,E} -> wf:update(alert, index:alert_inline(E));_-> ok end;
+        {error,E} -> wf:info("Upadte?"),wf:update(alert, index:alert_inline(wf:js_escape(wf:to_list(E))));_-> ok end;
 
 event(_) -> ok.
 
@@ -170,7 +173,7 @@ process_delivery([entry, {_,Fid}, _]=R, [#entry{}|_]=M)->
     feed_ui:process_delivery(R,M),
     case feed_ui:feed_state(Fid) of false -> ok;
     State ->
-        wf:update(?USR_ORDER(State#feed_state.container_id), order_summary(State)),
+        wf:update(?USR_ORDER(State#feed_state.container_id), order_summary(State, true)),
         case lists:keyfind(cart, 1, User#user.feeds) of false -> ok;
         {_,CFid} when Fid == CFid ->
             case kvs:get(feed,Fid) of

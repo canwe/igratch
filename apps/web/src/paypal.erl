@@ -29,9 +29,9 @@ nvp_request(Method, Params) ->
 
     Body = string:join([string:join([wf:to_list(K),wf:to_list(V)],"=")|| {K,V}<-ExtendedParams],"&"),
 
-    {ok, Response} = httpc:request(post,{?PP_NVP, [], "x-www-form-urlencode", Body},[],[]),
-
-    case Response of {StatusLine, _, ResponseBody} ->
+    case httpc:request(post,{?PP_NVP, [], "x-www-form-urlencode", Body},[],[]) of
+    {error, E} -> wf:info("[paypal] Error ~p", [E]), {error, E};
+    {ok, {StatusLine, _, ResponseBody}} ->
         case StatusLine of {"HTTP/1.1",200,"OK"} ->
             Details = [begin [K,V]=string:tokens(P,"="),{K,V} end||P<-string:tokens(http_uri:decode(ResponseBody),"&")],
 
@@ -42,10 +42,10 @@ nvp_request(Method, Params) ->
        _ ->
             wf:info("[paypal] ~p Request error. Status: ~p [~p]", [Method, StatusLine, ResponseBody]),
            {error, StatusLine} end;
-    {StatusCode,_} -> 
+    {ok, {StatusCode,_}} ->
         wf:info("[paypal] ~p Request error. Status code: ~p", [Method, StatusCode]),
         {error, StatusCode};
-    ReqId ->
+    {ok, ReqId} ->
         wf:info("[paypal] ~p Request error ~p", [Method, ReqId]),
         {error, ReqId} end.
 
