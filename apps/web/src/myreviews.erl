@@ -69,5 +69,9 @@ render_element(E)-> feed_ui:render_element(E).
 
 
 event(init) -> wf:reg(?MAIN_CH), [];
-event({delivery, [_|Route], Msg}) -> feed_ui:process_delivery(Route, Msg);
-event(Event) -> error_logger:info_msg("[my reviews] event: ~p", [Event]).
+event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
+event(_) -> ok.
+
+process_delivery(R,M) ->
+    wf:update(sidenav, dashboard:sidenav({wf:user(), myreviews, []})),
+    feed_ui:process_delivery(R,M).

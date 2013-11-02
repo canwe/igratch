@@ -72,4 +72,6 @@ event(init) -> wf:reg(?MAIN_CH), [];
 event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(_) -> ok.
 
-process_delivery(R,M) -> feed_ui:process_delivery(R,M).
+process_delivery(R,M) ->
+    wf:update(sidenav, dashboard:sidenav({wf:user(), mygames, []})),
+    feed_ui:process_delivery(R,M).
