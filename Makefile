@@ -1,6 +1,6 @@
 RELEASE  := igratch
 COOKIE   := node_runner
-APPS     := web amqp_client avz cowboy erlydtl gproc kvs lager mimetypes mqs n2o oauth rabbit_common ranch sync feed_server
+APPS     := web amqp_client kai avz cowboy erlydtl gproc kvs lager mimetypes mqs n2o oauth rabbit_common ranch sync feed_server
 ERL_ARGS := -args_file rels/web/files/vm.args -config rels/web/files/sys.config
 RUN_DIR  ?= ./rels/web/devbox
 LOG_DIR  ?= ./rels/web/devbox/logs
