@@ -106,9 +106,10 @@ box(Discount, Price, ColorClass, IconClass)->
 
 header() ->
     User = wf:user(),
-    IsAdmin = case User of undefined -> false; _ -> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
-    Reviewer = kvs_acl:check_access(User#user.email, {feature, reviewer})==allow,
-    Dev = kvs_acl:check_access(User#user.email, {feature,developer}) == allow,
+    {IsAdmin, Reviewer, Dev} = case User of undefined -> {false,false,false};
+    _ -> {  kvs_acl:check_access(User#user.email, {feature, admin})==allow,
+            kvs_acl:check_access(User#user.email, {feature, reviewer}) ==allow,
+            kvs_acl:check_access(User#user.email, {feature, developer}) == allow} end,
     [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[
     #panel{class=["navbar-inner"], body=[
