@@ -66,11 +66,6 @@ body() ->
 
 feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=(wf:cache({Fid,?CTX#context.module}))#feed_state{js_escape=true}}.
 
-featured(Id) ->
-    wf:info("Update featured items"),
-
-    ok.
-
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
     {error, not_found} -> [];
@@ -194,10 +189,8 @@ alert_inline(Msg) ->
               style="float:none;top:0;",
               body= <<"&times;">>}]}.
 
-
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    featured(Id),
     case Id of "all" -> []; 
     _ -> wf:update(Id, feed(list_to_integer(Id))) end,
     wf:wire("Holder.run();");
@@ -208,10 +201,13 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event({add_cart, P}) ->
     store:event({add_cart, P}),
     wf:redirect("/cart");
-event(Event) -> error_logger:info_msg("[index]Event: ~p", [Event]).
+event(_) -> ok.
 
 process_delivery([_Id, join,  G], {}) when G=="featured"-> wf:update(carousel, featured());
 process_delivery([_Id, leave, G], {}) when G=="featured"-> wf:update(carousel, featured());
+process_delivery([user,logout], #user{}=U) ->
+    case wf:user() of User when User#user.email == U#user.email-> wf:logout();_ -> ok end;
+
 process_delivery(R,M) -> feed_ui:process_delivery(R,M).
 
 shorten(undefined) -> <<"">>;

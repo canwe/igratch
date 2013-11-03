@@ -47,13 +47,17 @@ event({delivery, [_|Route], Msg}) -> process_delivery(Route, Msg);
 event(login) -> avz:login(email, [{<<"email">>, list_to_binary(wf:q(user))}, {<<"password">>, wf:q(pass)}]);
 event({login, #user{}=User}) ->
     {ok, U} = kvs:get(user, User#user.email),
-    Av = case string:str(wf:to_list(U#user.avatar), "static/"++U#user.email) of
-        0 -> User#user.avatar; _ -> U#user.avatar end,
-    msg:notify([kvs_user, login, user, User#user.email, update_status], {}),
-    avz:login_user(User#user{avatar=Av});
+    case kvs_acl:check_access(User#user.email, {feature,login}) of
+    disable ->
+        wf:update(messages, index:error(<<"Your account has been blocked.">>));
+    _ ->
+        Av = case string:str(wf:to_list(U#user.avatar), "static/"++U#user.email) of
+            0 -> User#user.avatar; _ -> U#user.avatar end,
+        msg:notify([kvs_user, login, user, User#user.email, update_status], {ok}),
+        avz:login_user(User#user{avatar=Av}) end;
 event({register, #user{}=User}) ->
     msg:notify([kvs_user, user, create], [User#user{feeds=?USR_CHUNK}]);
-event(X) -> error_logger:info_msg("Event: ~p", [X]), avz:event(X).
+event(X) -> avz:event(X).
 
 api_event(X,Y,Z) -> avz:api_event(X,Y,Z).
 

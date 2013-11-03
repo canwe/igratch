@@ -116,7 +116,8 @@
 
 % Admin
 
--define(GROUPS_FEED, ?FD_STATE(?FEED(group))#feed_state{entry_type=group,
+-define(GROUPS_FEED, ?FD_STATE(?FEED(group))#feed_state{delegate=admin,
+                                                        entry_type=group,
                                                         enable_selection=true,
                                                         enable_traverse=true,
                                                         html_tag=table}).
@@ -129,23 +130,27 @@
                                     show_scope=true,
                                     show_media=false}).
 
--define(ACL_FEED(Id), ?FD_STATE(Id)#feed_state{ container=acl,
+-define(ACL_FEED(Id), ?FD_STATE(Id)#feed_state{ delegate=admin,
+                                                container=acl,
                                                 entry_type=acl_entry,
                                                 html_tag=table,
                                                 enable_selection=false,
                                                 enable_traverse=true}).
 
--define(USERS_FEED, ?FD_STATE(?FEED(user))#feed_state{entry_type=user,
+-define(USERS_FEED, ?FD_STATE(?FEED(user))#feed_state{delegate=admin,
+                                                      entry_type=user,
                                                       entry_id=#user.username,
                                                       html_tag=table,
                                                       enable_traverse=true}).
 
--define(PRODUCTS_VIEW_FEED, ?FD_STATE(?FEED(product))#feed_state{entry_type=product,
+-define(PRODUCTS_VIEW_FEED, ?FD_STATE(?FEED(product))#feed_state{delegate=admin,
+                                                                 entry_type=product,
                                                                  enable_selection=true,
                                                                  enable_traverse=true,
                                                                  html_tag=table}).
 
--define(REVIEWS_VIEW_FEED, ?FD_STATE(?FEED(entry))#feed_state{entry_type=entry,
+-define(REVIEWS_VIEW_FEED, ?FD_STATE(?FEED(entry))#feed_state{delegate=admin,
+                                                              entry_type=entry,
                                                               enable_selection=true,
                                                               enable_traverse=true,
                                                               del_by_index = true,

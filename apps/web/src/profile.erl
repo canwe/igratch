@@ -62,26 +62,36 @@ profile_info(Who, #user{} = What, Size) ->
                     #link{url= if What#user.email==undefined -> []; true-> iolist_to_binary(["mailto:", What#user.email]) end,
                         body=#strong{body= What#user.email}}]},
                 #panel{body=[#label{body= <<"Member since ">>}, #strong{body= index:to_date(What#user.register_date)}]},
-                #b{class=["text-success"], body=
-                    if What#user.status==ok -> <<"Active">>; true-> atom_to_list(What#user.status) end},
+                #b{class=[if What#user.status==ok -> "text-success";true ->"text-error" end], body=
+                    if What#user.status==ok -> <<"Active">>; true-> wf:to_list(What#user.status) end},
                 features(Who, What, Size),
                 #p{id=alerts} ]}}]} ];
 profile_info(Who, What, Size) -> case kvs:get(user, What) of {ok, U}-> profile_info(Who,U,Size); _-> [] end.
 
 features(Who, What, Size) ->
+    Blocked = kvs_acl:check_access(What#user.email, {feature,login}) == disable,
     Writer =  kvs_acl:check_access(What#user.email, {feature,reviewer}) =:= allow,
     Dev =     kvs_acl:check_access(What#user.email, {feature,developer}) =:= allow,
     Admin =   kvs_acl:check_access(What#user.email, {feature,admin}) =:= allow,
     AmIAdmin= kvs_acl:check_access(case Who of undefined -> undefined; #user{} -> Who#user.email; S -> S end,  {feature, admin}) == allow,
   [#p{body=[
+    if Blocked andalso AmIAdmin ->
+        #link{body=[#span{class=["icon-stack", Size], body=[
+                #i{class=?STACK_BASE++["text-error"]},#i{class=["icon-user", "icon-muted"]}]}],
+            title= <<"unblock account">>,
+            postback={unblock, What},
+            delegate=admin};
+    Blocked -> #link{body=[#span{class=["icon-stack", Size], body=[#i{class=?STACK_BASE++["text-error"]},#i{class=["icon-user", "icon-muted"]}]}]};
+    true ->
     #link{class=["text-warning"],
         data_fields=?TOOLTIP,
         title = if AmIAdmin -> <<"disable user">>; true -> <<"user">> end,
         postback = if AmIAdmin -> {disable,What}; true -> undefined end,
+        delegate = admin,
         body=#span{class=["icon-stack", Size], body=[
             #i{class=?STACK_BASE},#i{class=["icon-user"]},
             if AmIAdmin ->  #i{class=["icon-ban-circle", "text-error"]}; true -> [] end
-        ]}},
+        ]}} end,
 
   if AmIAdmin andalso Writer -> #link{class=["text-success"],
     data_fields=?TOOLTIP, title= <<"revoke reviewer">>,
