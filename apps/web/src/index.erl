@@ -107,6 +107,8 @@ box(Discount, Price, ColorClass, IconClass)->
 header() ->
     User = wf:user(),
     IsAdmin = case User of undefined -> false; _ -> kvs_acl:check_access(User#user.email, {feature, admin})==allow end,
+    Reviewer = kvs_acl:check_access(User#user.email, {feature, reviewer})==allow,
+    Dev = kvs_acl:check_access(User#user.email, {feature,developer}) == allow,
     [
   #header{class=[navbar, "navbar-fixed-top", ighead], body=[
     #panel{class=["navbar-inner"], body=[
@@ -140,8 +142,12 @@ header() ->
                         width= <<"45px">>, height= <<"45px">>}},
                   #list{class=["dropdown-menu"], body=[
                     #li{body=#link{url="/profile",  body=[#i{class=["icon-user", "icon-large"]}, <<" Profile">>]}},
-                    #li{body=#link{url="/myreviews",body=[#i{class=["icon-list", "icon-large"]}, <<" Reviews">>]}},
-                    #li{body=#link{url="/mygames",  body=[#i{class=["icon-gamepad", "icon-large"]}, <<" Games">>]}},
+                    if Reviewer ->
+                        #li{body=#link{url="/myreviews",body=[#i{class=["icon-list", "icon-large"]}, <<" Reviews">>]}};
+                    true -> [] end,
+                    if Dev ->
+                        #li{body=#link{url="/mygames",  body=[#i{class=["icon-gamepad", "icon-large"]}, <<" Games">>]}};
+                    true -> [] end,
                     #li{body=#link{url="/direct",   body=[#i{class=["icon-envelope", "icon-large"]}, <<" Notifications">>]}},
                     #li{body=#link{url="/cart",     body=[#i{class=["icon-shopping-cart", "icon-large"]}, <<" Shopping Cart">>]}},
                     if IsAdmin ->

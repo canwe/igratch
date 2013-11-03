@@ -1,5 +1,5 @@
--include_lib("feed_ui/include/input.hrl").
--include_lib("feed_ui/include/feed.hrl").
+-include_lib("feed_server/include/input.hrl").
+-include_lib("feed_server/include/feed.hrl").
 
 % My Games
 

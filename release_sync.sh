@@ -6,8 +6,7 @@ appss=( "rels/web/node/lib/web-1"
         "rels/web/node/lib/kvs-1"
         "rels/web/node/lib/avz-1"
         "rels/web/node/lib/shen-1"
-        "rels/web/node/lib/feed_server-0.1.0"
-        "rels/web/node/lib/feed_ui-0.1.0"
+        "rels/web/node/lib/feed_server-1"
         "rels/web/node/lib/mqs-0.0.1")
 
 declare -A sources_apps
