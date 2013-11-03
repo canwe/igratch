@@ -8,7 +8,7 @@ PLT_NAME := .dialyzer.plt
 
 test: eunit ct
 compile: get-deps static-link
-get-deps compile clean update-deps:
+delete-deps get-deps compile clean update-deps:
 	rebar $@
 .applist:
 	./envgen.erl $(APPS) > $@
