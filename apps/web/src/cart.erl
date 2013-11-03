@@ -99,7 +99,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=cart}=State})
         Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, E))),
         error_logger:info_msg("Id: ~p", [Id]),
         [#panel{id=?EN_MEDIA(Id), class=[span4, "media-pic"], style="margin:0;",
-            body=#entry_media{media=store:media(P#product.cover), mode=store}},
+            body=#entry_media{media=input:media(P#product.cover), mode=store}},
 
         #panel{class=[span5, "article-text"], body=[
             #h3{body=#span{id=?EN_TITLE(Id), class=[title], body=
@@ -131,7 +131,7 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
             entry_id = P#product.id,
             title = P#product.title,
             description = P#product.brief,
-            medias=[store:media(P#product.cover)]},
+            medias=[index:media(P#product.cover)]},
 
             input:event({post, wishlist, Is}),
 
@@ -156,14 +156,21 @@ event({checkout, Visible}) ->
                         user_id = User#user.email,
                         product_id=P#product.id,
                         product = P,
-                        info = paypal},
+                        payment_type = paypal},
                 msg:notify([kvs_payment, user, User#user.email, add], {Pm}),
 
-                {paypal:product_request(Index,PmId,P), {T+Price,In+1}} end end,
+                {{PmId, paypal:product_request(Index,PmId,P)}, {T+Price,In+1}} end end,
         {0,0}, [I || I <- ordsets:from_list(wf:cache(Visible))]),
 
-    case paypal:set_express_checkout(lists:flatten(?PP_PAYMENTREQUEST(Total)++Req)) of
-        {error,E} -> wf:info("Upadte?"),wf:update(alert, index:alert_inline(wf:js_escape(wf:to_list(E))));_-> ok end;
+    {Ids, Req1} = lists:unzip(Req),
+    case paypal:set_express_checkout(lists:flatten(?PP_PAYMENTREQUEST(Total)++Req1)) of
+        {error,E} ->
+            [begin
+                 msg:notify([kvs_payment, user, User#user.email, set_state], {I, failed, {E}}),
+                 msg:notify([kvs_payment, user, User#user.email, set_external_id],
+                            {I, proplists:get_value("CORRELATIONID", Req1)})
+            end || I <- Ids],
+            wf:update(alert, index:alert_inline(wf:js_escape(wf:to_list(E))));_-> ok end;
 
 event(_) -> ok.
 
