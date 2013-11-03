@@ -87,7 +87,17 @@ order_summary(#feed_state{visible_key=Visible}=S, Escape) ->
         #hr{},
         #link{class=[btn, "btn-block", if Total == 0 -> disabled; true -> "" end],
             postback={checkout, Visible},
-            body=[#image{image="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif"}]} 
+            body=[#image{image="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif"}]} ,
+        #hr{},
+        #panel{class=[alert,"alert-block", "alert-warning"], body=[
+            #p{body= <<"WARNING!">>},
+            #p{body= <<"PayPal chekout is in the sandbox mode! ">>},
+            #p{body = <<"You can buy anything using following account:">>},
+            #panel{body= <<"Login:">>},
+            #strong{body = <<"buyer@igratch.com">>},
+            #panel{body= <<"Password:">>},
+            #strong{body= <<"buyerigratch">>}
+        ]}
     ]};
 order_summary(undefined,_)->[].
 
@@ -131,7 +141,7 @@ event({to_wishlist, #product{}=P, #feed_state{}=S})->
             entry_id = P#product.id,
             title = P#product.title,
             description = P#product.brief,
-            medias=[index:media(P#product.cover)]},
+            medias=[input:media(P#product.cover)]},
 
             input:event({post, wishlist, Is}),
 

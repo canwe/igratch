@@ -9,22 +9,11 @@
 -include("records.hrl").
 -include("states.hrl").
 
--jsmacro([on_shown1/0,on_shown/0]).
+-jsmacro([on_shown/0]).
 
 on_shown() ->
     X = jq("a[data-toggle=\"tab\"]"),
     X:on("shown", fun(E) -> T = jq(E:at("target")), tabshow(T:attr("href")) end).
-
-on_shown1() ->
-    X = jq("a[data-toggle=\"tab\"]"),
-    X:on("shown", fun(E) -> 
-        T = jq(E:at("target")),
-        Id = T:attr("href"),
-        case Id of all -> All = jq("a[href=\"#all\"]"), All:removeClass("text-warning");
-        _ -> P = T:parent(),PP = P:parent(),Tw =PP:find('.text-warning'), Tw:removeClass('text-warning') end,
-        T:addClass('text-warning'),
-        Sib = T:siblings(), Sib:removeClass('text-warning'),
-        tabshow(Id) end).
 
 main() -> #dtl{file = "prod", ext="dtl", bindings=[ {title, <<"iGratch">>},
                                                     {body, body()},
@@ -76,6 +65,11 @@ body() ->
                                         state=Discus} ]}]}]}]}]}] ++ footer().
 
 feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=(wf:cache({Fid,?CTX#context.module}))#feed_state{js_escape=true}}.
+
+featured(Id) ->
+    wf:info("Update featured items"),
+
+    ok.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
@@ -203,7 +197,9 @@ alert_inline(Msg) ->
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    case Id of "all" -> []; _ -> wf:update(Id, feed(list_to_integer(Id))) end,
+    featured(Id),
+    case Id of "all" -> []; 
+    _ -> wf:update(Id, feed(list_to_integer(Id))) end,
     wf:wire("Holder.run();");
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 

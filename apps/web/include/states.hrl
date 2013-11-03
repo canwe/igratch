@@ -167,3 +167,8 @@
                                         class= ["feed-table-header"],
                                         expand_btn= <<"compose">>}).
 
+-define(USR_PAYMENTS_FEED(Id), ?FD_STATE(Id)#feed_state{container = user_payment,
+                                                        entry_type = payment,
+                                                        delegate = admin,
+                                                        enable_traverse = true,
+                                                        html_tag = table }).

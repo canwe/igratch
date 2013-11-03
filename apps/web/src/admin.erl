@@ -2,6 +2,7 @@
 -compile(export_all).
 -include_lib("n2o/include/wf.hrl").
 -include_lib("kvs/include/products.hrl").
+-include_lib("kvs/include/payments.hrl").
 -include_lib("kvs/include/users.hrl").
 -include_lib("kvs/include/acls.hrl").
 -include_lib("kvs/include/groups.hrl").
@@ -23,7 +24,8 @@ body() ->
         #panel{class=[span9, "tab-content"], style="min-height:400px;",
             body = if IsAdmin -> [
                 #panel{id=categories, class=["tab-pane", active], body=tab(categories)},
-                [#panel{id=Id, class=["tab-pane"]} || Id <-[acl, users, products, reviews]]
+                [#panel{id=Id, class=["tab-pane"]} ||
+                    Id <- [acl, users, products, reviews, user_payment, product_payment]]
             ];true -> [] end} ]) ++ index:footer().
 
 subnav() -> [
@@ -31,7 +33,10 @@ subnav() -> [
     {acl, "acl"},
     {users, "users"},
     {products, "products"},
-    {reviews, "reviews"}
+    {reviews, "reviews"},
+    {user_payment, "user payments"},
+    {product_payment, "product payments"},
+    {dev_payment, "dev payments"}
   ].
 
 tab(categories) ->
@@ -103,9 +108,41 @@ tab(reviews)->
         #tr{class=["feed-table-header"],
             cells=[#th{},#th{body= <<"from">>},#th{body= <<"title">>},#th{body= <<"description">>}]}]};
 
-tab(payments)-> [];
+tab(product_payment) ->
+    #panel{class=["row-fluid"],body=[
+       #table{class=[table,"table-hover", span4], header=
+            #tr{class=["feed-table-header"], cells=[#th{body= <<"product">>}]},
+            body=[[#tr{cells=[
+                    #td{body=#link{body=Title, postback={show_payment, prd, Id}}}
+            ]} || #product{id=Id,title=Title} <- kvs:all(product)] ]},
+
+        #panel{class=[span8], body=#panel{id=prd}} ]};
+
+tab(user_payment) ->
+    #panel{class=["row-fluid"],body=[
+       #table{class=[table,"table-hover", span4], header=[
+           #tr{class=["feed-table-header"], cells=[#th{body= <<"user">>},#th{body= <<"pays">>}]}],
+            body=[[
+                #tr{cells=[
+                    #td{body=#link{body=User, postback={show_payment, usr, User}}},
+                    #td{body=integer_to_list(Count)}
+                ]} || #user_payment{id=User, entries_count=Count} <- kvs:all(user_payment)] ]},
+        #panel{class=[span8], body=#panel{id=usr}} ]};
 
 tab(_)-> [].
+
+% Render 
+
+render_element(#row_entry{entry=#payment{id=Id, product_id=Pid}=Py}) -> wf:render([
+    #td{body= #small{body=Id}},
+    #td{body= #small{body=Py#payment.external_id}},
+    #td{body= [#link{url=?URL_PRODUCT(Pid), body= Py#payment.product#product.title }]},
+    #td{body= [#i{class=["icon-usd"]}, float_to_list(Py#payment.product#product.price/100, [{decimals,2}])]},
+    #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],
+        body= [atom_to_list(Py#payment.state)]}]);
+
+render_element(E) -> feed_ui:render_element(E).
+
 
 feature_reply(#user{}=Whom, Feature, Msg, Eid) ->
     case lists:keyfind(direct, 1, Whom#user.feeds) of false -> skip;
@@ -150,6 +187,33 @@ event({revoke, Feature, Whom})->
     {ok, U} ->
         kvs_acl:define_access({user, U#user.email}, {feature, Feature}, disable),
         feature_reply(U, Feature, <<"Your role disabled!">>, undefined) end;
+event({show_payment, usr, Id}) ->
+    State = case wf:cache({Id,?CTX#context.module}) of undefined -> 
+        S = ?USR_PAYMENTS_FEED(Id), wf:cache({Id,?CTX#context.module},S),S; Ss->Ss end,
+
+    Header = #tr{class=["feed-table-header"], cells=[
+        #th{body= <<"id">>}, #th{body= <<"paypal">>},
+        #th{body= <<"product">>},#th{body= <<"amount">>},
+        #th{body= <<"state">>}]},
+
+    wf:update(usr, #feed_ui{title= <<"payments">>,
+                             icon="icon-list",
+                             state=State#feed_state{js_escape=true},
+                             header=Header});
+event({show_payment, prd, Id}) ->
+    Header = #tr{class=["feed-table-header"], cells=[
+        #th{body= <<"Date">>}, #th{body= <<"Status">>},#th{body= <<"Price">>},#th{body= <<"User">>}]},
+
+    wf:update(prd, #table{class=[table, "table-hover", payments], header=Header, body=[[begin
+        #tr{cells=[
+          #td{body=[index:to_date(Py#payment.start_time)]},
+          #td{class=[case Py#payment.state of done -> "text-success"; added-> "text-warning"; _-> "text-error" end],
+                body= [atom_to_list(Py#payment.state)]},
+          #td{body=[#span{class=["icon-usd"]}, float_to_list(Price/100, [{decimals, 2}])]},
+          #td{body=#link{body=User, url= ?URL_PROFILE(User)}}]}
+      end || #payment{user_id=User, product=#product{price=Price}} = Py
+        <- kvs:all_by_index(payment, product_id, Id) ]]} );
+
 event(_) -> ok.
 
 process_delivery(R,M) ->

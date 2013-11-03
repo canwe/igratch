@@ -57,7 +57,7 @@ render_element(#div_entry{entry=#product{}=P, state=#feed_state{view=store}}) ->
 render_element(E)-> error_logger:info_msg("[store] render -> feed_ui"),feed_ui:render_element(E).
 
 store_element(Id, P) ->
-    Media = media(P#product.cover),
+    Media = input:media(P#product.cover),
 
     {FromId, From} = case kvs:get(user, P#product.owner) of
         {ok, U} -> {P#product.owner, U#user.display_name};
@@ -107,7 +107,7 @@ event({add_cart, #product{}=P}) ->
             entry_id = P#product.id,
             title = P#product.title,
             description = P#product.brief,
-            medias=[media(P#product.cover)]},
+            medias=[input:media(P#product.cover)]},
 
         input:event({post, cart, Is}) end;
 
@@ -120,10 +120,6 @@ process_delivery(R,M) ->
         {ok, #feed{entries_count=C}} when C==0 -> ok;
         {ok, #feed{entries_count=C}}-> wf:update(?USR_CART(User#user.id), integer_to_list(C)) end end,
     feed_ui:process_delivery(R,M).
-
-media(undefined)-> #media{};
-media(File)-> #media{url = File,
-    thumbnail_url = filename:join([filename:dirname(File),"thumbnail",filename:basename(File)])}.
 
 short_date(undefined) -> short_date(now());
 short_date(Date) ->

@@ -201,7 +201,7 @@ render_element(#div_entry{entry=#entry{}=E, state=#feed_state{view=group, flat_m
     case kvs:get(product, E#entry.entry_id) of {error, _} -> wf:render(#panel{body= <<"error displaying item">>});
     {ok, P} ->
         Id = wf:to_list(erlang:phash2(element(State#feed_state.entry_id, P))),
-        Media = store:media(P#product.cover),
+        Media = input:media(P#product.cover),
 
         wf:render([
             #panel{id=?EN_MEDIA(Id), class=[span5, "media-pic"], body=#entry_media{media=Media, mode=store}},
