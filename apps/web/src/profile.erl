@@ -242,7 +242,7 @@ event({request, Feature}) ->
                 collect_msg = false,
                 show_recipients = false,
                 title = "Feature <b>"++ wf:to_list(Feature)++"</b> request",
-                recipients = [Recipients],
+                recipients = Recipients,
                 description = wf:to_list(Feature) ++ " requested!"},
 
             input:event({post, {feature, Feature}, Is}),

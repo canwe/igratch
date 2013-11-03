@@ -187,7 +187,7 @@ feature_reply(#user{}=Whom, Feature, Msg, Eid) ->
                 {_,Did}->
                     error_logger:info_msg("Entry delete: ~p", [Eid]),
                     msg:notify( [kvs_feed, User#user.email, entry, delete],
-                                [#entry{id={Eid, Did}, entry_id=Eid, feed_id=Did}, Is]) end end end.
+                                [#entry{id={Eid, Did}, entry_id=Eid, feed_id=Did}]) end end end.
 
 % Events
 
