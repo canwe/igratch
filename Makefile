@@ -1,10 +1,9 @@
-RELEASE := igratch
-COOKIE := node_runner
-APPS := web amqp_client avz cowboy erlydtl gproc kvs lager mimetypes mqs n2o oauth rabbit_common ranch sync feed_server
-ERL_ARGS=-args_file rels/web/files/vm.args -config rels/web/files/sys.config
-
-RUN_DIR      ?= ./rels/web/devbox
-LOG_DIR      ?= ./rels/web/devbox/logs
+RELEASE  := igratch
+COOKIE   := node_runner
+APPS     := web amqp_client avz cowboy erlydtl gproc kvs lager mimetypes mqs n2o oauth rabbit_common ranch sync feed_server
+ERL_ARGS : =-args_file rels/web/files/vm.args -config rels/web/files/sys.config
+RUN_DIR  ?= ./rels/web/devbox
+LOG_DIR  ?= ./rels/web/devbox/logs
 N2O          := deps/n2o/priv/static
 FILES        := apps/web/priv/static/n2o
 BOOTSTRAP    := apps/web/priv/static/bootstrap
@@ -13,7 +12,6 @@ MCE          := apps/web/priv/static/tinymce
 LESSJS       := apps/web/priv/static/less
 
 default: .applist compile static-link
-
 static-link:
 	rm -rf $(N2O)
 	rm -rf $(FILES)
