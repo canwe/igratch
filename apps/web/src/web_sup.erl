@@ -21,8 +21,6 @@ init([]) ->
     {ok, _} = cowboy:start_http(http, 100, [{port, 8001}],
                                            [{env, [{dispatch, dispatch_rules()}]}]),
 
-    users:init(),
-
     Pid = spawn(fun () -> wf:reg(lobby), chat_room([]) end),
 
     {ok, {{one_for_one, 5, 10}, []}}.
