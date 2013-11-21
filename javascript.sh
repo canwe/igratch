@@ -14,18 +14,18 @@ function create_script {
   echo ${args[@]} > $2
 }
 
-create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/bootstrap.min.js "/"
-create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/reviews-bs.min.js \
+create_script apps/web/priv/static/n2o_bt/js apps/web/priv/static/js/bootstrap.min.js "/"
+create_script apps/web/priv/static/n2o_bt/js apps/web/priv/static/js/reviews-bs.min.js \
 "/|jquery.tinymce.min.js|jquery-scrolltofixed.js|bootstrap-upload.js|bootstrap-carousel.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js|bootstrap-alert.js|bootstrap-affix.js"
-create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/index-bs.min.js \
+create_script apps/web/priv/static/n2o_bt/js apps/web/priv/static/js/index-bs.min.js \
 "/|jquery.tinymce.min.js|jquery-scrolltofixed.js|bootstrap-upload.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js|bootstrap-alert.js|bootstrap-affix.js"
-create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/login-bs.min.js \
+create_script apps/web/priv/static/n2o_bt/js apps/web/priv/static/js/login-bs.min.js \
 "/|jquery.tinymce.min.js|jquery-scrolltofixed.js|bootstrap-upload.js|bootstrap-carousel.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js|bootstrap-affix.js"
-create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/admin-bs.min.js \
+create_script apps/web/priv/static/n2o_bt/js apps/web/priv/static/js/admin-bs.min.js \
 "/|jquery-scrolltofixed.js|bootstrap-carousel.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js|bootstrap-affix.js"
-create_script deps/n2o/priv/static/bootstrap/js apps/web/priv/static/js/cart-bs.min.js \
+create_script apps/web/priv/static/n2o_bt/js apps/web/priv/static/js/cart-bs.min.js \
 "/|jquery.tinymce.min.js|jquery-scrolltofixed.js|bootstrap-upload.js|bootstrap-carousel.js|bootstrap-scrollspy.js|bootstrap-textboxlist.js|bootstrap-typeahead.js|bootstrap-tooltip.js|bootstrap-slider.js|bootstrap-select.js|bootstrap-popover.js|bootstrap-modal.js"
 
-create_script deps/n2o/priv/static/n2o apps/web/priv/static/js/all.min.js "/|all.js|zepto.js"
+create_script apps/web/priv/static/n2o apps/web/priv/static/js/all.min.js "/|all.js|zepto.js"
 
 echo $?

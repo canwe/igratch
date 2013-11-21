@@ -105,7 +105,7 @@ event({buy, Params, Order}) ->
                                     msg:notify( [kvs_feed, User#user.email, entry, delete],
                                                 [#entry{id={Pid,Fid}, entry_id=Pid, feed_id=Fid}]) end,
                                 msg:notify([kvs_payment, user, User#user.email, set_state],
-                                                 {V, ?MP_STATE_DONE, paypal}) end end || {K,V} <- Order],
+                                                 {V, done, paypal}) end end || {K,V} <- Order],
                     wf:redirect("/profile");
                 true ->
                     wf:info("[checkout] Fail status: ~p", [Status]),

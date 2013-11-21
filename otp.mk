@@ -1,29 +1,31 @@
 empty :=
 ROOTS := apps deps
 space := $(empty) $(empty)
+comma := $(empty),$(empty)
 VSN   := $(shell expr substr `git rev-parse HEAD` 1 6)
 DATE  := $(shell git show -s --format="%ci" HEAD | sed -e 's/\+/Z/g' -e 's/-/./g' -e 's/ /-/g' -e 's/:/./g')
 ERL_LIBS := $(subst $(space),:,$(ROOTS))
 PLT_NAME := .dialyzer.plt
+relx  := "{release,{$(RELEASE),\"$(VER)\"},[$(subst $(space),$(comma),$(APPS))]}.\\n{include_erts,true}.\
+\\n{extended_start_script,true}.\\n{generate_start_script,true}.\\n{sys_config,\"$(SYS)\"}.\
+\\n{vm_args,\"$(VM)\"}.\\n{overlay,[{mkdir,\"log/sasl\"}]}."
 
 test: eunit ct
 compile: get-deps static-link
 delete-deps get-deps compile clean update-deps:
 	rebar $@
 .applist:
-	./envgen.erl $(APPS) > $@
+	./depman.erl $(APPS) > $@
 $(RUN_DIR) $(LOG_DIR):
-	mkdir -p $(RUN_DIR)
-	mkdir -p $(LOG_DIR)
+	mkdir -p $(RUN_DIR) & mkdir -p $(LOG_DIR)
 console: .applist
-	ERL_LIBS=$(ERL_LIBS) erl $(ERL_ARGS) -eval \
-		'[ok = application:ensure_started(A, permanent) || A <- $(shell cat .applist)]'
+	ERL_LIBS=$(ERL_LIBS) erl $(ERL_ARGS) -eval '[application:start(A) || A <- $(shell cat .applist)]'
 start: $(RUN_DIR) $(LOG_DIR) .applist
 	ERL_LIBS=$(ERL_LIBS) run_erl -daemon $(RUN_DIR)/ $(LOG_DIR)/ "exec $(MAKE) console"
 attach:
 	to_erl $(RUN_DIR)/
 release:
-	relx
+	echo $(shell echo $(relx) > relx.config) & relx
 stop:
 	kill -9 `ps ax -o pid= -o command=|grep $(RELEASE)|grep $(COOKIE)|awk '{print $$1}'`
 $(PLT_NAME):
