@@ -38,6 +38,7 @@ body()->
                     #panel{id=all, class=["tab-pane", active], body=[
                         #feed_ui{icon=["icon-home ", "icon-large ", "text-warning"],
                                 icon_url="#all",
+                                class=articles,
                                 title=[],
                                 state=All}]},
                     [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups]]},
@@ -92,7 +93,7 @@ store_element(Id, P) ->
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    case Id of "all" -> []; _ -> wf:update(Id, index:feed(list_to_integer(Id))) end,
+    case Id of "all" -> []; _ -> wf:update(Id, index:feed(list_to_integer(Id),articles)) end,
     wf:wire("Holder.run();").
 
 event(init) -> wf:reg(?MAIN_CH),[];

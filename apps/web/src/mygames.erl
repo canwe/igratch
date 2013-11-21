@@ -27,6 +27,7 @@ body()->
                 IS = ?MYGAMES_INPUT(Id), wf:cache({?FD_INPUT(Id),?CTX#context.module}, IS), IS; IS -> IS end,
 
             #feed_ui{title= <<"my games">>,
+                     class=articles,
                      icon="icon-gamepad",
                      state=FeedState,
                      header=[ #input{state=InputState} ]} end) ++ index:footer().

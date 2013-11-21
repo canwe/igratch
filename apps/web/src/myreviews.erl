@@ -24,6 +24,7 @@ body()->
             InputState = case wf:cache({?FD_INPUT(Id),?CTX#context.module}) of undefined -> 
                 Is = ?MYREVIEWS_INPUT(Id), wf:cache({?FD_INPUT(Id),?CTX#context.module}, Is), Is; IS-> IS end,
             #feed_ui{title= title(),
+                class=[articles],
                 icon="icon-list",
                 state=FeedState,
                 header=[#input{state=InputState} ]} end ) ++ index:footer().
