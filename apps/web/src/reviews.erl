@@ -36,7 +36,9 @@ body()->
             #panel{class=["row-fluid"], body=[
                 #panel{class=[span9, "tab-content"], body=[
                     #panel{id=all, class=["tab-pane", active], body=[
-                        #feed_ui{icon=["icon-tags ", "icon-large ", "text-warning"], state=All} ]},
+                        #feed_ui{icon=["icon-tags ", "icon-large ", "text-warning"],
+                                class=[articles],
+                                state=All} ]},
 
                     [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups] ]},
                 #panel{class=[span3], body=[<<"">>]} ]} ]}]} ] ++ index:footer().
@@ -73,7 +75,7 @@ render_element(E)-> feed_ui:render_element(E).
 
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
-    case Id of "all" -> []; _ -> wf:update(Id, index:feed(list_to_integer(Id))) end,
+    case Id of "all" -> []; _ -> wf:update(Id, index:feed(list_to_integer(Id), articles)) end,
     wf:wire("Holder.run();").
 
 event(init) -> wf:reg(?MAIN_CH),[];

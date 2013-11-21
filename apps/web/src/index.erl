@@ -46,7 +46,7 @@ body() ->
                 #panel{class=["row-fluid"], body=[
                     #panel{class=[span8, "tab-content"], body=[
                         #panel{id=all, class=["tab-pane", active], body=[
-                            #feed_ui{title= <<"Reviews">>, icon=["icon-tags "], state=All} ]},
+                            #feed_ui{title= <<"Reviews">>, icon=["icon-tags "], class=[articles], state=All} ]},
                         [#panel{id=wf:to_list(Fid), class=["tab-pane"]}|| {_,Fid} <- Groups]
                     ]},
                     #aside{class=[span4], body=[
@@ -64,7 +64,9 @@ body() ->
                                         class="comments-flat",
                                         state=Discus} ]}]}]}]}]}] ++ footer().
 
-feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "], state=(wf:cache({Fid,?CTX#context.module}))#feed_state{js_escape=true}}.
+feed(Fid, Class) -> FU = feed(Fid), FU#feed_ui{class=[Class|FU#feed_ui.class]}.
+feed(Fid) -> #feed_ui{icon=["icon-tags ", "icon-large "],
+    state=(wf:cache({Fid,?CTX#context.module}))#feed_state{js_escape=true}}.
 
 featured() ->
   #carousel{class=["product-carousel"], items=case kvs:get(group, "featured") of
@@ -199,7 +201,7 @@ alert_inline(Msg) ->
 api_event(tabshow,Args,_) ->
     [Id|_] = string:tokens(Args,"\"#"),
     case Id of "all" -> []; 
-    _ -> wf:update(Id, feed(list_to_integer(Id))) end,
+    _ -> wf:update(Id, feed(list_to_integer(Id), articles)) end,
     wf:wire("Holder.run();");
 api_event(Name,Tag,Term) -> error_logger:info_msg("Name ~p, Tag ~p, Term ~p",[Name,Tag,Term]).
 
