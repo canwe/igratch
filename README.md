@@ -16,8 +16,8 @@ Then in Erlang console you should init the DB.
     > kvs:initialize().
     > kvs:init_db().
 
-Node Tools
-----------
+Node Tools for Designers
+------------------------
 
 For generating CSS scripts from LESS and LESS developing you should install node tools:
 
