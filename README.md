@@ -21,7 +21,7 @@ If something goes wrong you need to boot directly into console (bypass start and
 
     $ make console
     
-And debug the output.
+And debug the output. For full list of make options please refer to https://github.com/synrc/otp.mk/
 
 Database Initialization
 -----------------------
