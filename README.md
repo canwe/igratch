@@ -16,12 +16,22 @@ Install
     $ make
     $ make start
     $ make attach
+    
+If something goes wrong you need to boot directly into console (bypass start and attach)
+
+    $ make console
+    
+And debug the output.
+
+Database Initialization
+-----------------------
 
 Then in Erlang console you should init the DB.
 
     > kvs:join().
     > kvs:initialize().
     > kvs:init_db().
+    > 
 
 Node Tools for Designers
 ------------------------
